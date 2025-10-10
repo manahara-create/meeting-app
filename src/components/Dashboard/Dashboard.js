@@ -23,7 +23,8 @@ import {
   Pagination,
   Spin,
   Empty,
-  Result
+  Result,
+  Table
 } from 'antd';
 import {
   CalendarOutlined,
@@ -37,7 +38,8 @@ import {
   ClockCircleOutlined,
   WarningOutlined,
   ReloadOutlined,
-  FrownOutlined
+  FrownOutlined,
+  CalendarTwoTone
 } from '@ant-design/icons';
 import Calendar from 'antd/es/calendar';
 import { supabase } from '../../services/supabase';
@@ -90,6 +92,290 @@ const tableCategoryMapping = {
   'scmt_others': { type: 'task', categoryName: 'Other Operation Activities' }
 };
 
+// Enhanced Calendar Cell Component
+const EnhancedCalendarCell = ({ 
+  date, 
+  meetings = [], 
+  tasks = [], 
+  onDateClick,
+  isPersonal = false 
+}) => {
+  const totalActivities = meetings.length + tasks.length;
+  
+  // Determine cell color based on activity count
+  const getCellColor = () => {
+    if (totalActivities === 0) return 'transparent';
+    if (totalActivities <= 3) return '#e6f7ff'; // Light blue for 1-3 activities
+    if (totalActivities <= 7) return '#bae7ff'; // Medium blue for 4-7 activities
+    return '#69c0ff'; // Dark blue for 8+ activities
+  };
+
+  const getActivityLevel = () => {
+    if (totalActivities === 0) return 'No Activities';
+    if (totalActivities <= 3) return 'Light Schedule';
+    if (totalActivities <= 7) return 'Moderate Schedule';
+    return 'Busy Day';
+  };
+
+  const cellStyle = {
+    width: '100%',
+    height: '100%',
+    minHeight: '80px',
+    padding: '4px',
+    backgroundColor: getCellColor(),
+    border: totalActivities > 0 ? '2px solid #1890ff' : '1px solid #f0f0f0',
+    borderRadius: '4px',
+    cursor: totalActivities > 0 ? 'pointer' : 'default',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  };
+
+  const handleClick = () => {
+    if (totalActivities > 0) {
+      onDateClick(date, meetings, tasks);
+    }
+  };
+
+  return (
+    <div 
+      style={cellStyle}
+      onClick={handleClick}
+      onMouseEnter={(e) => {
+        if (totalActivities > 0) {
+          e.currentTarget.style.transform = 'scale(1.02)';
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (totalActivities > 0) {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = 'none';
+        }
+      }}
+    >
+      <div style={{ textAlign: 'right' }}>
+        <Text 
+          strong 
+          style={{ 
+            fontSize: '12px',
+            color: totalActivities > 0 ? '#1890ff' : '#00000073'
+          }}
+        >
+          {date.date()}
+        </Text>
+      </div>
+      
+      {totalActivities > 0 && (
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Badge 
+              count={totalActivities} 
+              size="small" 
+              style={{ 
+                backgroundColor: totalActivities <= 3 ? '#52c41a' : totalActivities <= 7 ? '#faad14' : '#f5222d',
+                fontSize: '10px'
+              }} 
+            />
+            <div style={{ display: 'flex', gap: '2px', flexDirection: 'column' }}>
+              {meetings.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                  <CalendarTwoTone style={{ fontSize: '8px' }} />
+                  <Text style={{ fontSize: '8px' }}>{meetings.length}M</Text>
+                </div>
+              )}
+              {tasks.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                  <CheckCircleOutlined style={{ fontSize: '8px', color: '#52c41a' }} />
+                  <Text style={{ fontSize: '8px' }}>{tasks.length}T</Text>
+                </div>
+              )}
+            </div>
+          </div>
+          <Text 
+            style={{ 
+              fontSize: '8px', 
+              color: '#666',
+              display: 'block',
+              marginTop: '2px'
+            }}
+          >
+            {getActivityLevel()}
+          </Text>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Date Activities Modal Component
+const DateActivitiesModal = ({ 
+  visible, 
+  onClose, 
+  selectedDate, 
+  meetings, 
+  tasks,
+  onMeetingClick 
+}) => {
+  // Helper function to get meeting title
+  const getMeetingTitle = (item) => {
+    if (!item) return 'Unknown Activity';
+    
+    if (item.title) return item.title;
+    if (item.meeting) return item.meeting;
+    if (item.college_name) return `${item.college_name} Session`;
+    if (item.customer_name) return `Visit: ${item.customer_name}`;
+    if (item.principle_name) return `Principle: ${item.principle_name}`;
+    if (item.promotional_activity) return item.promotional_activity;
+    if (item.type) return item.type;
+    if (item.topic) return item.topic;
+    return `${item.categoryName} Activity`;
+  };
+
+  const columns = [
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (type) => (
+        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
+          {type === 'meeting' ? 'Meeting' : 'Task'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+      render: (title, record) => (
+        <Button 
+          type="link" 
+          onClick={() => onMeetingClick(record)}
+          style={{ padding: 0, height: 'auto', textAlign: 'left' }}
+        >
+          {title}
+        </Button>
+      )
+    },
+    {
+      title: 'Department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
+      width: 120
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      key: 'priority',
+      width: 100,
+      render: (priority) => (
+        <Tag color={priorityColors[priority]}>
+          {priorityLabels[priority]}
+        </Tag>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status) => (
+        <Tag color={statusColors[status]}>
+          {status}
+        </Tag>
+      )
+    }
+  ];
+
+  const dataSource = [
+    ...meetings.map(meeting => ({
+      key: `meeting-${meeting.id}`,
+      type: 'meeting',
+      title: getMeetingTitle(meeting),
+      departmentName: meeting.departmentName,
+      priority: meeting.priority,
+      status: meeting.status,
+      ...meeting
+    })),
+    ...tasks.map(task => ({
+      key: `task-${task.id}`,
+      type: 'task',
+      title: getMeetingTitle(task),
+      departmentName: task.departmentName,
+      priority: task.priority,
+      status: task.status,
+      ...task
+    }))
+  ];
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <CalendarOutlined />
+          Activities for {selectedDate?.format('MMMM D, YYYY')}
+        </Space>
+      }
+      open={visible}
+      onCancel={onClose}
+      width={800}
+      footer={[
+        <Button key="close" onClick={onClose}>
+          Close
+        </Button>
+      ]}
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <Row gutter={16}>
+          <Col span={8}>
+            <Card size="small">
+              <Statistic
+                title="Total Activities"
+                value={meetings.length + tasks.length}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small">
+              <Statistic
+                title="Meetings"
+                value={meetings.length}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small">
+              <Statistic
+                title="Tasks"
+                value={tasks.length}
+                valueStyle={{ color: '#fa8c16' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          pagination={{ 
+            pageSize: 10,
+            showSizeChanger: false 
+          }}
+          scroll={{ y: 400 }}
+          size="small"
+          locale={{
+            emptyText: 'No activities scheduled for this date'
+          }}
+        />
+      </Space>
+    </Modal>
+  );
+};
+
 // Error boundary component for fallback UI
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
   <Result
@@ -110,6 +396,179 @@ const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
     <Spin size="large" tip={tip} />
   </div>
 );
+
+// Organizational Calendar Component
+const OrganizationalCalendar = React.memo(({ 
+  allMeetings, 
+  allTasks, 
+  calendarView,
+  onDateClick 
+}) => {
+  // Helper function to get date field based on table structure
+  const getDateFieldName = (tableName) => {
+    const dateFields = {
+      'bdm_customer_visit': 'schedule_date',
+      'bdm_principle_visit': 'visit_duration_start',
+      'bdm_weekly_meetings': 'date',
+      'bdm_college_session': 'start_date',
+      'bdm_promotional_activities': 'date',
+      'sales_operations_meetings': 'date',
+      'sales_operations_tasks': 'start_date',
+      'scmt_d_n_d': 'start_date',
+      'scmt_meetings_and_sessions': 'date',
+      'scmt_others': 'date'
+    };
+    return dateFields[tableName] || 'created_at';
+  };
+
+  const getMeetingDate = (item) => {
+    if (!item) return new Date().toISOString();
+    const dateField = getDateFieldName(item.sourceTable);
+    return item[dateField] || item.created_at || new Date().toISOString();
+  };
+
+  const cellRender = (value) => {
+    const dateMeetings = allMeetings.filter(meeting => {
+      try {
+        const meetingDate = dayjs(getMeetingDate(meeting));
+        return meetingDate.isSame(value, 'day');
+      } catch (error) {
+        console.warn('Error processing meeting date for calendar:', error);
+        return false;
+      }
+    });
+
+    const dateTasks = allTasks.filter(task => {
+      try {
+        const taskDate = dayjs(getMeetingDate(task));
+        return taskDate.isSame(value, 'day');
+      } catch (error) {
+        console.warn('Error processing task date for calendar:', error);
+        return false;
+      }
+    });
+
+    const handleDateClick = (date, meetings, tasks) => {
+      onDateClick(date, meetings, tasks);
+    };
+
+    return (
+      <EnhancedCalendarCell
+        date={value}
+        meetings={dateMeetings}
+        tasks={dateTasks}
+        onDateClick={handleDateClick}
+        isPersonal={false}
+      />
+    );
+  };
+
+  return (
+    <Calendar
+      cellRender={cellRender}
+      fullscreen={false}
+      mode={calendarView}
+      style={{ 
+        fontSize: '16px',
+        minHeight: '500px'
+      }}
+    />
+  );
+});
+
+// Personal Calendar Component
+const PersonalCalendar = React.memo(({ 
+  personalMeetings, 
+  getPersonalMeetings, 
+  getPersonalTasks,
+  calendarView,
+  onDateClick 
+}) => {
+  // Helper function to get date field based on table structure
+  const getDateFieldName = (tableName) => {
+    const dateFields = {
+      'bdm_customer_visit': 'schedule_date',
+      'bdm_principle_visit': 'visit_duration_start',
+      'bdm_weekly_meetings': 'date',
+      'bdm_college_session': 'start_date',
+      'bdm_promotional_activities': 'date',
+      'sales_operations_meetings': 'date',
+      'sales_operations_tasks': 'start_date',
+      'scmt_d_n_d': 'start_date',
+      'scmt_meetings_and_sessions': 'date',
+      'scmt_others': 'date'
+    };
+    return dateFields[tableName] || 'created_at';
+  };
+
+  const getMeetingDate = (item) => {
+    if (!item) return new Date().toISOString();
+    const dateField = getDateFieldName(item.sourceTable);
+    return item[dateField] || item.created_at || new Date().toISOString();
+  };
+
+  const cellRender = (value) => {
+    const personalMeetingsList = getPersonalMeetings();
+    const personalMeetingsData = personalMeetings.filter(meeting => {
+      try {
+        const meetingDate = dayjs(meeting.start_date);
+        return meetingDate.isSame(value, 'day');
+      } catch (error) {
+        console.warn('Error processing personal meeting date:', error);
+        return false;
+      }
+    });
+
+    const dateMeetings = [
+      ...personalMeetingsList.filter(meeting => {
+        try {
+          const meetingDate = dayjs(getMeetingDate(meeting));
+          return meetingDate.isSame(value, 'day');
+        } catch (error) {
+          console.warn('Error processing meeting date for personal calendar:', error);
+          return false;
+        }
+      }),
+      ...personalMeetingsData
+    ];
+
+    const dateTasks = getPersonalTasks().filter(task => {
+      try {
+        const taskDate = dayjs(getMeetingDate(task));
+        return taskDate.isSame(value, 'day');
+      } catch (error) {
+        console.warn('Error processing task date for personal calendar:', error);
+        return false;
+      }
+    });
+
+    const handleDateClick = (date, meetings, tasks) => {
+      onDateClick(date, meetings, tasks);
+    };
+
+    return (
+      <EnhancedCalendarCell
+        date={value}
+        meetings={dateMeetings}
+        tasks={dateTasks}
+        onDateClick={handleDateClick}
+        isPersonal={true}
+      />
+    );
+  };
+
+  return (
+    <Calendar
+      cellRender={cellRender}
+      fullscreen={false}
+      mode={calendarView}
+      style={{ 
+        fontSize: '16px',
+        minHeight: '500px'
+      }}
+    />
+  );
+});
 
 const Dashboard = () => {
   // State for error handling
@@ -148,11 +607,19 @@ const Dashboard = () => {
     personalMeetingsCount: 0
   });
 
-
   // Modal states
   const [isMeetingModalVisible, setIsMeetingModalVisible] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [calendarView, setCalendarView] = useState('month');
+
+  // New state for enhanced calendar
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [dateActivitiesModalVisible, setDateActivitiesModalVisible] = useState(false);
+  const [dateMeetings, setDateMeetings] = useState([]);
+  const [dateTasks, setDateTasks] = useState([]);
+
+  // Calendar key for forcing re-render
+  const [calendarKey, setCalendarKey] = useState(0);
 
   // Pagination states
   const [meetingsPage, setMeetingsPage] = useState(1);
@@ -203,6 +670,12 @@ const Dashboard = () => {
     } catch (err) {
       handleError(err, 'state update');
     }
+  };
+
+  // Handle tab change with calendar refresh
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setCalendarKey(prev => prev + 1); // Force calendar re-render
   };
 
   useEffect(() => {
@@ -293,6 +766,7 @@ const Dashboard = () => {
     try {
       await fetchDashboardData();
       safeSetState(setLastRefresh, new Date());
+      setCalendarKey(prev => prev + 1); // Force calendar re-render on manual refresh
       message.success('Dashboard refreshed successfully');
     } catch (error) {
       handleError(error, 'manual refresh');
@@ -318,8 +792,6 @@ const Dashboard = () => {
       handleError(error, 'toggle auto-refresh');
     }
   };
-
-
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -519,10 +991,10 @@ const Dashboard = () => {
     try {
       if (!item) return 'Not assigned';
       
-      if (item.responsible_bdm) return `BDM: ${item.responsible_bdm_2}`;
-      if (item.conducted_by) return `Conducted by: ${item.conducted_by_2}`;
-      if (item.responsible) return `Responsible: ${item.responsible_2}`;
-      if (item.organizor_id) return `Organizer: ${item.organizor_id_2}`;
+      if (item.responsible_bdm) return `BDM: ${item.responsible_bdm}`;
+      if (item.conducted_by) return `Conducted by: ${item.conducted_by}`;
+      if (item.responsible) return `Responsible: ${item.responsible}`;
+      if (item.organizor_id) return `Organizer: ${item.organizor_id}`;
       return 'Not assigned';
     } catch (error) {
       console.warn('Error getting responsible person:', error);
@@ -745,178 +1217,11 @@ const Dashboard = () => {
     }
   };
 
-  // Organizational Calendar Cell Render
-  const getOrganizationalDateCellRender = (value) => {
-    try {
-      const listData = allMeetings.filter(meeting => {
-        try {
-          const meetingDate = dayjs(getMeetingDate(meeting));
-          return meetingDate.isSame(value, 'day');
-        } catch (error) {
-          console.warn('Error processing meeting date for calendar:', error);
-          return false;
-        }
-      });
-
-      const highPriorityCount = listData.filter(meeting => meeting.priority >= 4).length;
-      const mediumPriorityCount = listData.filter(meeting => meeting.priority === 3).length;
-      const lowPriorityCount = listData.filter(meeting => meeting.priority <= 2).length;
-
-      return (
-        <div style={{ padding: '2px' }}>
-          {listData.length > 0 && (
-            <Badge
-              count={listData.length}
-              style={{
-                backgroundColor: '#1890ff',
-                fontSize: '10px',
-                marginBottom: '2px'
-              }}
-            />
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {highPriorityCount > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                <span style={{ fontSize: '8px' }}>🔴</span>
-                <Text style={{ fontSize: '8px' }}>{highPriorityCount}</Text>
-              </div>
-            )}
-            {mediumPriorityCount > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                <span style={{ fontSize: '8px' }}>🟡</span>
-                <Text style={{ fontSize: '8px' }}>{mediumPriorityCount}</Text>
-              </div>
-            )}
-            {lowPriorityCount > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                <span style={{ fontSize: '8px' }}>🟢</span>
-                <Text style={{ fontSize: '8px' }}>{lowPriorityCount}</Text>
-              </div>
-            )}
-          </div>
-
-          {listData.length > 0 && (
-            <Popover
-              content={
-                <div style={{ maxWidth: '200px' }}>
-                  <Text strong>Meetings on {value.format('MMM D')}:</Text>
-                  <ul style={{ paddingLeft: '16px', margin: '8px 0' }}>
-                    {listData.map(meeting => (
-                      <li key={`${meeting.sourceTable}-${meeting.id}`}>
-                        <Text
-                          style={{
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            color: priorityColors[meeting.priority] || '#666'
-                          }}
-                          onClick={() => handleMeetingClick(meeting)}
-                        >
-                          {meeting.priority >= 4 ? '🔴' : meeting.priority >= 3 ? '🟡' : '🟢'}
-                          {' '}{getMeetingTitle(meeting)}
-                        </Text>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              }
-              trigger="hover"
-            >
-              <div style={{ cursor: 'pointer', marginTop: '2px' }}>
-                <Text style={{ fontSize: '9px', color: '#666' }}>
-                  {listData.length} meeting{listData.length !== 1 ? 's' : ''}
-                </Text>
-              </div>
-            </Popover>
-          )}
-        </div>
-      );
-    } catch (error) {
-      console.warn('Error rendering organizational calendar cell:', error);
-      return <div style={{ padding: '2px' }}>Error</div>;
-    }
-  };
-
-  // Personal Calendar Cell Render
-  const getPersonalDateCellRender = (value) => {
-    try {
-      const personalMeetingsList = getPersonalMeetings();
-      const personalMeetingsData = personalMeetings.filter(meeting => {
-        try {
-          const meetingDate = dayjs(meeting.start_date);
-          return meetingDate.isSame(value, 'day');
-        } catch (error) {
-          console.warn('Error processing personal meeting date:', error);
-          return false;
-        }
-      });
-
-      const listData = [
-        ...personalMeetingsList.filter(meeting => {
-          try {
-            const meetingDate = dayjs(getMeetingDate(meeting));
-            return meetingDate.isSame(value, 'day');
-          } catch (error) {
-            console.warn('Error processing meeting date for personal calendar:', error);
-            return false;
-          }
-        }),
-        ...personalMeetingsData
-      ];
-
-      return (
-        <div style={{ padding: '2px' }}>
-          {listData.length > 0 && (
-            <Badge
-              count={listData.length}
-              style={{
-                backgroundColor: '#1890ff',
-                fontSize: '10px',
-                marginBottom: '2px'
-              }}
-            />
-          )}
-
-          {listData.length > 0 && (
-            <Popover
-              content={
-                <div style={{ maxWidth: '200px' }}>
-                  <Text strong>Activities on {value.format('MMM D')}:</Text>
-                  <ul style={{ paddingLeft: '16px', margin: '8px 0' }}>
-                    {listData.map((item, index) => (
-                      <li key={item.id || `${item.sourceTable}-${item.id}-${index}`}>
-                        <Text
-                          style={{
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            color: priorityColors[item.priority] || '#666'
-                          }}
-                          onClick={() => handleMeetingClick(item)}
-                        >
-                          {item.priority >= 4 ? '🔴' : item.priority >= 3 ? '🟡' : '🟢'}
-                          {' '}{getMeetingTitle(item)}
-                          {item.sourceTable === 'personal_meetings' && ' (Personal)'}
-                        </Text>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              }
-              trigger="hover"
-            >
-              <div style={{ cursor: 'pointer', marginTop: '2px' }}>
-                <Text style={{ fontSize: '9px', color: '#666' }}>
-                  {listData.length} activity{listData.length !== 1 ? 'ies' : ''}
-                </Text>
-              </div>
-            </Popover>
-          )}
-        </div>
-      );
-    } catch (error) {
-      console.warn('Error rendering personal calendar cell:', error);
-      return <div style={{ padding: '2px' }}>Error</div>;
-    }
+  const handleDateClick = (date, meetings, tasks) => {
+    setSelectedDate(date);
+    setDateMeetings(meetings);
+    setDateTasks(tasks);
+    setDateActivitiesModalVisible(true);
   };
 
   // Get paginated meetings and tasks
@@ -1032,7 +1337,7 @@ const Dashboard = () => {
         />
       )}
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
+      <Tabs activeKey={activeTab} onChange={handleTabChange}>
         {/* Organizational Dashboard */}
         <TabPane tab="Organizational View" key="organizational">
           {/* Statistics Row */}
@@ -1079,48 +1384,120 @@ const Dashboard = () => {
             </Col>
           </Row>
 
-          {/* Organizational Calendar and Meetings Panel */}
+          {/* Enhanced Calendar and Meetings Panel */}
           <Row gutter={16}>
-            <Col xs={24} lg={12}>
+            <Col xs={24} lg={16}>
               <Card
                 title="Organizational Calendar"
                 bordered={false}
                 extra={
-                  <Select
-                    value={calendarView}
-                    onChange={setCalendarView}
-                    style={{ width: 120 }}
-                  >
-                    <Option value="month">Month</Option>
-                  </Select>
+                  <Space>
+                    <Select
+                      value={calendarView}
+                      onChange={setCalendarView}
+                      style={{ width: 120 }}
+                    >
+                      <Option value="month">Month</Option>
+                      <Option value="week">Week</Option>
+                    </Select>
+                    <Button 
+                      icon={<SyncOutlined />} 
+                      onClick={manualRefresh}
+                      loading={isRefreshing}
+                      size="small"
+                    >
+                      Refresh
+                    </Button>
+                  </Space>
                 }
               >
-                <Calendar
-                  cellRender={getOrganizationalDateCellRender}
-                  fullscreen={false}
-                  mode={calendarView}
-                />
-                <div style={{ marginTop: '16px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                <div style={{ 
+                  border: '1px solid #f0f0f0', 
+                  borderRadius: '8px', 
+                  padding: '16px',
+                  backgroundColor: '#fff'
+                }}>
+                  <OrganizationalCalendar
+                    key={`org-calendar-${calendarKey}`}
+                    allMeetings={allMeetings}
+                    allTasks={allTasks}
+                    calendarView={calendarView}
+                    onDateClick={handleDateClick}
+                  />
+                </div>
+                
+                {/* Calendar Legend */}
+                <div style={{ 
+                  marginTop: '16px', 
+                  padding: '12px', 
+                  backgroundColor: '#f9f9f9', 
+                  borderRadius: '6px',
+                  border: '1px solid #e8e8e8'
+                }}>
                   <Text strong>Calendar Legend:</Text>
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '8px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>🔴</span>
-                      <Text style={{ fontSize: '12px' }}>High Priority (4-5)</Text>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>🟡</span>
-                      <Text style={{ fontSize: '12px' }}>Medium Priority (3)</Text>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>🟢</span>
-                      <Text style={{ fontSize: '12px' }}>Low Priority (1-2)</Text>
-                    </div>
-                  </div>
+                  <Row gutter={16} style={{ marginTop: '8px' }}>
+                    <Col span={6}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: 'transparent',
+                          border: '1px solid #d9d9d9',
+                          borderRadius: '2px'
+                        }}></div>
+                        <Text style={{ fontSize: '12px' }}>No Activities</Text>
+                      </div>
+                    </Col>
+                    <Col span={6}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#e6f7ff',
+                          border: '2px solid #1890ff',
+                          borderRadius: '2px'
+                        }}></div>
+                        <Text style={{ fontSize: '12px' }}>Light (1-3)</Text>
+                      </div>
+                    </Col>
+                    <Col span={6}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#bae7ff',
+                          border: '2px solid #1890ff',
+                          borderRadius: '2px'
+                        }}></div>
+                        <Text style={{ fontSize: '12px' }}>Moderate (4-7)</Text>
+                      </div>
+                    </Col>
+                    <Col span={6}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#69c0ff',
+                          border: '2px solid #1890ff',
+                          borderRadius: '2px'
+                        }}></div>
+                        <Text style={{ fontSize: '12px' }}>Busy (8+)</Text>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row gutter={16} style={{ marginTop: '8px' }}>
+                    <Col span={24}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        Click on any colored date to view detailed activities
+                      </Text>
+                    </Col>
+                  </Row>
                 </div>
               </Card>
             </Col>
-
-            <Col xs={24} lg={12}>
+          </Row>
+          
+            <Col xs={24} lg={8}>
               <Card title="Meetings & Tasks" bordered={false}>
                 <Tabs defaultActiveKey="meetings">
                   <TabPane tab="Meetings" key="meetings">
@@ -1276,35 +1653,92 @@ const Dashboard = () => {
                 </Tabs>
               </Card>
             </Col>
-          </Row>
         </TabPane>
 
         {/* Personal Dashboard */}
-        <TabPane tab="Personal Dashboard" key="personal">
+        <TabPane tab="Department Dashboard" key="personal">
           <Row gutter={16}>
-            <Col xs={24} lg={12}>
+            <Col xs={24} lg={16}>
               <Card
-                title="My Schedule Calendar"
+                title="Department Schedule Calendar"
                 bordered={false}
                 extra={
-                  <Select
-                    value={calendarView}
-                    onChange={setCalendarView}
-                    style={{ width: 120 }}
-                  >
-                    <Option value="month">Month</Option>
-                  </Select>
+                  <Space>
+                    <Select
+                      value={calendarView}
+                      onChange={setCalendarView}
+                      style={{ width: 120 }}
+                    >
+                      <Option value="month">Month</Option>
+                      <Option value="week">Week</Option>
+                    </Select>
+                    <Button 
+                      icon={<SyncOutlined />} 
+                      onClick={manualRefresh}
+                      loading={isRefreshing}
+                      size="small"
+                    >
+                      Refresh
+                    </Button>
+                  </Space>
                 }
               >
-                <Calendar
-                  cellRender={getPersonalDateCellRender}
-                  fullscreen={false}
-                  mode={calendarView}
-                />
+                <div style={{ 
+                  border: '1px solid #f0f0f0', 
+                  borderRadius: '8px', 
+                  padding: '16px',
+                  backgroundColor: '#fff'
+                }}>
+                  <PersonalCalendar
+                    key={`personal-calendar-${calendarKey}`}
+                    personalMeetings={personalMeetings}
+                    getPersonalMeetings={getPersonalMeetings}
+                    getPersonalTasks={getPersonalTasks}
+                    calendarView={calendarView}
+                    onDateClick={handleDateClick}
+                  />
+                </div>
+                
+                {/* Personal Calendar Legend */}
+                <div style={{ 
+                  marginTop: '16px', 
+                  padding: '12px', 
+                  backgroundColor: '#f9f9f9', 
+                  borderRadius: '6px',
+                  border: '1px solid #e8e8e8'
+                }}>
+                  <Text strong>Personal Calendar Legend:</Text>
+                  <Row gutter={16} style={{ marginTop: '8px' }}>
+                    <Col span={8}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CalendarTwoTone twoToneColor="#1890ff" />
+                        <Text style={{ fontSize: '12px' }}>Meetings</Text>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                        <Text style={{ fontSize: '12px' }}>Tasks</Text>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '2px',
+                          backgroundColor: '#e6f7ff',
+                          border: '1px solid #1890ff'
+                        }}></div>
+                        <Text style={{ fontSize: '12px' }}>Your Activities</Text>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
               </Card>
             </Col>
 
-            <Col xs={24} lg={12}>
+            <Col xs={24} lg={8}>
               <Card title="My Meetings & Tasks" bordered={false} style={{ marginTop: 16 }}>
                 <Tabs defaultActiveKey="meetings">
                   <TabPane tab="Meetings" key="meetings">
@@ -1417,6 +1851,16 @@ const Dashboard = () => {
           </Row>
         </TabPane>
       </Tabs>
+
+      {/* Date Activities Modal */}
+      <DateActivitiesModal
+        visible={dateActivitiesModalVisible}
+        onClose={() => setDateActivitiesModalVisible(false)}
+        selectedDate={selectedDate}
+        meetings={dateMeetings}
+        tasks={dateTasks}
+        onMeetingClick={handleMeetingClick}
+      />
 
       {/* Meeting Detail Modal */}
       <Modal

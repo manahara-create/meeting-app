@@ -115,7 +115,7 @@ const DashboardLayout = () => {
           color: 'white',
           fontWeight: 'bold'
         }}>
-          {collapsed ? 'MA' : 'Schedule Manager Pro'}
+          {collapsed ? 'SF' : 'Schedify'}
         </div>
         <Menu
           theme="dark"

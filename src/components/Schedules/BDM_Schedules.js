@@ -3,14 +3,15 @@ import {
     Card, Button, Row, Col, Typography, Table, DatePicker,
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
-    Tooltip, Badge, Timeline, Empty, Result
+    Tooltip, Badge, Timeline, Empty, Result, Descriptions
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
     UserOutlined, FilterOutlined, PlusOutlined,
     EditOutlined, DeleteOutlined, ScheduleOutlined,
     ExclamationCircleOutlined, ReloadOutlined, WarningOutlined,
-    MessageOutlined, WechatOutlined, SendOutlined
+    MessageOutlined, WechatOutlined, SendOutlined,
+    CloseOutlined, EyeOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -97,8 +98,23 @@ const DiscussionModal = ({
     const [sending, setSending] = useState(false);
     const [subscription, setSubscription] = useState(null);
 
-    // Add safety check for category
-    const feedbackTable = category ? `${category.table}_fb` : null;
+    // Get the correct feedback table name
+    const getFeedbackTable = () => {
+        if (!category) return null;
+        
+        // Map categories to their correct feedback tables
+        const tableMap = {
+            'customer_visit': 'bdm_customer_visit_fb',
+            'principle_visit': 'bdm_principle_visit_fb', 
+            'weekly_meetings': 'bdm_weekly_meetings_fb',
+            'college_sessions': 'bdm_college_session_fb',
+            'promotional_activities': 'bdm_promotional_activities_fb'
+        };
+        
+        return tableMap[category.id] || null;
+    };
+
+    const feedbackTable = getFeedbackTable();
 
     const fetchMessages = async () => {
         if (!record?.id || !category || !feedbackTable) {
@@ -160,8 +176,7 @@ const DiscussionModal = ({
                     meeting_id: record.id,
                     sender_id: currentUser.id,
                     content: newMessage.trim(),
-                    department_id: record.department_id,
-                    category_id: record.category_id
+                    created_at: new Date().toISOString()
                 }]);
 
             if (error) throw error;
@@ -310,6 +325,176 @@ const DiscussionModal = ({
     );
 };
 
+// User Schedule Modal Component
+const UserScheduleModal = ({
+    visible,
+    onCancel,
+    user,
+    schedule,
+    loading,
+    dateRange
+}) => {
+    const getScheduleItemColor = (item) => {
+        try {
+            switch (item.type) {
+                case 'personal_meeting':
+                    return 'blue';
+                case 'bdm_activity':
+                    return 'green';
+                default:
+                    return 'gray';
+            }
+        } catch (error) {
+            return 'gray';
+        }
+    };
+
+    const getScheduleItemIcon = (item) => {
+        try {
+            switch (item.type) {
+                case 'personal_meeting':
+                    return <UserOutlined />;
+                case 'bdm_activity':
+                    return <CalendarOutlined />;
+                default:
+                    return <ScheduleOutlined />;
+            }
+        } catch (error) {
+            return <ScheduleOutlined />;
+        }
+    };
+
+    const getActivityType = (item) => {
+        if (item.type === 'personal_meeting') return 'Personal Meeting';
+        if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
+        return 'Unknown Activity';
+    };
+
+    const safeDayjs = (date) => {
+        try {
+            if (!date) return dayjs();
+            return dayjs.isDayjs(date) ? date : dayjs(date);
+        } catch (error) {
+            return dayjs();
+        }
+    };
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <ScheduleOutlined />
+                    Detailed Schedule for {user?.full_name || user?.email}
+                    <Tag color="blue">
+                        {dateRange[0] ? safeDayjs(dateRange[0]).format('DD/MM/YYYY') : ''} - {dateRange[1] ? safeDayjs(dateRange[1]).format('DD/MM/YYYY') : ''}
+                    </Tag>
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={[
+                <Button key="close" onClick={onCancel} icon={<CloseOutlined />}>
+                    Close
+                </Button>
+            ]}
+            width={800}
+            style={{ top: 20 }}
+        >
+            {loading ? (
+                <LoadingSpinner tip="Loading user schedule..." />
+            ) : schedule.length > 0 ? (
+                <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+                    <Timeline>
+                        {schedule.map((item, index) => (
+                            <Timeline.Item
+                                key={index}
+                                color={getScheduleItemColor(item)}
+                                dot={getScheduleItemIcon(item)}
+                            >
+                                <div style={{ padding: '8px 0' }}>
+                                    <Descriptions 
+                                        size="small" 
+                                        column={1} 
+                                        bordered
+                                        style={{ marginBottom: 16 }}
+                                    >
+                                        <Descriptions.Item label="Activity Type">
+                                            <Tag color={getScheduleItemColor(item)}>
+                                                {getActivityType(item)}
+                                            </Tag>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Title">
+                                            <Text strong>
+                                                {item.topic || item.meeting || item.promotional_activity || 
+                                                 item.session || item.customer_name || item.principle_name || 
+                                                 item.activity_type || 'Unknown Activity'}
+                                            </Text>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Date">
+                                            <Space>
+                                                <CalendarOutlined />
+                                                {safeDayjs(item.start_date || item.date || item.schedule_date || item.visit_duration_start).format('DD/MM/YYYY')}
+                                                {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
+                                            </Space>
+                                        </Descriptions.Item>
+                                        {item.company && (
+                                            <Descriptions.Item label="Company">
+                                                {item.company}
+                                            </Descriptions.Item>
+                                        )}
+                                        {item.venue && (
+                                            <Descriptions.Item label="Venue">
+                                                <Tag color="blue">{item.venue}</Tag>
+                                            </Descriptions.Item>
+                                        )}
+                                        {item.description && (
+                                            <Descriptions.Item label="Description">
+                                                {item.description}
+                                            </Descriptions.Item>
+                                        )}
+                                        {item.remarks && (
+                                            <Descriptions.Item label="Remarks">
+                                                {item.remarks}
+                                            </Descriptions.Item>
+                                        )}
+                                        {item.objectives && (
+                                            <Descriptions.Item label="Objectives">
+                                                {item.objectives}
+                                            </Descriptions.Item>
+                                        )}
+                                        {item.purpose && (
+                                            <Descriptions.Item label="Purpose">
+                                                {item.purpose}
+                                            </Descriptions.Item>
+                                        )}
+                                    </Descriptions>
+                                </div>
+                            </Timeline.Item>
+                        ))}
+                    </Timeline>
+                    
+                    <Alert
+                        message={`Total ${schedule.length} scheduled items found`}
+                        type="info"
+                        showIcon
+                        style={{ marginTop: 16 }}
+                    />
+                </div>
+            ) : (
+                <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                        <Space direction="vertical">
+                            <Text>No scheduled activities found for this period</Text>
+                            <Text type="secondary">User is available during {dateRange[0] ? safeDayjs(dateRange[0]).format('DD/MM/YYYY') : ''} to {dateRange[1] ? safeDayjs(dateRange[1]).format('DD/MM/YYYY') : ''}</Text>
+                        </Space>
+                    }
+                />
+            )}
+        </Modal>
+    );
+};
+
 const BDM = () => {
     // Error handling states
     const [error, setError] = useState(null);
@@ -337,6 +522,16 @@ const BDM = () => {
     const [discussionModalVisible, setDiscussionModalVisible] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [unreadCounts, setUnreadCounts] = useState({});
+
+    // User Schedule Modal State
+    const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+
+    // Get default date range: yesterday to 9 days from today (total 10 days)
+    const getDefaultDateRange = () => {
+        const yesterday = dayjs().subtract(1, 'day');
+        const nineDaysFromToday = dayjs().add(9, 'day');
+        return [yesterday, nineDaysFromToday];
+    };
 
     // BDM Categories configuration
     const bdmCategories = [
@@ -443,31 +638,6 @@ const BDM = () => {
         }
     };
 
-    // Safe isBetween function with error handling
-    const safeIsBetween = (date, start, end, unit = 'day', inclusivity = '[]') => {
-        try {
-            const targetDate = safeDayjs(date);
-            const startDate = safeDayjs(start);
-            const endDate = safeDayjs(end);
-
-            if (!targetDate.isValid() || !startDate.isValid() || !endDate.isValid()) {
-                console.warn('Invalid dates in safeIsBetween:', { date, start, end });
-                return false;
-            }
-
-            if (typeof targetDate.isBetween !== 'function') {
-                console.warn('isBetween function not available, using fallback logic');
-                return (targetDate.isSameOrAfter(startDate, unit) &&
-                    targetDate.isSameOrBefore(endDate, unit));
-            }
-
-            return targetDate.isBetween(startDate, endDate, unit, inclusivity);
-        } catch (error) {
-            console.error('Error in safeIsBetween:', error);
-            return false;
-        }
-    };
-
     // Reset error boundary
     const resetErrorBoundary = () => {
         setError(null);
@@ -480,7 +650,18 @@ const BDM = () => {
         if (!currentUser || !records.length || !category) return;
 
         try {
-            const feedbackTable = `${category.table}_fb`;
+            // Get correct feedback table
+            const tableMap = {
+                'customer_visit': 'bdm_customer_visit_fb',
+                'principle_visit': 'bdm_principle_visit_fb', 
+                'weekly_meetings': 'bdm_weekly_meetings_fb',
+                'college_sessions': 'bdm_college_session_fb',
+                'promotional_activities': 'bdm_promotional_activities_fb'
+            };
+            
+            const feedbackTable = tableMap[category.id];
+            if (!feedbackTable) return;
+
             const counts = {};
 
             // Fetch unread counts for each record
@@ -512,6 +693,10 @@ const BDM = () => {
                 fetchProfiles(),
                 fetchBDMUsers()
             ]);
+            
+            // Set default date range after initialization
+            const defaultRange = getDefaultDateRange();
+            safeSetState(setDateRange, defaultRange);
         } catch (error) {
             handleError(error, 'initializing BDM module');
         } finally {
@@ -750,6 +935,10 @@ const BDM = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             form.resetFields();
+            
+            // Set default date range when category is selected
+            const defaultRange = getDefaultDateRange();
+            safeSetState(setDateRange, defaultRange);
         } catch (error) {
             handleError(error, 'selecting category');
         }
@@ -932,21 +1121,28 @@ const BDM = () => {
 
     const handleUserAvailabilityClick = () => {
         try {
+            // Set default date range for availability modal
+            const defaultRange = getDefaultDateRange();
+            
             safeSetState(setAvailabilityModalVisible, true);
             safeSetState(setSelectedUser, null);
             safeSetState(setUserSchedule, []);
-            safeSetState(setAvailabilityDateRange, [null, null]);
+            safeSetState(setAvailabilityDateRange, defaultRange);
         } catch (error) {
             handleError(error, 'opening availability modal');
         }
     };
 
-    const handleUserSelect = (user) => {
+    const handleUserSelect = async (user) => {
         try {
             safeSetState(setSelectedUser, user);
-            safeSetState(setUserSchedule, []);
+            
             if (availabilityDateRange[0] && availabilityDateRange[1]) {
-                fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
+                await fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
+                // Open the schedule modal after fetching data
+                safeSetState(setScheduleModalVisible, true);
+            } else {
+                message.warning('Please select a date range first');
             }
         } catch (error) {
             handleError(error, 'selecting user');
@@ -956,9 +1152,7 @@ const BDM = () => {
     const handleAvailabilityDateChange = (dates) => {
         try {
             safeSetState(setAvailabilityDateRange, dates || [null, null]);
-            if (selectedUser && dates && dates[0] && dates[1]) {
-                fetchUserSchedule(selectedUser.id, dates[0], dates[1]);
-            }
+            // Don't auto-fetch schedule when date changes, wait for user to click "View Schedule"
         } catch (error) {
             handleError(error, 'changing availability date range');
         }
@@ -1464,36 +1658,6 @@ const BDM = () => {
         }
     };
 
-    const getScheduleItemColor = (item) => {
-        try {
-            switch (item.type) {
-                case 'personal_meeting':
-                    return 'blue';
-                case 'bdm_activity':
-                    return 'green';
-                default:
-                    return 'gray';
-            }
-        } catch (error) {
-            return 'gray';
-        }
-    };
-
-    const getScheduleItemIcon = (item) => {
-        try {
-            switch (item.type) {
-                case 'personal_meeting':
-                    return <UserOutlined />;
-                case 'bdm_activity':
-                    return <CalendarOutlined />;
-                default:
-                    return <ScheduleOutlined />;
-            }
-        } catch (error) {
-            return <ScheduleOutlined />;
-        }
-    };
-
     // Render error state
     if (error && retryCount > 2) {
         return <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />;
@@ -1590,6 +1754,9 @@ const BDM = () => {
                         <Space>
                             <FilterOutlined />
                             Filter Data by Date Range
+                            <Tag color="blue">
+                                Default: {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
+                            </Tag>
                         </Space>
                     }
                     style={{ marginBottom: 24 }}
@@ -1608,6 +1775,7 @@ const BDM = () => {
                         <Text>Select date range to view {selectedCategory.name} data:</Text>
                         <RangePicker
                             onChange={handleDateRangeChange}
+                            value={dateRange}
                             style={{ width: '300px' }}
                             format="DD/MM/YYYY"
                             disabled={loading}
@@ -1615,6 +1783,9 @@ const BDM = () => {
                         {dateRange[0] && dateRange[1] && (
                             <Text type="secondary">
                                 Showing data from {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} to {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
+                                <Text style={{ marginLeft: 8, color: '#1890ff' }}>
+                                    (Default range: Yesterday to 9 days from today)
+                                </Text>
                             </Text>
                         )}
                     </Space>
@@ -1738,6 +1909,9 @@ const BDM = () => {
                     <Space>
                         <UserOutlined />
                         Check BDM Team Availability
+                        <Tag color="blue">
+                            Default: {availabilityDateRange[0] ? safeDayjs(availabilityDateRange[0]).format('DD/MM/YYYY') : ''} - {availabilityDateRange[1] ? safeDayjs(availabilityDateRange[1]).format('DD/MM/YYYY') : ''}
+                        </Tag>
                     </Space>
                 }
                 open={availabilityModalVisible}
@@ -1751,9 +1925,13 @@ const BDM = () => {
                     <Card size="small" title="Select Date Range">
                         <RangePicker
                             onChange={handleAvailabilityDateChange}
+                            value={availabilityDateRange}
                             style={{ width: '100%' }}
                             format="DD/MM/YYYY"
                         />
+                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                            Default range: Yesterday to 9 days from today
+                        </Text>
                     </Card>
 
                     {/* BDM Users List */}
@@ -1769,18 +1947,31 @@ const BDM = () => {
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
-                                            <Button
-                                                type="link"
-                                                onClick={() => handleUserSelect(user)}
-                                                disabled={!availabilityDateRange[0] || !availabilityDateRange[1]}
-                                                loading={availabilityLoading && selectedUser?.id === user.id}
+                                            <Tooltip 
+                                                key="view" 
+                                                title={!availabilityDateRange[0] || !availabilityDateRange[1] ? "Please select date range first" : "View detailed schedule"}
                                             >
-                                                View Schedule
-                                            </Button>
+                                                <Button
+                                                    type="primary"
+                                                    icon={<EyeOutlined />}
+                                                    onClick={() => handleUserSelect(user)}
+                                                    disabled={!availabilityDateRange[0] || !availabilityDateRange[1]}
+                                                    loading={availabilityLoading && selectedUser?.id === user.id}
+                                                    size="small"
+                                                >
+                                                    View Schedule
+                                                </Button>
+                                            </Tooltip>
                                         ]}
                                     >
                                         <List.Item.Meta
                                             title={user.full_name || user.email}
+                                            description={
+                                                <Badge 
+                                                    status="success" 
+                                                    text="BDM Team Member" 
+                                                />
+                                            }
                                         />
                                     </List.Item>
                                 )}
@@ -1788,90 +1979,16 @@ const BDM = () => {
                         )}
                     </Card>
 
-                    {/* User Schedule */}
-                    {selectedUser && (
-                        <Card
-                            size="small"
-                            title={
-                                <Space>
-                                    <ScheduleOutlined />
-                                    Schedule for {selectedUser.full_name || selectedUser.email}
-                                    {availabilityDateRange[0] && availabilityDateRange[1] && (
-                                        <Tag color="blue">
-                                            {safeDayjs(availabilityDateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(availabilityDateRange[1]).format('DD/MM/YYYY')}
-                                        </Tag>
-                                    )}
-                                </Space>
-                            }
-                            extra={
-                                <Badge
-                                    count={userSchedule.length}
-                                    showZero
-                                    color={userSchedule.length > 0 ? 'orange' : 'green'}
-                                />
-                            }
-                        >
-                            {availabilityLoading ? (
-                                <LoadingSpinner tip="Loading user schedule..." />
-                            ) : userSchedule.length > 0 ? (
-                                <Timeline>
-                                    {userSchedule.map((item, index) => (
-                                        <Timeline.Item
-                                            key={index}
-                                            color={getScheduleItemColor(item)}
-                                            dot={getScheduleItemIcon(item)}
-                                        >
-                                            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                                                <Text strong>
-                                                    {item.topic || item.meeting || item.promotional_activity || item.activity_type || 'Unknown Activity'}
-                                                </Text>
-                                                <Text type="secondary">
-                                                    {item.type === 'personal_meeting' ? 'Personal Meeting' : `BDM ${item.activity_type}`}
-                                                </Text>
-                                                <Space>
-                                                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                                                        {safeDayjs(item.start_date || item[selectedCategory?.dateField] || item.date).format('DD/MM/YYYY')}
-                                                        {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
-                                                    </Text>
-                                                    {item.venue && (
-                                                        <Tag size="small" color="blue">
-                                                            {item.venue}
-                                                        </Tag>
-                                                    )}
-                                                </Space>
-                                                {item.description && (
-                                                    <Text style={{ fontSize: '12px' }}>
-                                                        {item.description}
-                                                    </Text>
-                                                )}
-                                            </Space>
-                                        </Timeline.Item>
-                                    ))}
-                                </Timeline>
-                            ) : (
-                                <Empty
-                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description={
-                                        <Space direction="vertical">
-                                            <Text>No scheduled activities found</Text>
-                                            <Text type="secondary">User is available during this period</Text>
-                                        </Space>
-                                    }
-                                />
-                            )}
-                        </Card>
-                    )}
-
                     {/* Availability Tips */}
                     <Alert
                         message="Availability Check Tips"
                         description={
                             <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                <li>Select a date range to check user availability</li>
-                                <li>Click "View Schedule" to see user's detailed schedule</li>
-                                <li>Green timeline items indicate BDM activities</li>
-                                <li>Blue timeline items indicate personal meetings</li>
-                                <li>Empty schedule means the user is available</li>
+                                <li>Default date range is set to yesterday to 9 days from today</li>
+                                <li>Select a different date range if needed</li>
+                                <li>Click "View Schedule" to see user's detailed schedule in a popup</li>
+                                <li>The schedule popup shows comprehensive details of all activities</li>
+                                <li>Empty schedule means the user is available during the selected period</li>
                             </ul>
                         }
                         type="info"
@@ -1879,6 +1996,16 @@ const BDM = () => {
                     />
                 </Space>
             </Modal>
+
+            {/* User Schedule Modal */}
+            <UserScheduleModal
+                visible={scheduleModalVisible}
+                onCancel={() => setScheduleModalVisible(false)}
+                user={selectedUser}
+                schedule={userSchedule}
+                loading={availabilityLoading}
+                dateRange={availabilityDateRange}
+            />
 
             {/* Discussion Modal */}
             <DiscussionModal
@@ -1900,16 +2027,18 @@ const BDM = () => {
                                 <Text strong>Follow these steps:</Text>
                                 <ol>
                                     <li>Click on any category button above to select a data type</li>
-                                    <li>Select a date range using the date picker</li>
+                                    <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>View the filtered data in the table below</li>
                                     <li>Use the "Add New Record" button to create new entries</li>
                                     <li>Use Edit/Delete actions in the table to manage records</li>
                                     <li>Use "Discuss" button to participate in group discussions for each record</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
-                                    <li>Use "Check Users Availability" to view team schedules</li>
+                                    <li>Use "Check Users Availability" to view team schedules in popup windows</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different BDM activities and tasks recorded in the system.
+                                    Default date range shows data from yesterday to 9 days in the future (10 days total).
+                                    Schedule details now open in convenient popup windows for better visibility.
                                 </Text>
                             </div>
                         }
