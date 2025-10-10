@@ -52,21 +52,21 @@ const LoadingSpinner = ({ tip = "Loading SCMT data..." }) => (
 // Chat Message Component
 const ChatMessage = ({ message, currentUser, profiles }) => {
   const senderProfile = profiles.find(p => p.id === message.sender_id);
-  
+
   return (
-    <div style={{ 
-      display: 'flex', 
+    <div style={{
+      display: 'flex',
       marginBottom: 16,
       justifyContent: message.sender_id === currentUser?.id ? 'flex-end' : 'flex-start'
     }}>
-      <div style={{ 
+      <div style={{
         maxWidth: '70%',
         display: 'flex',
         flexDirection: message.sender_id === currentUser?.id ? 'row-reverse' : 'row',
         alignItems: 'flex-start'
       }}>
         <div>
-          <div style={{ 
+          <div style={{
             padding: '8px 12px',
             borderRadius: '12px',
             backgroundColor: message.sender_id === currentUser?.id ? '#1890ff' : '#f0f0f0',
@@ -85,13 +85,13 @@ const ChatMessage = ({ message, currentUser, profiles }) => {
 };
 
 // Discussion Modal Component
-const DiscussionModal = ({ 
-  visible, 
-  onCancel, 
-  record, 
-  category, 
+const DiscussionModal = ({
+  visible,
+  onCancel,
+  record,
+  category,
   currentUser,
-  profiles 
+  profiles
 }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -107,7 +107,7 @@ const DiscussionModal = ({
       console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -167,7 +167,7 @@ const DiscussionModal = ({
         }]);
 
       if (error) throw error;
-      
+
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -249,7 +249,7 @@ const DiscussionModal = ({
       title={
         <Space>
           <WechatOutlined />
-          Discussion: {record?.type || record?.supplier || 'Record'} 
+          Discussion: {record?.type || record?.supplier || 'Record'}
           {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
           {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
           {record?.date_of_arrival && ` - ${dayjs(record.date_of_arrival).format('DD/MM/YYYY')}`}
@@ -269,13 +269,13 @@ const DiscussionModal = ({
               <Spin tip="Loading messages..." />
             </div>
           ) : messages.length === 0 ? (
-            <Empty 
+            <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description="No messages yet. Start the discussion!"
             />
           ) : (
             messages.map(message => (
-              <ChatMessage 
+              <ChatMessage
                 key={message.id}
                 message={message}
                 currentUser={currentUser}
@@ -296,8 +296,8 @@ const DiscussionModal = ({
               autoSize={{ minRows: 1, maxRows: 4 }}
               disabled={sending}
             />
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<SendOutlined />}
               onClick={sendMessage}
               loading={sending}
@@ -326,7 +326,7 @@ const SCMT = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [form] = Form.useForm();
-  
+
   // User Availability States
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
   const [scmtUsers, setScmtUsers] = useState([]);
@@ -380,21 +380,21 @@ const SCMT = () => {
   // Error handler
   const handleError = (error, context = 'Unknown operation') => {
     console.error(`Error in ${context}:`, error);
-    
+
     const errorMessage = error?.message || 'An unexpected error occurred';
-    
+
     message.error({
       content: `Error in ${context}: ${errorMessage}`,
       duration: 5,
       key: `scmt-error-${context}`
     });
-    
+
     setError({
       message: errorMessage,
       context,
       timestamp: new Date().toISOString()
     });
-    
+
     return error;
   };
 
@@ -414,22 +414,22 @@ const SCMT = () => {
         console.warn('No date provided to safeDayjs');
         return dayjs();
       }
-      
+
       if (dayjs.isDayjs(date)) {
         return date;
       }
-      
+
       if (typeof date === 'string' || typeof date === 'number') {
         const parsedDate = format ? dayjs(date, format) : dayjs(date);
-        
+
         if (!parsedDate.isValid()) {
           console.warn('Invalid date provided:', date);
           return dayjs();
         }
-        
+
         return parsedDate;
       }
-      
+
       console.warn('Unsupported date type:', typeof date, date);
       return dayjs();
     } catch (error) {
@@ -444,18 +444,18 @@ const SCMT = () => {
       const targetDate = safeDayjs(date);
       const startDate = safeDayjs(start);
       const endDate = safeDayjs(end);
-      
+
       if (!targetDate.isValid() || !startDate.isValid() || !endDate.isValid()) {
         console.warn('Invalid dates in safeIsBetween:', { date, start, end });
         return false;
       }
-      
+
       if (typeof targetDate.isBetween !== 'function') {
         console.warn('isBetween function not available, using fallback logic');
-        return (targetDate.isSameOrAfter(startDate, unit) && 
-                targetDate.isSameOrBefore(endDate, unit));
+        return (targetDate.isSameOrAfter(startDate, unit) &&
+          targetDate.isSameOrBefore(endDate, unit));
       }
-      
+
       return targetDate.isBetween(startDate, endDate, unit, inclusivity);
     } catch (error) {
       console.error('Error in safeIsBetween:', error);
@@ -580,7 +580,7 @@ const SCMT = () => {
           safeSetState(setScmtUsers, allUsers || []);
           return;
         }
-        
+
         if (altDeptData) {
           const { data: usersData, error: usersError } = await supabase
             .from('profiles')
@@ -634,7 +634,7 @@ const SCMT = () => {
 
       if (error) throw error;
       safeSetState(setTableData, data || []);
-      
+
       // Fetch unread counts after loading table data
       if (data && data.length > 0) {
         fetchUnreadCounts(data, selectedCategory);
@@ -719,14 +719,14 @@ const SCMT = () => {
           const getDate = (item) => {
             return item.start_date || item[selectedCategory?.dateField] || item.date || item.created_at;
           };
-          
+
           const dateA = safeDayjs(getDate(a));
           const dateB = safeDayjs(getDate(b));
-          
+
           if (!dateA.isValid() || !dateB.isValid()) {
             return 0;
           }
-          
+
           return dateA - dateB;
         } catch (sortError) {
           console.warn('Error sorting schedule items:', sortError);
@@ -876,15 +876,15 @@ const SCMT = () => {
       // Check availability for responsible persons if dates are involved
       if (submitData.responsible_2 && (submitData.start_date || submitData.date)) {
         const eventDate = submitData.start_date || submitData.date;
-        const responsibleNames = Array.isArray(submitData.responsible_2) 
-          ? submitData.responsible_2 
+        const responsibleNames = Array.isArray(submitData.responsible_2)
+          ? submitData.responsible_2
           : [submitData.responsible_2];
 
         for (const personName of responsibleNames) {
-          const scmtUser = scmtUsers.find(user => 
+          const scmtUser = scmtUsers.find(user =>
             user.full_name === personName || user.email === personName
           );
-          
+
           if (scmtUser) {
             const availability = await checkUserAvailability(scmtUser.id, eventDate, eventDate);
             if (!availability.available) {
@@ -1076,24 +1076,24 @@ const SCMT = () => {
         case 'weekly_meetings_scmt':
           return [
             ...baseColumns,
-            { 
-              title: 'Supplier', 
-              dataIndex: 'supplier', 
-              key: 'supplier', 
+            {
+              title: 'Supplier',
+              dataIndex: 'supplier',
+              key: 'supplier',
               width: 150,
               render: (supplier) => supplier || '-'
             },
-            { 
-              title: 'PO Number', 
-              dataIndex: 'pord_no', 
-              key: 'pord_no', 
+            {
+              title: 'PO Number',
+              dataIndex: 'pord_no',
+              key: 'pord_no',
               width: 120,
               render: (pord_no) => pord_no || '-'
             },
-            { 
-              title: 'Reagent', 
-              dataIndex: 'reagent', 
-              key: 'reagent', 
+            {
+              title: 'Reagent',
+              dataIndex: 'reagent',
+              key: 'reagent',
               width: 80,
               render: (reagent) => (
                 <Tag color={reagent ? 'green' : 'red'}>
@@ -1101,10 +1101,10 @@ const SCMT = () => {
                 </Tag>
               )
             },
-            { 
-              title: 'Spare Part', 
-              dataIndex: 'spare_part', 
-              key: 'spare_part', 
+            {
+              title: 'Spare Part',
+              dataIndex: 'spare_part',
+              key: 'spare_part',
               width: 100,
               render: (spare_part) => (
                 <Tag color={spare_part ? 'green' : 'red'}>
@@ -1112,10 +1112,10 @@ const SCMT = () => {
                 </Tag>
               )
             },
-            { 
-              title: 'Instruments', 
-              dataIndex: 'instruments', 
-              key: 'instruments', 
+            {
+              title: 'Instruments',
+              dataIndex: 'instruments',
+              key: 'instruments',
               width: 100,
               render: (instruments) => (
                 <Tag color={instruments ? 'green' : 'red'}>
@@ -1123,10 +1123,10 @@ const SCMT = () => {
                 </Tag>
               )
             },
-            { 
-              title: 'Date of Arrival', 
-              dataIndex: 'date_of_arrival', 
-              key: 'date_of_arrival', 
+            {
+              title: 'Date of Arrival',
+              dataIndex: 'date_of_arrival',
+              key: 'date_of_arrival',
               width: 120,
               render: (date) => {
                 try {
@@ -1137,17 +1137,17 @@ const SCMT = () => {
                 }
               }
             },
-            { 
-              title: 'Mode', 
-              dataIndex: 'mode', 
-              key: 'mode', 
+            {
+              title: 'Mode',
+              dataIndex: 'mode',
+              key: 'mode',
               width: 100,
               render: (mode) => mode || '-'
             },
-            { 
-              title: 'Main Item List', 
-              dataIndex: 'main_item_list', 
-              key: 'main_item_list', 
+            {
+              title: 'Main Item List',
+              dataIndex: 'main_item_list',
+              key: 'main_item_list',
               width: 200,
               render: (items) => items || '-'
             },
@@ -1231,9 +1231,9 @@ const SCMT = () => {
                 label="Start Date"
                 rules={[{ required: true, message: 'Please select start date' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select start date"
                 />
               </Form.Item>
@@ -1249,9 +1249,9 @@ const SCMT = () => {
                 label="Meeting Date"
                 rules={[{ required: true, message: 'Please select meeting date' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select meeting date"
                 />
               </Form.Item>
@@ -1267,9 +1267,9 @@ const SCMT = () => {
                 label="Activity Date"
                 rules={[{ required: true, message: 'Please select activity date' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select activity date"
                 />
               </Form.Item>
@@ -1285,8 +1285,8 @@ const SCMT = () => {
                 label="Supplier"
                 rules={[{ required: true, message: 'Please enter supplier name' }]}
               >
-                <Input 
-                  placeholder="Enter supplier name" 
+                <Input
+                  placeholder="Enter supplier name"
                   prefix={<ShoppingOutlined />}
                 />
               </Form.Item>
@@ -1295,8 +1295,8 @@ const SCMT = () => {
                 name="pord_no"
                 label="PO Number"
               >
-                <Input 
-                  placeholder="Enter purchase order number" 
+                <Input
+                  placeholder="Enter purchase order number"
                   prefix={<ContainerOutlined />}
                 />
               </Form.Item>
@@ -1336,9 +1336,9 @@ const SCMT = () => {
                 label="Date of Arrival"
                 rules={[{ required: true, message: 'Please select date of arrival' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select date of arrival"
                 />
               </Form.Item>
@@ -1359,8 +1359,8 @@ const SCMT = () => {
                 name="main_item_list"
                 label="Main Item List"
               >
-                <TextArea 
-                  rows={4} 
+                <TextArea
+                  rows={4}
                   placeholder="Enter main item list details"
                 />
               </Form.Item>
@@ -1384,7 +1384,7 @@ const SCMT = () => {
 
       const totalRecords = tableData.length;
       const now = safeDayjs();
-      
+
       const upcomingRecords = tableData.filter(item => {
         try {
           const itemDate = safeDayjs(item[selectedCategory.dateField]);
@@ -1480,15 +1480,15 @@ const SCMT = () => {
           <TeamOutlined /> SCMT - Customer Care Department
         </Title>
         <Space>
-          <Button 
+          <Button
             icon={<ReloadOutlined />}
             onClick={resetErrorBoundary}
             loading={loading}
           >
             Refresh
           </Button>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<UserOutlined />}
             onClick={handleUserAvailabilityClick}
           >
@@ -1622,7 +1622,7 @@ const SCMT = () => {
           {loading ? (
             <LoadingSpinner tip={`Loading ${selectedCategory.name} data...`} />
           ) : tableData.length === 0 ? (
-            <Empty 
+            <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <Space direction="vertical">
@@ -1712,7 +1712,7 @@ const SCMT = () => {
           {/* SCMT Users List */}
           <Card size="small" title="SCMT Team Members">
             {scmtUsers.length === 0 ? (
-              <Empty 
+              <Empty
                 description="No SCMT team members found"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
@@ -1732,6 +1732,9 @@ const SCMT = () => {
                       </Button>
                     ]}
                   >
+                    <List.Item.Meta
+                      title={user.full_name || user.email}
+                    />
                   </List.Item>
                 )}
               />
@@ -1740,8 +1743,8 @@ const SCMT = () => {
 
           {/* User Schedule */}
           {selectedUser && (
-            <Card 
-              size="small" 
+            <Card
+              size="small"
               title={
                 <Space>
                   <ScheduleOutlined />
@@ -1754,9 +1757,9 @@ const SCMT = () => {
                 </Space>
               }
               extra={
-                <Badge 
-                  count={userSchedule.length} 
-                  showZero 
+                <Badge
+                  count={userSchedule.length}
+                  showZero
                   color={userSchedule.length > 0 ? 'orange' : 'green'}
                 />
               }
@@ -1804,7 +1807,7 @@ const SCMT = () => {
                   ))}
                 </Timeline>
               ) : (
-                <Empty 
+                <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description={
                     <Space direction="vertical">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Button, Row, Col, Typography, Table, DatePicker,
   Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
@@ -51,21 +51,21 @@ const LoadingSpinner = ({ tip = "Loading Sales Operations data..." }) => (
 // Chat Message Component
 const ChatMessage = ({ message, currentUser, profiles }) => {
   const senderProfile = profiles.find(p => p.id === message.sender_id);
-  
+
   return (
-    <div style={{ 
-      display: 'flex', 
+    <div style={{
+      display: 'flex',
       marginBottom: 16,
       justifyContent: message.sender_id === currentUser?.id ? 'flex-end' : 'flex-start'
     }}>
-      <div style={{ 
+      <div style={{
         maxWidth: '70%',
         display: 'flex',
         flexDirection: message.sender_id === currentUser?.id ? 'row-reverse' : 'row',
         alignItems: 'flex-start'
       }}>
         <div>
-          <div style={{ 
+          <div style={{
             padding: '8px 12px',
             borderRadius: '12px',
             backgroundColor: message.sender_id === currentUser?.id ? '#1890ff' : '#f0f0f0',
@@ -84,13 +84,13 @@ const ChatMessage = ({ message, currentUser, profiles }) => {
 };
 
 // Discussion Modal Component
-const DiscussionModal = ({ 
-  visible, 
-  onCancel, 
-  record, 
-  category, 
+const DiscussionModal = ({
+  visible,
+  onCancel,
+  record,
+  category,
   currentUser,
-  profiles 
+  profiles
 }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -101,12 +101,12 @@ const DiscussionModal = ({
   // Add safety check for category
   const feedbackTable = category ? `${category.table}_fb` : null;
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!record?.id || !category || !feedbackTable) {
       console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
       return;
     }
-    
+
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -123,9 +123,9 @@ const DiscussionModal = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [record, category, feedbackTable]);
 
-  const setupRealtimeSubscription = () => {
+  const setupRealtimeSubscription = useCallback(() => {
     if (!record?.id || !feedbackTable) return;
 
     const subscription = supabase
@@ -145,7 +145,7 @@ const DiscussionModal = ({
       .subscribe();
 
     setSubscription(subscription);
-  };
+  }, [record, feedbackTable]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !currentUser || !record?.id || !feedbackTable) {
@@ -166,7 +166,7 @@ const DiscussionModal = ({
         }]);
 
       if (error) throw error;
-      
+
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -176,7 +176,7 @@ const DiscussionModal = ({
     }
   };
 
-  const markMessagesAsRead = async () => {
+  const markMessagesAsRead = useCallback(async () => {
     if (!currentUser || messages.length === 0 || !feedbackTable) return;
 
     try {
@@ -195,7 +195,7 @@ const DiscussionModal = ({
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
-  };
+  }, [currentUser, messages, feedbackTable]);
 
   useEffect(() => {
     if (visible && record && category) {
@@ -208,13 +208,13 @@ const DiscussionModal = ({
         subscription.unsubscribe();
       }
     };
-  }, [visible, record, category]);
+  }, [visible, record, category, fetchMessages, setupRealtimeSubscription, subscription]);
 
   useEffect(() => {
     if (messages.length > 0) {
       markMessagesAsRead();
     }
-  }, [messages]);
+  }, [messages, markMessagesAsRead]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -248,7 +248,7 @@ const DiscussionModal = ({
       title={
         <Space>
           <WechatOutlined />
-          Discussion: {record?.meeting || record?.company || 'Record'} 
+          Discussion: {record?.meeting || record?.company || 'Record'}
           {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
           {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
         </Space>
@@ -267,13 +267,13 @@ const DiscussionModal = ({
               <Spin tip="Loading messages..." />
             </div>
           ) : messages.length === 0 ? (
-            <Empty 
+            <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description="No messages yet. Start the discussion!"
             />
           ) : (
             messages.map(message => (
-              <ChatMessage 
+              <ChatMessage
                 key={message.id}
                 message={message}
                 currentUser={currentUser}
@@ -294,8 +294,8 @@ const DiscussionModal = ({
               autoSize={{ minRows: 1, maxRows: 4 }}
               disabled={sending}
             />
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<SendOutlined />}
               onClick={sendMessage}
               loading={sending}
@@ -324,7 +324,7 @@ const SalesOperations = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [form] = Form.useForm();
-  
+
   // User Availability States
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
   const [salesOpsUsers, setSalesOpsUsers] = useState([]);
@@ -359,153 +359,99 @@ const SalesOperations = () => {
   ];
 
   // Error handler
-  const handleError = (error, context = 'Unknown operation') => {
+  const handleError = useCallback((error, context = 'Unknown operation') => {
     console.error(`Error in ${context}:`, error);
-    
+
     const errorMessage = error?.message || 'An unexpected error occurred';
-    
+
     message.error({
       content: `Error in ${context}: ${errorMessage}`,
       duration: 5,
       key: `sales-ops-error-${context}`
     });
-    
+
     setError({
       message: errorMessage,
       context,
       timestamp: new Date().toISOString()
     });
-    
+
     return error;
-  };
+  }, []);
 
   // Safe state update wrapper
-  const safeSetState = (setter, value) => {
+  const safeSetState = useCallback((setter, value) => {
     try {
       setter(value);
     } catch (err) {
       handleError(err, 'state update');
     }
-  };
+  }, [handleError]);
 
   // Safe date parsing function with enhanced error handling
-  const safeDayjs = (date, format = null) => {
+  const safeDayjs = useCallback((date, format = null) => {
     try {
       if (!date) {
         console.warn('No date provided to safeDayjs');
         return dayjs();
       }
-      
+
       if (dayjs.isDayjs(date)) {
         return date;
       }
-      
+
       if (typeof date === 'string' || typeof date === 'number') {
         const parsedDate = format ? dayjs(date, format) : dayjs(date);
-        
+
         if (!parsedDate.isValid()) {
           console.warn('Invalid date provided:', date);
           return dayjs();
         }
-        
+
         return parsedDate;
       }
-      
+
       console.warn('Unsupported date type:', typeof date, date);
       return dayjs();
     } catch (error) {
       console.error('Error parsing date:', date, error);
       return dayjs();
     }
-  };
+  }, []);
 
   // Safe isBetween function with error handling
-  const safeIsBetween = (date, start, end, unit = 'day', inclusivity = '[]') => {
+  const safeIsBetween = useCallback((date, start, end, unit = 'day', inclusivity = '[]') => {
     try {
       const targetDate = safeDayjs(date);
       const startDate = safeDayjs(start);
       const endDate = safeDayjs(end);
-      
+
       if (!targetDate.isValid() || !startDate.isValid() || !endDate.isValid()) {
         console.warn('Invalid dates in safeIsBetween:', { date, start, end });
         return false;
       }
-      
+
       if (typeof targetDate.isBetween !== 'function') {
         console.warn('isBetween function not available, using fallback logic');
-        return (targetDate.isSameOrAfter(startDate, unit) && 
-                targetDate.isSameOrBefore(endDate, unit));
+        return (targetDate.isSameOrAfter(startDate, unit) &&
+          targetDate.isSameOrBefore(endDate, unit));
       }
-      
+
       return targetDate.isBetween(startDate, endDate, unit, inclusivity);
     } catch (error) {
       console.error('Error in safeIsBetween:', error);
       return false;
     }
-  };
+  }, [safeDayjs]);
 
   // Reset error boundary
-  const resetErrorBoundary = () => {
+  const resetErrorBoundary = useCallback(() => {
     setError(null);
     setRetryCount(prev => prev + 1);
-    initializeSalesOps();
-  };
+  }, []);
 
-  // Fetch unread message counts for records
-  const fetchUnreadCounts = async (records, category) => {
-    if (!currentUser || !records.length || !category) return;
-
-    try {
-      const feedbackTable = `${category.table}_fb`;
-      const counts = {};
-
-      // Fetch unread counts for each record
-      for (const record of records) {
-        const { data, error } = await supabase
-          .from(feedbackTable)
-          .select('id')
-          .eq('meeting_id', record.id)
-          .neq('sender_id', currentUser.id)
-          .is('read_at', null);
-
-        if (!error) {
-          counts[record.id] = data?.length || 0;
-        }
-      }
-
-      safeSetState(setUnreadCounts, counts);
-    } catch (error) {
-      console.error('Error fetching unread counts:', error);
-    }
-  };
-
-  // Initialize Sales Operations module
-  const initializeSalesOps = async () => {
-    setLoading(true);
-    try {
-      await Promise.allSettled([
-        fetchCurrentUser(),
-        fetchProfiles(),
-        fetchSalesOpsUsers()
-      ]);
-    } catch (error) {
-      handleError(error, 'initializing Sales Operations module');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    initializeSalesOps();
-  }, [retryCount]);
-
-  useEffect(() => {
-    if (selectedCategory && dateRange[0] && dateRange[1]) {
-      fetchTableData();
-    }
-  }, [selectedCategory, dateRange]);
-
-  const fetchCurrentUser = async () => {
+  // Fetch current user
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
@@ -515,9 +461,10 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'fetching current user');
     }
-  };
+  }, [handleError, safeSetState]);
 
-  const fetchProfiles = async () => {
+  // Fetch profiles
+  const fetchProfiles = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -530,9 +477,10 @@ const SalesOperations = () => {
       handleError(error, 'fetching profiles');
       safeSetState(setProfiles, []);
     }
-  };
+  }, [handleError, safeSetState]);
 
-  const fetchSalesOpsUsers = async () => {
+  // Fetch sales ops users
+  const fetchSalesOpsUsers = useCallback(async () => {
     try {
       // First get the Sales Operations department ID
       const { data: deptData, error: deptError } = await supabase
@@ -561,7 +509,7 @@ const SalesOperations = () => {
           safeSetState(setSalesOpsUsers, allUsers || []);
           return;
         }
-        
+
         if (altDeptData) {
           const { data: usersData, error: usersError } = await supabase
             .from('profiles')
@@ -590,9 +538,38 @@ const SalesOperations = () => {
       handleError(error, 'fetching Sales Operations users');
       safeSetState(setSalesOpsUsers, []);
     }
-  };
+  }, [handleError, safeSetState]);
 
-  const fetchTableData = async () => {
+  // Fetch unread message counts for records
+  const fetchUnreadCounts = useCallback(async (records, category) => {
+    if (!currentUser || !records.length || !category) return;
+
+    try {
+      const feedbackTable = `${category.table}_fb`;
+      const counts = {};
+
+      // Fetch unread counts for each record
+      for (const record of records) {
+        const { data, error } = await supabase
+          .from(feedbackTable)
+          .select('id')
+          .eq('meeting_id', record.id)
+          .neq('sender_id', currentUser.id)
+          .is('read_at', null);
+
+        if (!error) {
+          counts[record.id] = data?.length || 0;
+        }
+      }
+
+      safeSetState(setUnreadCounts, counts);
+    } catch (error) {
+      console.error('Error fetching unread counts:', error);
+    }
+  }, [currentUser, safeSetState]);
+
+  // Fetch table data
+  const fetchTableData = useCallback(async () => {
     if (!selectedCategory || !dateRange[0] || !dateRange[1]) return;
 
     setLoading(true);
@@ -615,7 +592,7 @@ const SalesOperations = () => {
 
       if (error) throw error;
       safeSetState(setTableData, data || []);
-      
+
       // Fetch unread counts after loading table data
       if (data && data.length > 0) {
         fetchUnreadCounts(data, selectedCategory);
@@ -626,9 +603,37 @@ const SalesOperations = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, dateRange, safeDayjs, handleError, safeSetState, fetchUnreadCounts]);
 
-  const fetchUserSchedule = async (userId, startDate, endDate) => {
+  // Initialize Sales Operations module
+  const initializeSalesOps = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.allSettled([
+        fetchCurrentUser(),
+        fetchProfiles(),
+        fetchSalesOpsUsers()
+      ]);
+    } catch (error) {
+      handleError(error, 'initializing Sales Operations module');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchCurrentUser, fetchProfiles, fetchSalesOpsUsers, handleError]);
+
+  // Main initialization effect
+  useEffect(() => {
+    initializeSalesOps();
+  }, [initializeSalesOps, retryCount]);
+
+  // Fetch table data when category or date range changes
+  useEffect(() => {
+    if (selectedCategory && dateRange[0] && dateRange[1]) {
+      fetchTableData();
+    }
+  }, [selectedCategory, dateRange, fetchTableData]);
+
+  const fetchUserSchedule = useCallback(async (userId, startDate, endDate) => {
     if (!userId || !startDate || !endDate) {
       message.warning('Please provide user ID and date range');
       return;
@@ -700,14 +705,14 @@ const SalesOperations = () => {
           const getDate = (item) => {
             return item.start_date || item[selectedCategory?.dateField] || item.date || item.created_at;
           };
-          
+
           const dateA = safeDayjs(getDate(a));
           const dateB = safeDayjs(getDate(b));
-          
+
           if (!dateA.isValid() || !dateB.isValid()) {
             return 0;
           }
-          
+
           return dateA - dateB;
         } catch (sortError) {
           console.warn('Error sorting schedule items:', sortError);
@@ -722,9 +727,9 @@ const SalesOperations = () => {
     } finally {
       setAvailabilityLoading(false);
     }
-  };
+  }, [safeDayjs, selectedUser, safeSetState, handleError]);
 
-  const handleCategoryClick = (category) => {
+  const handleCategoryClick = useCallback((category) => {
     try {
       safeSetState(setSelectedCategory, category);
       safeSetState(setTableData, []);
@@ -733,17 +738,17 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'selecting category');
     }
-  };
+  }, [form, handleError, safeSetState]);
 
-  const handleDateRangeChange = (dates) => {
+  const handleDateRangeChange = useCallback((dates) => {
     try {
       safeSetState(setDateRange, dates || [null, null]);
     } catch (error) {
       handleError(error, 'changing date range');
     }
-  };
+  }, [handleError, safeSetState]);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     try {
       safeSetState(setEditingRecord, null);
       form.resetFields();
@@ -751,25 +756,25 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'creating new record');
     }
-  };
+  }, [form, handleError, safeSetState]);
 
-  const handleEdit = (record) => {
+  const handleEdit = useCallback((record) => {
     try {
       if (!record || !record.id) {
         throw new Error('Invalid record provided for editing');
       }
 
       safeSetState(setEditingRecord, record);
-      
+
       // Format dates for the form
       const formattedRecord = { ...record };
-      
+
       try {
         // Format date fields based on category
-        if (selectedCategory.id === 'meetings' && record.date) {
+        if (selectedCategory?.id === 'meetings' && record.date) {
           formattedRecord.date = safeDayjs(record.date);
         }
-        if (selectedCategory.id === 'special_tasks') {
+        if (selectedCategory?.id === 'special_tasks') {
           if (record.start_date) {
             formattedRecord.start_date = safeDayjs(record.start_date);
           }
@@ -787,9 +792,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'editing record');
     }
-  };
+  }, [selectedCategory, form, handleError, safeSetState, safeDayjs]);
 
-  const handleDelete = async (record) => {
+  const handleDelete = useCallback(async (record) => {
     try {
       if (!record?.id) throw new Error('Invalid record ID');
       if (!selectedCategory?.table) throw new Error('No category selected');
@@ -806,9 +811,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'deleting record');
     }
-  };
+  }, [selectedCategory, fetchTableData, handleError]);
 
-  const checkUserAvailability = async (userId, startDate, endDate) => {
+  const checkUserAvailability = useCallback(async (userId, startDate, endDate) => {
     try {
       if (!userId || !startDate || !endDate) {
         return { available: true, conflicts: [] };
@@ -833,9 +838,9 @@ const SalesOperations = () => {
       console.error('Error checking availability:', error);
       return { available: true, conflicts: [] };
     }
-  };
+  }, [safeDayjs]);
 
-  const handleFormSubmit = async (values) => {
+  const handleFormSubmit = useCallback(async (values) => {
     try {
       if (!selectedCategory?.table) {
         throw new Error('No category selected');
@@ -843,7 +848,7 @@ const SalesOperations = () => {
 
       // Prepare data for submission
       const submitData = { ...values };
-      
+
       // Convert dayjs objects to ISO strings with error handling
       Object.keys(submitData).forEach(key => {
         try {
@@ -859,15 +864,15 @@ const SalesOperations = () => {
       // Check availability for responsible persons if dates are involved
       if (submitData.conducted_by_2 && (submitData.date || submitData.start_date)) {
         const eventDate = submitData.date || submitData.start_date;
-        const conductedByNames = Array.isArray(submitData.conducted_by_2) 
-          ? submitData.conducted_by_2 
+        const conductedByNames = Array.isArray(submitData.conducted_by_2)
+          ? submitData.conducted_by_2
           : [submitData.conducted_by_2];
 
         for (const personName of conductedByNames) {
-          const salesOpsUser = salesOpsUsers.find(user => 
+          const salesOpsUser = salesOpsUsers.find(user =>
             user.full_name === personName || user.email === personName
           );
-          
+
           if (salesOpsUser) {
             const availability = await checkUserAvailability(salesOpsUser.id, eventDate, eventDate);
             if (!availability.available) {
@@ -901,9 +906,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'saving record');
     }
-  };
+  }, [selectedCategory, salesOpsUsers, checkUserAvailability, editingRecord, safeSetState, fetchTableData, handleError, safeDayjs]);
 
-  const handleUserAvailabilityClick = () => {
+  const handleUserAvailabilityClick = useCallback(() => {
     try {
       safeSetState(setAvailabilityModalVisible, true);
       safeSetState(setSelectedUser, null);
@@ -912,9 +917,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'opening availability modal');
     }
-  };
+  }, [handleError, safeSetState]);
 
-  const handleUserSelect = (user) => {
+  const handleUserSelect = useCallback((user) => {
     try {
       safeSetState(setSelectedUser, user);
       safeSetState(setUserSchedule, []);
@@ -924,9 +929,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'selecting user');
     }
-  };
+  }, [availabilityDateRange, fetchUserSchedule, handleError, safeSetState]);
 
-  const handleAvailabilityDateChange = (dates) => {
+  const handleAvailabilityDateChange = useCallback((dates) => {
     try {
       safeSetState(setAvailabilityDateRange, dates || [null, null]);
       if (selectedUser && dates && dates[0] && dates[1]) {
@@ -935,9 +940,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'changing availability date range');
     }
-  };
+  }, [selectedUser, fetchUserSchedule, handleError, safeSetState]);
 
-  const handleDiscussionClick = (record) => {
+  const handleDiscussionClick = useCallback((record) => {
     try {
       if (!selectedCategory) {
         message.warning('Please select a category first');
@@ -948,9 +953,9 @@ const SalesOperations = () => {
     } catch (error) {
       handleError(error, 'opening discussion');
     }
-  };
+  }, [selectedCategory, handleError, safeSetState]);
 
-  const getTableColumns = () => {
+  const getTableColumns = useCallback(() => {
     if (!selectedCategory) return [];
 
     try {
@@ -1049,9 +1054,9 @@ const SalesOperations = () => {
       handleError(error, 'generating table columns');
       return [];
     }
-  };
+  }, [selectedCategory, unreadCounts, handleDiscussionClick, handleEdit, handleDelete, safeDayjs, handleError]);
 
-  const getFormFields = () => {
+  const getFormFields = useCallback(() => {
     if (!selectedCategory) return null;
 
     try {
@@ -1083,9 +1088,9 @@ const SalesOperations = () => {
                 label="Meeting Date"
                 rules={[{ required: true, message: 'Please select meeting date' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select meeting date"
                 />
               </Form.Item>
@@ -1127,9 +1132,9 @@ const SalesOperations = () => {
                 label="Start Date"
                 rules={[{ required: true, message: 'Please select start date' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select start date"
                 />
               </Form.Item>
@@ -1137,9 +1142,9 @@ const SalesOperations = () => {
                 name="end_date"
                 label="End Date"
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  format="DD/MM/YYYY" 
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY"
                   placeholder="Select end date"
                 />
               </Form.Item>
@@ -1161,9 +1166,9 @@ const SalesOperations = () => {
       handleError(error, 'generating form fields');
       return <Alert message="Error loading form" type="error" />;
     }
-  };
+  }, [selectedCategory, salesOpsUsers, handleError]);
 
-  const getStats = () => {
+  const getStats = useCallback(() => {
     try {
       if (!selectedCategory || !tableData.length) {
         return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0 };
@@ -1171,7 +1176,7 @@ const SalesOperations = () => {
 
       const totalRecords = tableData.length;
       const now = safeDayjs();
-      
+
       const upcomingRecords = tableData.filter(item => {
         try {
           const itemDate = safeDayjs(item[selectedCategory.dateField]);
@@ -1197,9 +1202,9 @@ const SalesOperations = () => {
       console.error('Error calculating stats:', error);
       return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0 };
     }
-  };
+  }, [selectedCategory, tableData, safeDayjs]);
 
-  const getScheduleItemColor = (item) => {
+  const getScheduleItemColor = useCallback((item) => {
     try {
       switch (item.type) {
         case 'personal_meeting':
@@ -1212,9 +1217,9 @@ const SalesOperations = () => {
     } catch (error) {
       return 'gray';
     }
-  };
+  }, []);
 
-  const getScheduleItemIcon = (item) => {
+  const getScheduleItemIcon = useCallback((item) => {
     try {
       switch (item.type) {
         case 'personal_meeting':
@@ -1227,7 +1232,7 @@ const SalesOperations = () => {
     } catch (error) {
       return <ScheduleOutlined />;
     }
-  };
+  }, []);
 
   // Render error state
   if (error && retryCount > 2) {
@@ -1267,15 +1272,15 @@ const SalesOperations = () => {
           <RocketOutlined /> Sales Operations Department
         </Title>
         <Space>
-          <Button 
+          <Button
             icon={<ReloadOutlined />}
             onClick={resetErrorBoundary}
             loading={loading}
           >
             Refresh
           </Button>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<UserOutlined />}
             onClick={handleUserAvailabilityClick}
           >
@@ -1320,7 +1325,7 @@ const SalesOperations = () => {
 
       {/* Date Range Filter and Create Button */}
       {selectedCategory && (
-        <Card 
+        <Card
           title={
             <Space>
               <FilterOutlined />
@@ -1393,7 +1398,7 @@ const SalesOperations = () => {
 
       {/* Data Table */}
       {selectedCategory && dateRange[0] && dateRange[1] && (
-        <Card 
+        <Card
           title={`${selectedCategory.name} Data (${tableData.length} records)`}
           extra={
             <Tag color="blue">
@@ -1404,7 +1409,7 @@ const SalesOperations = () => {
           {loading ? (
             <LoadingSpinner tip={`Loading ${selectedCategory.name} data...`} />
           ) : tableData.length === 0 ? (
-            <Empty 
+            <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <Space direction="vertical">
@@ -1421,7 +1426,7 @@ const SalesOperations = () => {
                 pageSize: 10,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
+                showTotal: (total, range) =>
                   `${range[0]}-${range[1]} of ${total} items`
               }}
               scroll={{ x: true }}
@@ -1451,9 +1456,9 @@ const SalesOperations = () => {
           onFinish={handleFormSubmit}
         >
           {getFormFields()}
-          
+
           <Divider />
-          
+
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setModalVisible(false)}>
@@ -1494,7 +1499,7 @@ const SalesOperations = () => {
           {/* Sales Operations Users List */}
           <Card size="small" title="Sales Operations Team Members">
             {salesOpsUsers.length === 0 ? (
-              <Empty 
+              <Empty
                 description="No Sales Operations team members found"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
@@ -1514,6 +1519,9 @@ const SalesOperations = () => {
                       </Button>
                     ]}
                   >
+                    <List.Item.Meta
+                      title={user.full_name || user.email}
+                    />
                   </List.Item>
                 )}
               />
@@ -1522,8 +1530,8 @@ const SalesOperations = () => {
 
           {/* User Schedule */}
           {selectedUser && (
-            <Card 
-              size="small" 
+            <Card
+              size="small"
               title={
                 <Space>
                   <ScheduleOutlined />
@@ -1536,9 +1544,9 @@ const SalesOperations = () => {
                 </Space>
               }
               extra={
-                <Badge 
-                  count={userSchedule.length} 
-                  showZero 
+                <Badge
+                  count={userSchedule.length}
+                  showZero
                   color={userSchedule.length > 0 ? 'orange' : 'green'}
                 />
               }
@@ -1581,7 +1589,7 @@ const SalesOperations = () => {
                   ))}
                 </Timeline>
               ) : (
-                <Empty 
+                <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description={
                     <Space direction="vertical">

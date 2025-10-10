@@ -49,265 +49,265 @@ const LoadingSpinner = ({ tip = "Loading BDM data..." }) => (
 
 // Chat Message Component
 const ChatMessage = ({ message, currentUser, profiles }) => {
-  const senderProfile = profiles.find(p => p.id === message.sender_id);
-  
-  return (
-    <div style={{ 
-      display: 'flex', 
-      marginBottom: 16,
-      justifyContent: message.sender_id === currentUser?.id ? 'flex-end' : 'flex-start'
-    }}>
-      <div style={{ 
-        maxWidth: '70%',
-        display: 'flex',
-        flexDirection: message.sender_id === currentUser?.id ? 'row-reverse' : 'row',
-        alignItems: 'flex-start'
-      }}>
-        <div>
-          <div style={{ 
-            padding: '8px 12px',
-            borderRadius: '12px',
-            backgroundColor: message.sender_id === currentUser?.id ? '#1890ff' : '#f0f0f0',
-            color: message.sender_id === currentUser?.id ? 'white' : 'black'
-          }}>
-            {message.content}
-          </div>
-          <Text type="secondary" style={{ fontSize: '12px', marginTop: 4, display: 'block' }}>
-            {senderProfile?.full_name || 'Unknown User'} • {dayjs(message.created_at).format('DD/MM/YYYY HH:mm')}
-            {message.read_at && ` • Read ${dayjs(message.read_at).format('DD/MM/YYYY HH:mm')}`}
-          </Text>
+    const senderProfile = profiles.find(p => p.id === message.sender_id);
+
+    return (
+        <div style={{
+            display: 'flex',
+            marginBottom: 16,
+            justifyContent: message.sender_id === currentUser?.id ? 'flex-end' : 'flex-start'
+        }}>
+            <div style={{
+                maxWidth: '70%',
+                display: 'flex',
+                flexDirection: message.sender_id === currentUser?.id ? 'row-reverse' : 'row',
+                alignItems: 'flex-start'
+            }}>
+                <div>
+                    <div style={{
+                        padding: '8px 12px',
+                        borderRadius: '12px',
+                        backgroundColor: message.sender_id === currentUser?.id ? '#1890ff' : '#f0f0f0',
+                        color: message.sender_id === currentUser?.id ? 'white' : 'black'
+                    }}>
+                        {message.content}
+                    </div>
+                    <Text type="secondary" style={{ fontSize: '12px', marginTop: 4, display: 'block' }}>
+                        {senderProfile?.full_name || 'Unknown User'} • {dayjs(message.created_at).format('DD/MM/YYYY HH:mm')}
+                        {message.read_at && ` • Read ${dayjs(message.read_at).format('DD/MM/YYYY HH:mm')}`}
+                    </Text>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 // Discussion Modal Component
-const DiscussionModal = ({ 
-  visible, 
-  onCancel, 
-  record, 
-  category, 
-  currentUser,
-  profiles 
+const DiscussionModal = ({
+    visible,
+    onCancel,
+    record,
+    category,
+    currentUser,
+    profiles
 }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [subscription, setSubscription] = useState(null);
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [subscription, setSubscription] = useState(null);
 
-  // Add safety check for category
-  const feedbackTable = category ? `${category.table}_fb` : null;
+    // Add safety check for category
+    const feedbackTable = category ? `${category.table}_fb` : null;
 
-  const fetchMessages = async () => {
-    if (!record?.id || !category || !feedbackTable) {
-      console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from(feedbackTable)
-        .select('*')
-        .eq('meeting_id', record.id)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      message.error('Failed to load messages');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const setupRealtimeSubscription = () => {
-    if (!record?.id || !feedbackTable) return;
-
-    const subscription = supabase
-      .channel(`discussion_${record.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: feedbackTable,
-          filter: `meeting_id=eq.${record.id}`
-        },
-        (payload) => {
-          setMessages(prev => [...prev, payload.new]);
+    const fetchMessages = async () => {
+        if (!record?.id || !category || !feedbackTable) {
+            console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
+            return;
         }
-      )
-      .subscribe();
 
-    setSubscription(subscription);
-  };
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from(feedbackTable)
+                .select('*')
+                .eq('meeting_id', record.id)
+                .order('created_at', { ascending: true });
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !currentUser || !record?.id || !feedbackTable) {
-      message.warning('Cannot send message: Missing required data');
-      return;
-    }
-
-    setSending(true);
-    try {
-      const { error } = await supabase
-        .from(feedbackTable)
-        .insert([{
-          meeting_id: record.id,
-          sender_id: currentUser.id,
-          content: newMessage.trim(),
-          department_id: record.department_id,
-          category_id: record.category_id
-        }]);
-
-      if (error) throw error;
-      
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      message.error('Failed to send message');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    if (!currentUser || messages.length === 0 || !feedbackTable) return;
-
-    try {
-      const unreadMessages = messages.filter(
-        msg => msg.sender_id !== currentUser.id && !msg.read_at
-      );
-
-      if (unreadMessages.length === 0) return;
-
-      const { error } = await supabase
-        .from(feedbackTable)
-        .update({ read_at: new Date().toISOString() })
-        .in('id', unreadMessages.map(msg => msg.id));
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (visible && record && category) {
-      fetchMessages();
-      setupRealtimeSubscription();
-    }
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+            if (error) throw error;
+            setMessages(data || []);
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+            message.error('Failed to load messages');
+        } finally {
+            setLoading(false);
+        }
     };
-  }, [visible, record, category]);
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      markMessagesAsRead();
-    }
-  }, [messages]);
+    const setupRealtimeSubscription = () => {
+        if (!record?.id || !feedbackTable) return;
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+        const subscription = supabase
+            .channel(`discussion_${record.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: feedbackTable,
+                    filter: `meeting_id=eq.${record.id}`
+                },
+                (payload) => {
+                    setMessages(prev => [...prev, payload.new]);
+                }
+            )
+            .subscribe();
 
-  // Don't render if required data is missing
-  if (!category || !record) {
-    return (
-      <Modal
-        title="Discussion"
-        open={visible}
-        onCancel={onCancel}
-        footer={null}
-        width={700}
-      >
-        <Alert
-          message="Unable to load discussion"
-          description="Required data is missing. Please try again."
-          type="error"
-          showIcon
-        />
-      </Modal>
-    );
-  }
+        setSubscription(subscription);
+    };
 
-  return (
-    <Modal
-      title={
-        <Space>
-          <WechatOutlined />
-          Discussion: {record?.meeting || record?.company || record?.customer_name || 'Record'} 
-          {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
-          {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
-          {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
-        </Space>
-      }
-      open={visible}
-      onCancel={onCancel}
-      footer={null}
-      width={700}
-      style={{ top: 20 }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '60vh' }}>
-        {/* Messages Area */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <Spin tip="Loading messages..." />
-            </div>
-          ) : messages.length === 0 ? (
-            <Empty 
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No messages yet. Start the discussion!"
-            />
-          ) : (
-            messages.map(message => (
-              <ChatMessage 
-                key={message.id}
-                message={message}
-                currentUser={currentUser}
-                profiles={profiles}
-              />
-            ))
-          )}
-        </div>
+    const sendMessage = async () => {
+        if (!newMessage.trim() || !currentUser || !record?.id || !feedbackTable) {
+            message.warning('Cannot send message: Missing required data');
+            return;
+        }
 
-        {/* Input Area */}
-        <div style={{ borderTop: '1px solid #d9d9d9', paddingTop: 16 }}>
-          <Space.Compact style={{ width: '100%' }}>
-            <Input.TextArea
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message... (Press Enter to send)"
-              autoSize={{ minRows: 1, maxRows: 4 }}
-              disabled={sending}
-            />
-            <Button 
-              type="primary" 
-              icon={<SendOutlined />}
-              onClick={sendMessage}
-              loading={sending}
-              disabled={!newMessage.trim() || !feedbackTable}
+        setSending(true);
+        try {
+            const { error } = await supabase
+                .from(feedbackTable)
+                .insert([{
+                    meeting_id: record.id,
+                    sender_id: currentUser.id,
+                    content: newMessage.trim(),
+                    department_id: record.department_id,
+                    category_id: record.category_id
+                }]);
+
+            if (error) throw error;
+
+            setNewMessage('');
+        } catch (error) {
+            console.error('Error sending message:', error);
+            message.error('Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const markMessagesAsRead = async () => {
+        if (!currentUser || messages.length === 0 || !feedbackTable) return;
+
+        try {
+            const unreadMessages = messages.filter(
+                msg => msg.sender_id !== currentUser.id && !msg.read_at
+            );
+
+            if (unreadMessages.length === 0) return;
+
+            const { error } = await supabase
+                .from(feedbackTable)
+                .update({ read_at: new Date().toISOString() })
+                .in('id', unreadMessages.map(msg => msg.id));
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error marking messages as read:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (visible && record && category) {
+            fetchMessages();
+            setupRealtimeSubscription();
+        }
+
+        return () => {
+            if (subscription) {
+                subscription.unsubscribe();
+            }
+        };
+    }, [visible, record, category]);
+
+    useEffect(() => {
+        if (messages.length > 0) {
+            markMessagesAsRead();
+        }
+    }, [messages]);
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    };
+
+    // Don't render if required data is missing
+    if (!category || !record) {
+        return (
+            <Modal
+                title="Discussion"
+                open={visible}
+                onCancel={onCancel}
+                footer={null}
+                width={700}
             >
-              Send
-            </Button>
-          </Space.Compact>
-        </div>
-      </div>
-    </Modal>
-  );
+                <Alert
+                    message="Unable to load discussion"
+                    description="Required data is missing. Please try again."
+                    type="error"
+                    showIcon
+                />
+            </Modal>
+        );
+    }
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <WechatOutlined />
+                    Discussion: {record?.meeting || record?.company || record?.customer_name || 'Record'}
+                    {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
+                    {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
+                    {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={null}
+            width={700}
+            style={{ top: 20 }}
+        >
+            <div style={{ display: 'flex', flexDirection: 'column', height: '60vh' }}>
+                {/* Messages Area */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '20px' }}>
+                            <Spin tip="Loading messages..." />
+                        </div>
+                    ) : messages.length === 0 ? (
+                        <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description="No messages yet. Start the discussion!"
+                        />
+                    ) : (
+                        messages.map(message => (
+                            <ChatMessage
+                                key={message.id}
+                                message={message}
+                                currentUser={currentUser}
+                                profiles={profiles}
+                            />
+                        ))
+                    )}
+                </div>
+
+                {/* Input Area */}
+                <div style={{ borderTop: '1px solid #d9d9d9', paddingTop: 16 }}>
+                    <Space.Compact style={{ width: '100%' }}>
+                        <Input.TextArea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder="Type your message... (Press Enter to send)"
+                            autoSize={{ minRows: 1, maxRows: 4 }}
+                            disabled={sending}
+                        />
+                        <Button
+                            type="primary"
+                            icon={<SendOutlined />}
+                            onClick={sendMessage}
+                            loading={sending}
+                            disabled={!newMessage.trim() || !feedbackTable}
+                        >
+                            Send
+                        </Button>
+                    </Space.Compact>
+                </div>
+            </div>
+        </Modal>
+    );
 };
 
 const BDM = () => {
@@ -324,7 +324,7 @@ const BDM = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
-    
+
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
     const [bdmUsers, setBdmUsers] = useState([]);
@@ -385,21 +385,21 @@ const BDM = () => {
     // Error handler
     const handleError = (error, context = 'Unknown operation') => {
         console.error(`Error in ${context}:`, error);
-        
+
         const errorMessage = error?.message || 'An unexpected error occurred';
-        
+
         message.error({
             content: `Error in ${context}: ${errorMessage}`,
             duration: 5,
             key: `bdm-error-${context}`
         });
-        
+
         setError({
             message: errorMessage,
             context,
             timestamp: new Date().toISOString()
         });
-        
+
         return error;
     };
 
@@ -419,22 +419,22 @@ const BDM = () => {
                 console.warn('No date provided to safeDayjs');
                 return dayjs();
             }
-            
+
             if (dayjs.isDayjs(date)) {
                 return date;
             }
-            
+
             if (typeof date === 'string' || typeof date === 'number') {
                 const parsedDate = format ? dayjs(date, format) : dayjs(date);
-                
+
                 if (!parsedDate.isValid()) {
                     console.warn('Invalid date provided:', date);
                     return dayjs();
                 }
-                
+
                 return parsedDate;
             }
-            
+
             console.warn('Unsupported date type:', typeof date, date);
             return dayjs();
         } catch (error) {
@@ -449,18 +449,18 @@ const BDM = () => {
             const targetDate = safeDayjs(date);
             const startDate = safeDayjs(start);
             const endDate = safeDayjs(end);
-            
+
             if (!targetDate.isValid() || !startDate.isValid() || !endDate.isValid()) {
                 console.warn('Invalid dates in safeIsBetween:', { date, start, end });
                 return false;
             }
-            
+
             if (typeof targetDate.isBetween !== 'function') {
                 console.warn('isBetween function not available, using fallback logic');
-                return (targetDate.isSameOrAfter(startDate, unit) && 
-                        targetDate.isSameOrBefore(endDate, unit));
+                return (targetDate.isSameOrAfter(startDate, unit) &&
+                    targetDate.isSameOrBefore(endDate, unit));
             }
-            
+
             return targetDate.isBetween(startDate, endDate, unit, inclusivity);
         } catch (error) {
             console.error('Error in safeIsBetween:', error);
@@ -477,30 +477,30 @@ const BDM = () => {
 
     // Fetch unread message counts for records
     const fetchUnreadCounts = async (records, category) => {
-      if (!currentUser || !records.length || !category) return;
+        if (!currentUser || !records.length || !category) return;
 
-      try {
-        const feedbackTable = `${category.table}_fb`;
-        const counts = {};
+        try {
+            const feedbackTable = `${category.table}_fb`;
+            const counts = {};
 
-        // Fetch unread counts for each record
-        for (const record of records) {
-          const { data, error } = await supabase
-            .from(feedbackTable)
-            .select('id')
-            .eq('meeting_id', record.id)
-            .neq('sender_id', currentUser.id)
-            .is('read_at', null);
+            // Fetch unread counts for each record
+            for (const record of records) {
+                const { data, error } = await supabase
+                    .from(feedbackTable)
+                    .select('id')
+                    .eq('meeting_id', record.id)
+                    .neq('sender_id', currentUser.id)
+                    .is('read_at', null);
 
-          if (!error) {
-            counts[record.id] = data?.length || 0;
-          }
+                if (!error) {
+                    counts[record.id] = data?.length || 0;
+                }
+            }
+
+            safeSetState(setUnreadCounts, counts);
+        } catch (error) {
+            console.error('Error fetching unread counts:', error);
         }
-
-        safeSetState(setUnreadCounts, counts);
-      } catch (error) {
-        console.error('Error fetching unread counts:', error);
-      }
     };
 
     // Initialize BDM module
@@ -586,7 +586,7 @@ const BDM = () => {
                     safeSetState(setBdmUsers, allUsers || []);
                     return;
                 }
-                
+
                 safeSetState(setBdmUsers, []);
                 return;
             }
@@ -635,10 +635,10 @@ const BDM = () => {
 
             if (error) throw error;
             safeSetState(setTableData, data || []);
-            
+
             // Fetch unread counts after loading table data
             if (data && data.length > 0) {
-              fetchUnreadCounts(data, selectedCategory);
+                fetchUnreadCounts(data, selectedCategory);
             }
         } catch (error) {
             handleError(error, `fetching ${selectedCategory?.name} data`);
@@ -720,14 +720,14 @@ const BDM = () => {
                     const getDate = (item) => {
                         return item.start_date || item[selectedCategory?.dateField] || item.date || item.created_at;
                     };
-                    
+
                     const dateA = safeDayjs(getDate(a));
                     const dateB = safeDayjs(getDate(b));
-                    
+
                     if (!dateA.isValid() || !dateB.isValid()) {
                         return 0;
                     }
-                    
+
                     return dateA - dateB;
                 } catch (sortError) {
                     console.warn('Error sorting schedule items:', sortError);
@@ -888,15 +888,15 @@ const BDM = () => {
             // Check availability for responsible BDMs if dates are involved
             if (submitData.responsible_bdm_2 && (submitData.schedule_date || submitData.date || submitData.start_date)) {
                 const eventDate = submitData.schedule_date || submitData.date || submitData.start_date;
-                const bdmNames = Array.isArray(submitData.responsible_bdm_2) 
-                    ? submitData.responsible_bdm_2 
+                const bdmNames = Array.isArray(submitData.responsible_bdm_2)
+                    ? submitData.responsible_bdm_2
                     : [submitData.responsible_bdm_2];
 
                 for (const bdmName of bdmNames) {
-                    const bdmUser = bdmUsers.find(user => 
+                    const bdmUser = bdmUsers.find(user =>
                         user.full_name === bdmName || user.email === bdmName
                     );
-                    
+
                     if (bdmUser) {
                         const availability = await checkUserAvailability(bdmUser.id, eventDate, eventDate);
                         if (!availability.available) {
@@ -965,16 +965,16 @@ const BDM = () => {
     };
 
     const handleDiscussionClick = (record) => {
-      try {
-        if (!selectedCategory) {
-          message.warning('Please select a category first');
-          return;
+        try {
+            if (!selectedCategory) {
+                message.warning('Please select a category first');
+                return;
+            }
+            safeSetState(setSelectedRecord, record);
+            safeSetState(setDiscussionModalVisible, true);
+        } catch (error) {
+            handleError(error, 'opening discussion');
         }
-        safeSetState(setSelectedRecord, record);
-        safeSetState(setDiscussionModalVisible, true);
-      } catch (error) {
-        handleError(error, 'opening discussion');
-      }
     };
 
     const getTableColumns = () => {
@@ -987,45 +987,45 @@ const BDM = () => {
                 fixed: 'right',
                 width: 180,
                 render: (_, record) => (
-                  <Space size="small">
-                    <Tooltip title="Discuss">
-                      <Badge count={unreadCounts[record.id] || 0} size="small">
-                        <Button
-                          type={unreadCounts[record.id] > 0 ? "primary" : "default"}
-                          icon={<MessageOutlined />}
-                          onClick={() => handleDiscussionClick(record)}
-                          size="small"
-                          danger={unreadCounts[record.id] > 0}
-                        >
-                          Discuss
-                        </Button>
-                      </Badge>
-                    </Tooltip>
-                    <Button
-                        type="link"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEdit(record)}
-                        size="small"
-                    >
-                        Edit
-                    </Button>
-                    <Popconfirm
-                        title="Are you sure to delete this record?"
-                        onConfirm={() => handleDelete(record)}
-                        okText="Yes"
-                        cancelText="No"
-                        okType="danger"
-                    >
+                    <Space size="small">
+                        <Tooltip title="Discuss">
+                            <Badge count={unreadCounts[record.id] || 0} size="small">
+                                <Button
+                                    type={unreadCounts[record.id] > 0 ? "primary" : "default"}
+                                    icon={<MessageOutlined />}
+                                    onClick={() => handleDiscussionClick(record)}
+                                    size="small"
+                                    danger={unreadCounts[record.id] > 0}
+                                >
+                                    Discuss
+                                </Button>
+                            </Badge>
+                        </Tooltip>
                         <Button
                             type="link"
-                            danger
-                            icon={<DeleteOutlined />}
+                            icon={<EditOutlined />}
+                            onClick={() => handleEdit(record)}
                             size="small"
                         >
-                            Delete
+                            Edit
                         </Button>
-                    </Popconfirm>
-                  </Space>
+                        <Popconfirm
+                            title="Are you sure to delete this record?"
+                            onConfirm={() => handleDelete(record)}
+                            okText="Yes"
+                            cancelText="No"
+                            okType="danger"
+                        >
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                size="small"
+                            >
+                                Delete
+                            </Button>
+                        </Popconfirm>
+                    </Space>
                 ),
             };
 
@@ -1150,9 +1150,9 @@ const BDM = () => {
                                 label="Schedule Date"
                                 rules={[{ required: true, message: 'Please select schedule date' }]}
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select schedule date"
                                 />
                             </Form.Item>
@@ -1175,8 +1175,8 @@ const BDM = () => {
                                 name="roi"
                                 label="ROI"
                             >
-                                <InputNumber 
-                                    style={{ width: '100%' }} 
+                                <InputNumber
+                                    style={{ width: '100%' }}
                                     placeholder="Enter ROI value"
                                     min={0}
                                 />
@@ -1232,9 +1232,9 @@ const BDM = () => {
                                 label="Visit Start Date"
                                 rules={[{ required: true, message: 'Please select start date' }]}
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select visit start date"
                                 />
                             </Form.Item>
@@ -1242,9 +1242,9 @@ const BDM = () => {
                                 name="visit_duration_end"
                                 label="Visit End Date"
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select visit end date"
                                 />
                             </Form.Item>
@@ -1285,9 +1285,9 @@ const BDM = () => {
                                 label="Meeting Date"
                                 rules={[{ required: true, message: 'Please select meeting date' }]}
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
@@ -1331,9 +1331,9 @@ const BDM = () => {
                                 label="Start Date"
                                 rules={[{ required: true, message: 'Please select start date' }]}
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select session start date"
                                 />
                             </Form.Item>
@@ -1341,9 +1341,9 @@ const BDM = () => {
                                 name="end_date"
                                 label="End Date"
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select session end date"
                                 />
                             </Form.Item>
@@ -1377,9 +1377,9 @@ const BDM = () => {
                                 label="Activity Date"
                                 rules={[{ required: true, message: 'Please select activity date' }]}
                             >
-                                <DatePicker 
-                                    style={{ width: '100%' }} 
-                                    format="DD/MM/YYYY" 
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
                                     placeholder="Select activity date"
                                 />
                             </Form.Item>
@@ -1436,7 +1436,7 @@ const BDM = () => {
 
             const totalRecords = tableData.length;
             const now = safeDayjs();
-            
+
             const upcomingRecords = tableData.filter(item => {
                 try {
                     const itemDate = safeDayjs(item[selectedCategory.dateField]);
@@ -1532,15 +1532,15 @@ const BDM = () => {
                     <TeamOutlined /> BDM Department
                 </Title>
                 <Space>
-                    <Button 
+                    <Button
                         icon={<ReloadOutlined />}
                         onClick={resetErrorBoundary}
                         loading={loading}
                     >
                         Refresh
                     </Button>
-                    <Button 
-                        type="primary" 
+                    <Button
+                        type="primary"
                         icon={<UserOutlined />}
                         onClick={handleUserAvailabilityClick}
                     >
@@ -1669,7 +1669,7 @@ const BDM = () => {
                     {loading ? (
                         <LoadingSpinner tip={`Loading ${selectedCategory.name} data...`} />
                     ) : tableData.length === 0 ? (
-                        <Empty 
+                        <Empty
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description={
                                 <Space direction="vertical">
@@ -1759,7 +1759,7 @@ const BDM = () => {
                     {/* BDM Users List */}
                     <Card size="small" title="BDM Team Members">
                         {bdmUsers.length === 0 ? (
-                            <Empty 
+                            <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="No BDM team members found"
                             />
@@ -1779,6 +1779,9 @@ const BDM = () => {
                                             </Button>
                                         ]}
                                     >
+                                        <List.Item.Meta
+                                            title={user.full_name || user.email}
+                                        />
                                     </List.Item>
                                 )}
                             />
@@ -1787,8 +1790,8 @@ const BDM = () => {
 
                     {/* User Schedule */}
                     {selectedUser && (
-                        <Card 
-                            size="small" 
+                        <Card
+                            size="small"
                             title={
                                 <Space>
                                     <ScheduleOutlined />
@@ -1801,9 +1804,9 @@ const BDM = () => {
                                 </Space>
                             }
                             extra={
-                                <Badge 
-                                    count={userSchedule.length} 
-                                    showZero 
+                                <Badge
+                                    count={userSchedule.length}
+                                    showZero
                                     color={userSchedule.length > 0 ? 'orange' : 'green'}
                                 />
                             }
@@ -1846,7 +1849,7 @@ const BDM = () => {
                                     ))}
                                 </Timeline>
                             ) : (
-                                <Empty 
+                                <Empty
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     description={
                                         <Space direction="vertical">
