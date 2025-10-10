@@ -51,21 +51,21 @@ const LoadingSpinner = ({ tip = "Loading Sales Operations data..." }) => (
 // Chat Message Component
 const ChatMessage = ({ message, currentUser, profiles }) => {
   const senderProfile = profiles.find(p => p.id === message.sender_id);
-
+  
   return (
-    <div style={{
-      display: 'flex',
+    <div style={{ 
+      display: 'flex', 
       marginBottom: 16,
       justifyContent: message.sender_id === currentUser?.id ? 'flex-end' : 'flex-start'
     }}>
-      <div style={{
+      <div style={{ 
         maxWidth: '70%',
         display: 'flex',
         flexDirection: message.sender_id === currentUser?.id ? 'row-reverse' : 'row',
         alignItems: 'flex-start'
       }}>
         <div>
-          <div style={{
+          <div style={{ 
             padding: '8px 12px',
             borderRadius: '12px',
             backgroundColor: message.sender_id === currentUser?.id ? '#1890ff' : '#f0f0f0',
@@ -84,13 +84,13 @@ const ChatMessage = ({ message, currentUser, profiles }) => {
 };
 
 // Discussion Modal Component
-const DiscussionModal = ({
-  visible,
-  onCancel,
-  record,
-  category,
+const DiscussionModal = ({ 
+  visible, 
+  onCancel, 
+  record, 
+  category, 
   currentUser,
-  profiles
+  profiles 
 }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -106,7 +106,7 @@ const DiscussionModal = ({
       console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
       return;
     }
-
+    
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -166,7 +166,7 @@ const DiscussionModal = ({
         }]);
 
       if (error) throw error;
-
+      
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -248,7 +248,7 @@ const DiscussionModal = ({
       title={
         <Space>
           <WechatOutlined />
-          Discussion: {record?.meeting || record?.company || 'Record'}
+          Discussion: {record?.meeting || record?.company || 'Record'} 
           {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
           {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
         </Space>
@@ -267,13 +267,13 @@ const DiscussionModal = ({
               <Spin tip="Loading messages..." />
             </div>
           ) : messages.length === 0 ? (
-            <Empty
+            <Empty 
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description="No messages yet. Start the discussion!"
             />
           ) : (
             messages.map(message => (
-              <ChatMessage
+              <ChatMessage 
                 key={message.id}
                 message={message}
                 currentUser={currentUser}
@@ -294,8 +294,8 @@ const DiscussionModal = ({
               autoSize={{ minRows: 1, maxRows: 4 }}
               disabled={sending}
             />
-            <Button
-              type="primary"
+            <Button 
+              type="primary" 
               icon={<SendOutlined />}
               onClick={sendMessage}
               loading={sending}
@@ -309,6 +309,26 @@ const DiscussionModal = ({
     </Modal>
   );
 };
+
+// Move salesOpsCategories outside the component to make it constant
+const SALES_OPS_CATEGORIES = [
+  {
+    id: 'meetings',
+    name: 'Meetings',
+    table: 'sales_operations_meetings',
+    type: 'Meeting',
+    icon: <CalendarOutlined />,
+    dateField: 'date'
+  },
+  {
+    id: 'special_tasks',
+    name: 'Special Tasks',
+    table: 'sales_operations_tasks',
+    type: 'Task',
+    icon: <CheckCircleOutlined />,
+    dateField: 'start_date'
+  }
+];
 
 const SalesOperations = () => {
   // Error handling states
@@ -324,7 +344,7 @@ const SalesOperations = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [form] = Form.useForm();
-
+  
   // User Availability States
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
   const [salesOpsUsers, setSalesOpsUsers] = useState([]);
@@ -338,44 +358,24 @@ const SalesOperations = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
 
-  // Sales Operations Categories configuration
-  const salesOpsCategories = [
-    {
-      id: 'meetings',
-      name: 'Meetings',
-      table: 'sales_operations_meetings',
-      type: 'Meeting',
-      icon: <CalendarOutlined />,
-      dateField: 'date'
-    },
-    {
-      id: 'special_tasks',
-      name: 'Special Tasks',
-      table: 'sales_operations_tasks',
-      type: 'Task',
-      icon: <CheckCircleOutlined />,
-      dateField: 'start_date'
-    }
-  ];
-
   // Error handler
   const handleError = useCallback((error, context = 'Unknown operation') => {
     console.error(`Error in ${context}:`, error);
-
+    
     const errorMessage = error?.message || 'An unexpected error occurred';
-
+    
     message.error({
       content: `Error in ${context}: ${errorMessage}`,
       duration: 5,
       key: `sales-ops-error-${context}`
     });
-
+    
     setError({
       message: errorMessage,
       context,
       timestamp: new Date().toISOString()
     });
-
+    
     return error;
   }, []);
 
@@ -395,22 +395,22 @@ const SalesOperations = () => {
         console.warn('No date provided to safeDayjs');
         return dayjs();
       }
-
+      
       if (dayjs.isDayjs(date)) {
         return date;
       }
-
+      
       if (typeof date === 'string' || typeof date === 'number') {
         const parsedDate = format ? dayjs(date, format) : dayjs(date);
-
+        
         if (!parsedDate.isValid()) {
           console.warn('Invalid date provided:', date);
           return dayjs();
         }
-
+        
         return parsedDate;
       }
-
+      
       console.warn('Unsupported date type:', typeof date, date);
       return dayjs();
     } catch (error) {
@@ -425,18 +425,18 @@ const SalesOperations = () => {
       const targetDate = safeDayjs(date);
       const startDate = safeDayjs(start);
       const endDate = safeDayjs(end);
-
+      
       if (!targetDate.isValid() || !startDate.isValid() || !endDate.isValid()) {
         console.warn('Invalid dates in safeIsBetween:', { date, start, end });
         return false;
       }
-
+      
       if (typeof targetDate.isBetween !== 'function') {
         console.warn('isBetween function not available, using fallback logic');
-        return (targetDate.isSameOrAfter(startDate, unit) &&
-          targetDate.isSameOrBefore(endDate, unit));
+        return (targetDate.isSameOrAfter(startDate, unit) && 
+                targetDate.isSameOrBefore(endDate, unit));
       }
-
+      
       return targetDate.isBetween(startDate, endDate, unit, inclusivity);
     } catch (error) {
       console.error('Error in safeIsBetween:', error);
@@ -509,7 +509,7 @@ const SalesOperations = () => {
           safeSetState(setSalesOpsUsers, allUsers || []);
           return;
         }
-
+        
         if (altDeptData) {
           const { data: usersData, error: usersError } = await supabase
             .from('profiles')
@@ -592,7 +592,7 @@ const SalesOperations = () => {
 
       if (error) throw error;
       safeSetState(setTableData, data || []);
-
+      
       // Fetch unread counts after loading table data
       if (data && data.length > 0) {
         fetchUnreadCounts(data, selectedCategory);
@@ -633,6 +633,7 @@ const SalesOperations = () => {
     }
   }, [selectedCategory, dateRange, fetchTableData]);
 
+  // Fixed fetchUserSchedule with all dependencies included
   const fetchUserSchedule = useCallback(async (userId, startDate, endDate) => {
     if (!userId || !startDate || !endDate) {
       message.warning('Please provide user ID and date range');
@@ -661,7 +662,7 @@ const SalesOperations = () => {
 
       // Fetch Sales Operations activities for the user with Promise.allSettled for resilience
       let salesOpsActivities = [];
-      const salesOpsPromises = salesOpsCategories.map(async (category) => {
+      const salesOpsPromises = SALES_OPS_CATEGORIES.map(async (category) => {
         try {
           let query = supabase
             .from(category.table)
@@ -670,7 +671,11 @@ const SalesOperations = () => {
             .lte(category.dateField, formattedEnd);
 
           // Try different user matching strategies
-          query = query.or(`conducted_by.eq.${userId},conducted_by_2.ilike.%${selectedUser?.full_name}%,conducted_by_2.ilike.%${selectedUser?.email}%`);
+          const userSearchCondition = selectedUser ? 
+            `conducted_by.eq.${userId},conducted_by_2.ilike.%${selectedUser.full_name}%,conducted_by_2.ilike.%${selectedUser.email}%` :
+            `conducted_by.eq.${userId}`;
+
+          query = query.or(userSearchCondition);
 
           const { data: activities, error: activityError } = await query;
 
@@ -703,16 +708,18 @@ const SalesOperations = () => {
       ].sort((a, b) => {
         try {
           const getDate = (item) => {
-            return item.start_date || item[selectedCategory?.dateField] || item.date || item.created_at;
+            // Use selectedCategory's dateField if available, otherwise fall back to common date fields
+            const dateField = selectedCategory?.dateField || 'start_date';
+            return item[dateField] || item.date || item.start_date || item.created_at;
           };
-
+          
           const dateA = safeDayjs(getDate(a));
           const dateB = safeDayjs(getDate(b));
-
+          
           if (!dateA.isValid() || !dateB.isValid()) {
             return 0;
           }
-
+          
           return dateA - dateB;
         } catch (sortError) {
           console.warn('Error sorting schedule items:', sortError);
@@ -727,7 +734,7 @@ const SalesOperations = () => {
     } finally {
       setAvailabilityLoading(false);
     }
-  }, [safeDayjs, selectedUser, safeSetState, handleError]);
+  }, [safeDayjs, selectedUser, selectedCategory, safeSetState, handleError]);
 
   const handleCategoryClick = useCallback((category) => {
     try {
@@ -765,10 +772,10 @@ const SalesOperations = () => {
       }
 
       safeSetState(setEditingRecord, record);
-
+      
       // Format dates for the form
       const formattedRecord = { ...record };
-
+      
       try {
         // Format date fields based on category
         if (selectedCategory?.id === 'meetings' && record.date) {
@@ -848,7 +855,7 @@ const SalesOperations = () => {
 
       // Prepare data for submission
       const submitData = { ...values };
-
+      
       // Convert dayjs objects to ISO strings with error handling
       Object.keys(submitData).forEach(key => {
         try {
@@ -864,15 +871,15 @@ const SalesOperations = () => {
       // Check availability for responsible persons if dates are involved
       if (submitData.conducted_by_2 && (submitData.date || submitData.start_date)) {
         const eventDate = submitData.date || submitData.start_date;
-        const conductedByNames = Array.isArray(submitData.conducted_by_2)
-          ? submitData.conducted_by_2
+        const conductedByNames = Array.isArray(submitData.conducted_by_2) 
+          ? submitData.conducted_by_2 
           : [submitData.conducted_by_2];
 
         for (const personName of conductedByNames) {
-          const salesOpsUser = salesOpsUsers.find(user =>
+          const salesOpsUser = salesOpsUsers.find(user => 
             user.full_name === personName || user.email === personName
           );
-
+          
           if (salesOpsUser) {
             const availability = await checkUserAvailability(salesOpsUser.id, eventDate, eventDate);
             if (!availability.available) {
@@ -1088,9 +1095,9 @@ const SalesOperations = () => {
                 label="Meeting Date"
                 rules={[{ required: true, message: 'Please select meeting date' }]}
               >
-                <DatePicker
-                  style={{ width: '100%' }}
-                  format="DD/MM/YYYY"
+                <DatePicker 
+                  style={{ width: '100%' }} 
+                  format="DD/MM/YYYY" 
                   placeholder="Select meeting date"
                 />
               </Form.Item>
@@ -1132,9 +1139,9 @@ const SalesOperations = () => {
                 label="Start Date"
                 rules={[{ required: true, message: 'Please select start date' }]}
               >
-                <DatePicker
-                  style={{ width: '100%' }}
-                  format="DD/MM/YYYY"
+                <DatePicker 
+                  style={{ width: '100%' }} 
+                  format="DD/MM/YYYY" 
                   placeholder="Select start date"
                 />
               </Form.Item>
@@ -1142,9 +1149,9 @@ const SalesOperations = () => {
                 name="end_date"
                 label="End Date"
               >
-                <DatePicker
-                  style={{ width: '100%' }}
-                  format="DD/MM/YYYY"
+                <DatePicker 
+                  style={{ width: '100%' }} 
+                  format="DD/MM/YYYY" 
                   placeholder="Select end date"
                 />
               </Form.Item>
@@ -1176,7 +1183,7 @@ const SalesOperations = () => {
 
       const totalRecords = tableData.length;
       const now = safeDayjs();
-
+      
       const upcomingRecords = tableData.filter(item => {
         try {
           const itemDate = safeDayjs(item[selectedCategory.dateField]);
@@ -1272,15 +1279,15 @@ const SalesOperations = () => {
           <RocketOutlined /> Sales Operations Department
         </Title>
         <Space>
-          <Button
+          <Button 
             icon={<ReloadOutlined />}
             onClick={resetErrorBoundary}
             loading={loading}
           >
             Refresh
           </Button>
-          <Button
-            type="primary"
+          <Button 
+            type="primary" 
             icon={<UserOutlined />}
             onClick={handleUserAvailabilityClick}
           >
@@ -1292,7 +1299,7 @@ const SalesOperations = () => {
       {/* Category Buttons */}
       <Card title="Sales Operations Categories" style={{ marginBottom: 24 }}>
         <Row gutter={[16, 16]} justify="center">
-          {salesOpsCategories.map((category) => (
+          {SALES_OPS_CATEGORIES.map((category) => (
             <Col xs={24} sm={12} key={category.id}>
               <Button
                 type={selectedCategory?.id === category.id ? 'primary' : 'default'}
@@ -1325,7 +1332,7 @@ const SalesOperations = () => {
 
       {/* Date Range Filter and Create Button */}
       {selectedCategory && (
-        <Card
+        <Card 
           title={
             <Space>
               <FilterOutlined />
@@ -1398,7 +1405,7 @@ const SalesOperations = () => {
 
       {/* Data Table */}
       {selectedCategory && dateRange[0] && dateRange[1] && (
-        <Card
+        <Card 
           title={`${selectedCategory.name} Data (${tableData.length} records)`}
           extra={
             <Tag color="blue">
@@ -1409,7 +1416,7 @@ const SalesOperations = () => {
           {loading ? (
             <LoadingSpinner tip={`Loading ${selectedCategory.name} data...`} />
           ) : tableData.length === 0 ? (
-            <Empty
+            <Empty 
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <Space direction="vertical">
@@ -1426,7 +1433,7 @@ const SalesOperations = () => {
                 pageSize: 10,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) =>
+                showTotal: (total, range) => 
                   `${range[0]}-${range[1]} of ${total} items`
               }}
               scroll={{ x: true }}
@@ -1456,9 +1463,9 @@ const SalesOperations = () => {
           onFinish={handleFormSubmit}
         >
           {getFormFields()}
-
+          
           <Divider />
-
+          
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setModalVisible(false)}>
@@ -1499,7 +1506,7 @@ const SalesOperations = () => {
           {/* Sales Operations Users List */}
           <Card size="small" title="Sales Operations Team Members">
             {salesOpsUsers.length === 0 ? (
-              <Empty
+              <Empty 
                 description="No Sales Operations team members found"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
@@ -1530,8 +1537,8 @@ const SalesOperations = () => {
 
           {/* User Schedule */}
           {selectedUser && (
-            <Card
-              size="small"
+            <Card 
+              size="small" 
               title={
                 <Space>
                   <ScheduleOutlined />
@@ -1544,9 +1551,9 @@ const SalesOperations = () => {
                 </Space>
               }
               extra={
-                <Badge
-                  count={userSchedule.length}
-                  showZero
+                <Badge 
+                  count={userSchedule.length} 
+                  showZero 
                   color={userSchedule.length > 0 ? 'orange' : 'green'}
                 />
               }
@@ -1589,7 +1596,7 @@ const SalesOperations = () => {
                   ))}
                 </Timeline>
               ) : (
-                <Empty
+                <Empty 
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description={
                     <Space direction="vertical">
