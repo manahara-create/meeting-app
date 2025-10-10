@@ -12,7 +12,6 @@ import ResetPassword from './components/Auth/ResetPassword';
 import ResetPasswordSuccess from './components/Auth/ResetPasswordSuccess';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import Dashboard from './components/Dashboard/Dashboard'
-import Users from './components/Users/Users';
 import Departments from './components/Departments/Departments';
 import BDM from './components/Schedules/BDM_Schedules';
 import SCMT from './components/Schedules/SCMT';
@@ -113,7 +112,6 @@ function App() {
               }
             >
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="users" element={<Users />} />
               <Route path="departments" element={<Departments />} />
               <Route path="departments/bdm" element={<BDM />} />
               <Route path="departments/scmt" element={<SCMT />} />
