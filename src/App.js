@@ -17,6 +17,8 @@ import BDM from './components/Schedules/BDM_Schedules';
 import SCMT from './components/Schedules/SCMT';
 import SalesOperations from './components/Schedules/SalesOperations';
 import Profile from './components/Personal/Profile';
+import NotificationPanel from './components/notifications/NotificationPanel';
+import { notify } from './components/notifications/notify';
 
 import 'antd/dist/reset.css';
 
@@ -50,6 +52,73 @@ const PublicRoute = ({ children }) => {
   return !user ? children : <Navigate to="/dashboard" />;
 };
 
+// Main App Content with Notification Panel
+function AppContent() {
+  return (
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <PublicRoute>
+              <ResetPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/reset-success"
+          element={
+            <PublicRoute>
+              <ResetPasswordSuccess />
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="departments" element={<Departments />} />
+          <Route path="departments/bdm" element={<BDM />} />
+          <Route path="departments/scmt" element={<SCMT />} />
+          <Route path="departments/sales-operations" element={<SalesOperations />} />
+          <Route path="personal" element={<Profile />} />
+          <Route index element={<Navigate to="/dashboard" />} />
+        </Route>
+      </Routes>
+    </>
+  );
+}
+
 function App() {
   return (
     <ConfigProvider
@@ -61,65 +130,7 @@ function App() {
     >
       <AuthProvider>
         <Router>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                <PublicRoute>
-                  <Register />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/forgot-password"
-              element={
-                <PublicRoute>
-                  <ForgotPassword />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/reset-password"
-              element={
-                <PublicRoute>
-                  <ResetPassword />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/reset-success"
-              element={
-                <PublicRoute>
-                  <ResetPasswordSuccess />
-                </PublicRoute>
-              }
-            />
-
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="departments" element={<Departments />} />
-              <Route path="departments/bdm" element={<BDM />} />
-              <Route path="departments/scmt" element={<SCMT />} />
-              <Route path="departments/sales-operations" element={<SalesOperations />} />
-              <Route path="personal" element={<Profile />} />
-              <Route index element={<Navigate to="/dashboard" />} />
-            </Route>
-          </Routes>
+          <AppContent />
         </Router>
       </AuthProvider>
     </ConfigProvider>

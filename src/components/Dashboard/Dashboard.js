@@ -23,8 +23,7 @@ import {
   Segmented,
   Divider,
   DatePicker,
-  Tooltip,
-  Image
+  Tooltip
 } from 'antd';
 import {
   CalendarOutlined,
@@ -109,7 +108,7 @@ const tableCategoryMapping = {
   'scmt_d_n_d': { type: 'task', categoryName: 'Delivery and Distributions', department: 'SCMT' },
   'scmt_meetings_and_sessions': { type: 'meeting', categoryName: 'Meetings and Sessions', department: 'SCMT' },
   'scmt_others': { type: 'task', categoryName: 'Other Operation Activities', department: 'SCMT' },
-  'scmt_weekly_meetings': { type: 'task', categoryName: 'Other Weekly Shipments', department: 'SCMT' }
+  'scmt_weekly_meetings': { type: 'task', categoryName: 'Upcoming Shipments', department: 'SCMT' }
 };
 
 // Enhanced FullCalendar Component
@@ -183,10 +182,9 @@ const EnhancedFullCalendar = React.memo(({
   return (
     <div style={{ 
       border: '1px solid #e8e8e8', 
-      borderRadius: '16px', 
-      padding: '20px',
-      backgroundColor: '#fff',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+      borderRadius: '8px', 
+      padding: '16px',
+      backgroundColor: '#fff'
     }}>
       <FullCalendar
         ref={calendarRef}
@@ -232,13 +230,12 @@ const EnhancedFullCalendar = React.memo(({
 
           return (
             <div style={{
-              padding: '4px 6px',
+              padding: '2px 4px',
               fontSize: '12px',
               fontWeight: 'bold',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              borderRadius: '4px'
+              whiteSpace: 'nowrap'
             }}>
               <div>{eventInfo.event.title}</div>
               <div style={{ 
@@ -246,8 +243,7 @@ const EnhancedFullCalendar = React.memo(({
                 opacity: 0.9,
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '2px'
+                alignItems: 'center'
               }}>
                 <span>{eventInfo.timeText}</span>
                 <Tooltip title={`${activityCount} activities on this day`}>
@@ -280,13 +276,12 @@ const EnhancedFullCalendar = React.memo(({
             <div style={{
               textAlign: 'center',
               fontWeight: isDefaultRange ? 'bold' : 'normal',
-              color: isDefaultRange ? '#3498db' : 'inherit',
+              color: isDefaultRange ? '#1890ff' : 'inherit',
               backgroundColor: hasActivities ? activityCountColor : (isDefaultRange ? '#e6f7ff' : 'transparent'),
-              borderRadius: '8px',
-              padding: '6px',
+              borderRadius: '4px',
+              padding: '4px',
               border: hasActivities ? '2px solid #fff' : 'none',
-              boxShadow: hasActivities ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-              margin: '2px'
+              boxShadow: hasActivities ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
             }}>
               {date.getDate()}
             </div>
@@ -325,38 +320,22 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
     <Card 
       title={
         <Space>
-          <CalendarOutlined style={{ color: '#3498db' }} />
-          <Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '16px' }}>
-            Recent Activities
-          </Text>
+          <CalendarOutlined />
+          <Text strong>Recent Activities</Text>
         </Space>
       }
       bordered={false}
-      style={{
-        borderRadius: '16px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-        background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)',
-        border: 'none'
-      }}
       extra={
         <Space>
-          <Badge 
-            count={activities.length} 
-            style={{ 
-              backgroundColor: '#3498db',
-              boxShadow: '0 0 0 2px #fff'
-            }} 
-          />
+          <Tag color="blue">
+            {activities.length} Total
+          </Tag>
           {activities.length > pageSize && (
             <Button 
               type="link" 
-              icon={<EyeOutlined style={{ color: '#3498db' }} />} 
+              icon={<EyeOutlined />} 
               onClick={onViewAll}
               size="small"
-              style={{
-                color: '#3498db',
-                fontWeight: '600'
-              }}
             >
               View All
             </Button>
@@ -369,10 +348,6 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
           <Empty 
             image={Empty.PRESENTED_IMAGE_SIMPLE} 
             description="No activities found"
-            style={{ 
-              margin: '60px 0',
-              color: '#7f8c8d'
-            }}
           />
         ) : (
           <>
@@ -381,32 +356,26 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
               renderItem={activity => (
                 <List.Item
                   style={{ 
-                    padding: '16px 0', 
-                    borderBottom: '1px solid #e8e8e8',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                    borderRadius: '8px',
-                    margin: '4px 0'
+                    padding: '12px 0', 
+                    borderBottom: '1px solid #f0f0f0',
+                    cursor: 'pointer'
                   }}
                   onClick={() => onActivityClick(activity)}
-                  className="activity-item"
+                  actions={[
+                    <Tag 
+                      color={priorityColors[activity.priority] || 'blue'}
+                      style={{ fontSize: '12px', padding: '2px 6px' }}
+                    >
+                      {priorityLabels[activity.priority] || 'Normal'}
+                    </Tag>
+                  ]}
                 >
                   <List.Item.Meta
-                    avatar={
-                      <div style={{
-                        width: '8px',
-                        height: '40px',
-                        backgroundColor: priorityColors[activity.priority] || '#3498db',
-                        borderRadius: '4px',
-                        marginRight: '12px'
-                      }} />
-                    }
                     title={
                       <Text 
                         style={{ 
                           fontSize: '14px',
                           fontWeight: '600',
-                          color: '#2c3e50',
                           lineHeight: '1.4',
                           display: 'block'
                         }}
@@ -415,39 +384,12 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                       </Text>
                     }
                     description={
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                        <Space size={8} wrap>
-                          <Tag 
-                            color={activity.type === 'meeting' ? '#3498db' : '#27ae60'}
-                            style={{ 
-                              fontSize: '11px', 
-                              padding: '2px 6px',
-                              margin: 0,
-                              border: 'none',
-                              fontWeight: '600'
-                            }}
-                          >
-                            {activity.type === 'meeting' ? 'MEETING' : 'TASK'}
-                          </Tag>
-                          <Tag 
-                            color={departments[activity.department]?.color || '#7f8c8d'}
-                            style={{ 
-                              fontSize: '11px', 
-                              padding: '2px 6px',
-                              margin: 0,
-                              border: 'none',
-                              fontWeight: '600'
-                            }}
-                          >
-                            {activity.departmentName || activity.department}
-                          </Tag>
-                        </Space>
-                        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                          {new Date(activity.date || activity.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                      <Space direction="vertical" size={0}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {activity.departmentName} • {activity.categoryName}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {new Date(activity.date || activity.created_at).toLocaleDateString()}
                         </Text>
                       </Space>
                     }
@@ -459,31 +401,23 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
             {/* Enhanced Pagination with Arrows */}
             {activities.length > pageSize && (
               <div style={{ 
-                marginTop: '20px', 
+                marginTop: '16px', 
                 display: 'flex', 
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '16px 0',
-                borderTop: '1px solid #e8e8e8'
+                borderTop: '1px solid #f0f0f0',
+                paddingTop: '16px'
               }}>
                 <Button
                   type="text"
                   icon={<LeftOutlined />}
                   onClick={handlePrev}
                   disabled={currentPage === 1}
-                  style={{
-                    color: currentPage === 1 ? '#bdc3c7' : '#3498db',
-                    fontWeight: '600'
-                  }}
                 >
                   Previous
                 </Button>
                 
-                <Text style={{ 
-                  color: '#7f8c8d',
-                  fontSize: '14px',
-                  fontWeight: '600'
-                }}>
+                <Text style={{ color: '#666' }}>
                   Page {currentPage} of {totalPages}
                 </Text>
                 
@@ -491,10 +425,6 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                   type="text"
                   onClick={handleNext}
                   disabled={currentPage === totalPages}
-                  style={{
-                    color: currentPage === totalPages ? '#bdc3c7' : '#3498db',
-                    fontWeight: '600'
-                  }}
                 >
                   Next
                   <RightOutlined />
@@ -504,14 +434,6 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
           </>
         )}
       </div>
-
-      <style jsx>{`
-        .activity-item:hover {
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-          transform: translateX(4px);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-      `}</style>
     </Card>
   );
 };
@@ -531,14 +453,7 @@ const DateActivitiesModal = ({
       key: 'type',
       width: 80,
       render: (type) => (
-        <Tag 
-          color={type === 'meeting' ? '#3498db' : '#27ae60'}
-          style={{ 
-            border: 'none',
-            fontWeight: '600',
-            borderRadius: '6px'
-          }}
-        >
+        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
           {type === 'meeting' ? 'Meeting' : 'Task'}
         </Tag>
       )
@@ -551,14 +466,7 @@ const DateActivitiesModal = ({
         <Button 
           type="link" 
           onClick={() => onActivityClick(record)}
-          style={{ 
-            padding: 0, 
-            height: 'auto', 
-            textAlign: 'left', 
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#2c3e50'
-          }}
+          style={{ padding: 0, height: 'auto', textAlign: 'left', fontSize: '14px' }}
         >
           {title}
         </Button>
@@ -570,14 +478,7 @@ const DateActivitiesModal = ({
       key: 'department',
       width: 120,
       render: (department) => (
-        <Tag 
-          color={departments[department]?.color || '#7f8c8d'}
-          style={{ 
-            border: 'none',
-            fontWeight: '600',
-            borderRadius: '6px'
-          }}
-        >
+        <Tag color={departments[department]?.color || 'default'}>
           {departments[department]?.name || department}
         </Tag>
       )
@@ -588,14 +489,7 @@ const DateActivitiesModal = ({
       key: 'priority',
       width: 100,
       render: (priority) => (
-        <Tag 
-          color={priorityColors[priority]}
-          style={{ 
-            border: 'none',
-            fontWeight: '600',
-            borderRadius: '6px'
-          }}
-        >
+        <Tag color={priorityColors[priority]}>
           {priorityLabels[priority]}
         </Tag>
       )
@@ -606,39 +500,15 @@ const DateActivitiesModal = ({
     <Modal
       title={
         <Space>
-          <CalendarOutlined style={{ color: '#3498db' }} />
-          <Text style={{ fontWeight: '600', color: '#2c3e50' }}>
-            Activities for {selectedDate?.format('MMMM D, YYYY')}
-          </Text>
+          <CalendarOutlined />
+          Activities for {selectedDate?.format('MMMM D, YYYY')}
         </Space>
       }
       open={visible}
       onCancel={onClose}
       width={800}
-      style={{
-        top: 20
-      }}
-      styles={{
-        body: {
-          padding: '20px 0'
-        },
-        header: {
-          borderBottom: '1px solid #e8e8e8',
-          padding: '16px 24px'
-        }
-      }}
       footer={[
-        <Button 
-          key="close" 
-          onClick={onClose} 
-          size="large"
-          style={{
-            borderRadius: '8px',
-            fontWeight: '600',
-            padding: '8px 24px',
-            height: 'auto'
-          }}
-        >
+        <Button key="close" onClick={onClose} size="large">
           Close
         </Button>
       ]}
@@ -646,56 +516,29 @@ const DateActivitiesModal = ({
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         <Row gutter={16}>
           <Col span={8}>
-            <Card 
-              size="small"
-              style={{
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-                border: 'none'
-              }}
-              bodyStyle={{ padding: '16px', textAlign: 'center' }}
-            >
+            <Card size="small">
               <Statistic
                 title="Total Activities"
                 value={activities.length}
-                valueStyle={{ color: '#fff', fontSize: '24px' }}
-                titleStyle={{ color: 'rgba(255,255,255,0.9)' }}
+                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card 
-              size="small"
-              style={{
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #27ae60 0%, #229954 100%)',
-                border: 'none'
-              }}
-              bodyStyle={{ padding: '16px', textAlign: 'center' }}
-            >
+            <Card size="small">
               <Statistic
                 title="Meetings"
                 value={activities.filter(a => a.type === 'meeting').length}
-                valueStyle={{ color: '#fff', fontSize: '24px' }}
-                titleStyle={{ color: 'rgba(255,255,255,0.9)' }}
+                valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>
           <Col span={8}>
-            <Card 
-              size="small"
-              style={{
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
-                border: 'none'
-              }}
-              bodyStyle={{ padding: '16px', textAlign: 'center' }}
-            >
+            <Card size="small">
               <Statistic
                 title="Tasks"
                 value={activities.filter(a => a.type === 'task').length}
-                valueStyle={{ color: '#fff', fontSize: '24px' }}
-                titleStyle={{ color: 'rgba(255,255,255,0.9)' }}
+                valueStyle={{ color: '#fa8c16' }}
               />
             </Card>
           </Col>
@@ -706,16 +549,10 @@ const DateActivitiesModal = ({
           dataSource={activities}
           pagination={{ 
             pageSize: 10,
-            showSizeChanger: false,
-            style: {
-              borderRadius: '8px'
-            }
+            showSizeChanger: false 
           }}
           scroll={{ y: 400 }}
           size="middle"
-          style={{
-            borderRadius: '8px'
-          }}
           locale={{
             emptyText: 'No activities scheduled for this date'
           }}
@@ -728,35 +565,22 @@ const DateActivitiesModal = ({
 // Department Filter Buttons
 const DepartmentFilter = ({ selectedDepartment, onDepartmentChange }) => {
   return (
-    <Card 
-      size="small" 
-      style={{ 
-        marginBottom: 24,
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-        border: 'none',
-        background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)'
-      }}
-      bodyStyle={{ padding: '20px' }}
-    >
+    <Card size="small" style={{ marginBottom: 16 }}>
       <Space wrap>
-        <Text strong style={{ fontSize: '16px', color: '#2c3e50' }}>Filter by Department:</Text>
+        <Text strong style={{ fontSize: '16px' }}>Filter by Department:</Text>
         {Object.entries(departments).map(([key, dept]) => (
           <Button
             key={key}
             type={selectedDepartment === key ? 'primary' : 'default'}
             size="large"
             style={{
-              backgroundColor: selectedDepartment === key ? dept.color : '#ffffff',
+              backgroundColor: selectedDepartment === key ? dept.color : '#f5f5f5',
               borderColor: dept.color,
               color: selectedDepartment === key ? '#fff' : dept.color,
               fontSize: '14px',
               fontWeight: 'bold',
-              padding: '8px 20px',
-              height: 'auto',
-              borderRadius: '8px',
-              boxShadow: selectedDepartment === key ? `0 4px 12px ${dept.color}40` : 'none',
-              borderWidth: '2px'
+              padding: '8px 16px',
+              height: 'auto'
             }}
             onClick={() => onDepartmentChange(key)}
           >
@@ -769,13 +593,8 @@ const DepartmentFilter = ({ selectedDepartment, onDepartmentChange }) => {
           style={{
             fontSize: '14px',
             fontWeight: 'bold',
-            padding: '8px 20px',
-            height: 'auto',
-            borderRadius: '8px',
-            backgroundColor: !selectedDepartment ? '#3498db' : '#ffffff',
-            borderColor: '#3498db',
-            color: !selectedDepartment ? '#fff' : '#3498db',
-            borderWidth: '2px'
+            padding: '8px 16px',
+            height: 'auto'
           }}
           onClick={() => onDepartmentChange(null)}
         >
@@ -800,14 +619,7 @@ const AllActivitiesModal = ({
       key: 'type',
       width: 80,
       render: (type) => (
-        <Tag 
-          color={type === 'meeting' ? '#3498db' : '#27ae60'}
-          style={{ 
-            border: 'none',
-            fontWeight: '600',
-            borderRadius: '6px'
-          }}
-        >
+        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
           {type === 'meeting' ? 'Meeting' : 'Task'}
         </Tag>
       )
@@ -820,13 +632,7 @@ const AllActivitiesModal = ({
         <Button 
           type="link" 
           onClick={() => onActivityClick(record)}
-          style={{ 
-            padding: 0, 
-            height: 'auto', 
-            textAlign: 'left',
-            fontWeight: '600',
-            color: '#2c3e50'
-          }}
+          style={{ padding: 0, height: 'auto', textAlign: 'left' }}
         >
           {title || 'Untitled Activity'}
         </Button>
@@ -838,14 +644,7 @@ const AllActivitiesModal = ({
       key: 'department',
       width: 120,
       render: (department) => (
-        <Tag 
-          color={departments[department]?.color || '#7f8c8d'}
-          style={{ 
-            border: 'none',
-            fontWeight: '600',
-            borderRadius: '6px'
-          }}
-        >
+        <Tag color={departments[department]?.color || 'default'}>
           {departments[department]?.name || department}
         </Tag>
       )
@@ -862,14 +661,7 @@ const AllActivitiesModal = ({
       key: 'priority',
       width: 100,
       render: (priority) => (
-        <Tag 
-          color={priorityColors[priority]}
-          style={{ 
-            border: 'none',
-            fontWeight: '600',
-            borderRadius: '6px'
-          }}
-        >
+        <Tag color={priorityColors[priority]}>
           {priorityLabels[priority]}
         </Tag>
       )
@@ -880,7 +672,7 @@ const AllActivitiesModal = ({
       key: 'date',
       width: 120,
       render: (date, record) => (
-        <Text style={{ color: '#7f8c8d', fontWeight: '500' }}>
+        <Text>
           {new Date(date || record.created_at).toLocaleDateString()}
         </Text>
       )
@@ -891,39 +683,15 @@ const AllActivitiesModal = ({
     <Modal
       title={
         <Space>
-          <CalendarOutlined style={{ color: '#3498db' }} />
-          <Text style={{ fontWeight: '600', color: '#2c3e50' }}>
-            All Activities ({activities.length})
-          </Text>
+          <CalendarOutlined />
+          All Activities ({activities.length})
         </Space>
       }
       open={visible}
       onCancel={onClose}
       width={1200}
-      style={{
-        top: 20
-      }}
-      styles={{
-        body: {
-          padding: '20px 0'
-        },
-        header: {
-          borderBottom: '1px solid #e8e8e8',
-          padding: '16px 24px'
-        }
-      }}
       footer={[
-        <Button 
-          key="close" 
-          onClick={onClose} 
-          size="large"
-          style={{
-            borderRadius: '8px',
-            fontWeight: '600',
-            padding: '8px 24px',
-            height: 'auto'
-          }}
-        >
+        <Button key="close" onClick={onClose} size="large">
           Close
         </Button>
       ]}
@@ -934,16 +702,10 @@ const AllActivitiesModal = ({
         pagination={{ 
           pageSize: 20,
           showSizeChanger: true,
-          showQuickJumper: true,
-          style: {
-            borderRadius: '8px'
-          }
+          showQuickJumper: true
         }}
         scroll={{ y: 600 }}
         size="middle"
-        style={{
-          borderRadius: '8px'
-        }}
         locale={{
           emptyText: 'No activities found'
         }}
@@ -954,46 +716,23 @@ const AllActivitiesModal = ({
 
 // Loading component
 const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
-  <div style={{ 
-    textAlign: 'center', 
-    padding: '100px 50px',
-    background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)',
-    borderRadius: '16px',
-    margin: '20px'
-  }}>
+  <div style={{ textAlign: 'center', padding: '50px' }}>
     <Spin size="large" tip={tip} />
   </div>
 );
 
 // Error boundary component
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
-  <div style={{ 
-    padding: '40px 20px',
-    background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)',
-    borderRadius: '16px',
-    margin: '20px'
-  }}>
-    <Result
-      status="error"
-      title="Something went wrong"
-      subTitle={error?.message || "An unexpected error occurred"}
-      extra={
-        <Button 
-          type="primary" 
-          onClick={resetErrorBoundary} 
-          size="large"
-          style={{
-            borderRadius: '8px',
-            fontWeight: '600',
-            padding: '8px 24px',
-            height: 'auto'
-          }}
-        >
-          Try Again
-        </Button>
-      }
-    />
-  </div>
+  <Result
+    status="error"
+    title="Something went wrong"
+    subTitle={error?.message || "An unexpected error occurred"}
+    extra={
+      <Button type="primary" onClick={resetErrorBoundary} size="large">
+        Try Again
+      </Button>
+    }
+  />
 );
 
 const Dashboard = () => {
@@ -1215,7 +954,8 @@ const Dashboard = () => {
       'sales_operations_tasks': 'start_date',
       'scmt_d_n_d': 'start_date',
       'scmt_meetings_and_sessions': 'date',
-      'scmt_others': 'date'
+      'scmt_others': 'date',
+      'scmt_weekly_meetings': 'date_of_arrival'
     };
     return dateFields[tableName] || 'created_at';
   };
@@ -1230,6 +970,7 @@ const Dashboard = () => {
     if (item.customer_name) return `Visit: ${item.customer_name}`;
     if (item.principle_name) return `Principle: ${item.principle_name}`;
     if (item.promotional_activity) return item.promotional_activity;
+    if (item.supplier) return `Shipment: ${item.supplier} - ${item.pord_no || ''}`;
     if (item.type) return item.type;
     return `${item.categoryName} Activity`;
   };
@@ -1441,26 +1182,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={{ 
-      padding: '24px', 
-      maxWidth: '1400px', 
-      margin: '0 auto',
-      minHeight: '100vh',
-      background: '#ACAC9B',
-      backgroundImage: `
-        linear-gradient(135deg, rgba(172, 172, 155, 0.9) 0%, rgba(172, 172, 155, 0.9) 100%),
-        url('/images/image1.avif')
-      `,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      backgroundBlendMode: 'overlay'
-    }}>
-      <ToastContainer 
-        position="top-right" 
-        autoClose={5000}
-        style={{ zIndex: 9999 }}
-      />
+    <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto' }}>
+      <ToastContainer position="top-right" autoClose={5000} />
 
       {/* Error Alert */}
       {error && (
@@ -1469,7 +1192,6 @@ const Dashboard = () => {
           description={`${error.context}: ${error.message}`}
           type="error"
           showIcon
-          icon={<InfoCircleOutlined />}
           closable
           onClose={() => setError(null)}
           action={
@@ -1477,34 +1199,23 @@ const Dashboard = () => {
               Retry
             </Button>
           }
-          style={{ 
-            marginBottom: 24,
-            borderRadius: '12px'
-          }}
+          style={{ marginBottom: 16 }}
         />
       )}
 
       {/* Header with Controls */}
       <Card
-        style={{ 
-          marginBottom: 24, 
-          background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)',
-          borderRadius: '16px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-          border: 'none'
-        }}
-        bodyStyle={{ padding: '24px' }}
+        size="small"
+        style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
+        bodyStyle={{ padding: '12px 16px' }}
       >
         <Row justify="space-between" align="middle" gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>
-            <Space>
-              <IdcardOutlined style={{ color: '#3498db', fontSize: '28px' }} />
-              <Title level={2} style={{ margin: 0, fontSize: '28px', color: '#2c3e50' }}>Dashboard</Title>
-            </Space>
+            <Title level={2} style={{ margin: 0, fontSize: '24px' }}>Dashboard</Title>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Space direction="vertical" style={{ width: '100%' }} size="small">
-              <Text strong style={{ fontSize: '14px', color: '#2c3e50' }}>Date Range:</Text>
+              <Text strong style={{ fontSize: '14px' }}>Date Range:</Text>
               <Space.Compact style={{ width: '100%' }}>
                 <RangePicker
                   value={dateRange}
@@ -1517,9 +1228,6 @@ const Dashboard = () => {
                     onClick={clearDateRange}
                     size="large"
                     danger
-                    style={{
-                      borderRadius: '8px'
-                    }}
                   >
                     Clear
                   </Button>
@@ -1538,10 +1246,6 @@ const Dashboard = () => {
                   onClick={manualRefresh}
                   loading={isRefreshing}
                   size="medium"
-                  style={{
-                    borderRadius: '8px',
-                    fontWeight: '600'
-                  }}
                 >
                   Refresh
                 </Button>
@@ -1563,222 +1267,201 @@ const Dashboard = () => {
           description="Dashboard data will automatically update every 1 minute."
           type="info"
           showIcon
-          icon={<InfoCircleOutlined />}
           closable
-          style={{ 
-            marginBottom: 24,
-            borderRadius: '12px'
-          }}
+          style={{ marginBottom: 16 }}
         />
       )}
 
       {/* Statistics Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-        {[
-          { key: 'totalMeetings', title: 'Total Meetings', icon: <CalendarOutlined />, color: '#3498db' },
-          { key: 'totalTasks', title: 'Total Tasks', icon: <CheckCircleOutlined />, color: '#27ae60' },
-          { key: 'thisWeekMeetings', title: 'This Week', icon: <TeamOutlined />, color: '#f39c12' },
-          { key: 'highPriorityMeetings', title: 'High Priority', icon: <ExclamationCircleOutlined />, color: '#e74c3c' },
-          { key: 'completedMeetings', title: 'Completed', icon: <CheckCircleOutlined />, color: '#27ae60' },
-          { key: 'pendingTasks', title: 'Pending Tasks', icon: <ClockCircleOutlined />, color: '#faad14' }
-        ].map((stat, index) => (
-          <Col xs={12} sm={8} md={4} key={stat.key}>
-            <Card 
-              size="small" 
-              style={{ 
-                textAlign: 'center',
-                borderRadius: '12px',
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                border: 'none'
-              }}
-              bodyStyle={{ padding: '20px 12px' }}
-            >
-              <Statistic
-                title={
-                  <Text style={{ color: '#7f8c8d', fontSize: '12px', fontWeight: '600' }}>
-                    {stat.title}
-                  </Text>
-                }
-                value={stats[stat.key]}
-                prefix={React.cloneElement(stat.icon, { style: { color: stat.color } })}
-                valueStyle={{ 
-                  color: stat.color, 
-                  fontSize: '20px',
-                  fontWeight: 'bold'
-                }}
-              />
-            </Card>
-          </Col>
-        ))}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={8} md={4}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <Statistic
+              title="Total Meetings"
+              value={stats.totalMeetings}
+              prefix={<CalendarOutlined />}
+              valueStyle={{ color: '#1890ff', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={4}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <Statistic
+              title="Total Tasks"
+              value={stats.totalTasks}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={4}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <Statistic
+              title="This Week"
+              value={stats.thisWeekMeetings}
+              prefix={<TeamOutlined />}
+              valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={4}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <Statistic
+              title="High Priority"
+              value={stats.highPriorityMeetings}
+              prefix={<ExclamationCircleOutlined />}
+              valueStyle={{ color: '#f5222d', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={4}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <Statistic
+              title="Completed"
+              value={stats.completedMeetings}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={4}>
+          <Card size="small" style={{ textAlign: 'center' }}>
+            <Statistic
+              title="Pending Tasks"
+              value={stats.pendingTasks}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: '#faad14', fontSize: '20px' }}
+            />
+          </Card>
+        </Col>
       </Row>
 
-      <Card
-        style={{
-          borderRadius: '16px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-          border: 'none',
-          background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)',
-          marginBottom: 24
-        }}
-        bodyStyle={{ padding: '32px' }}
-      >
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={setActiveTab}
-          size="large"
-          items={[
-            {
-              key: 'organizational',
-              label: (
-                <Space>
-                  <TeamOutlined />
-                  Organizational View
-                </Space>
-              ),
-              children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="large">
-                  <DepartmentFilter
-                    selectedDepartment={selectedDepartment}
-                    onDepartmentChange={setSelectedDepartment}
-                  />
-                  
-                  <Row gutter={[24, 24]}>
-                    <Col xs={24} lg={16}>
-                      <Card
-                        title={
-                          <Space>
-                            <CalendarOutlined style={{ color: '#3498db' }} />
-                            <Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '18px' }}>
-                              Organizational Calendar - {selectedDepartment ? departments[selectedDepartment]?.name : 'All Departments'}
-                            </Text>
-                            {dateRange && (
-                              <Tag 
-                                color="#3498db" 
-                                style={{ 
-                                  marginLeft: '8px',
-                                  border: 'none',
-                                  fontWeight: '600',
-                                  borderRadius: '6px'
-                                }}
-                              >
-                                {dateRange[0].format('MMM D')} - {dateRange[1].format('MMM D, YYYY')}
-                              </Tag>
-                            )}
-                          </Space>
-                        }
-                        bordered={false}
-                        style={{
-                          borderRadius: '16px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                          border: 'none'
-                        }}
-                        extra={
-                          <Button 
-                            icon={<SyncOutlined />} 
-                            onClick={manualRefresh}
-                            loading={isRefreshing}
-                            size="small"
-                            style={{
-                              borderRadius: '8px',
-                              fontWeight: '600'
-                            }}
-                          >
-                            Refresh Calendar
-                          </Button>
-                        }
-                      >
-                        <EnhancedFullCalendar
-                          events={getCalendarEvents()}
-                          onDateClick={handleDateClick}
-                          onEventClick={handleEventClick}
-                          view={calendarView}
-                          height="600px"
-                          dateRange={dateRange}
-                        />
-                        
-                        {/* Calendar Legend */}
-                        <div style={{ 
-                          marginTop: '24px', 
-                          padding: '20px', 
-                          backgroundColor: '#f8f9fa', 
-                          borderRadius: '12px',
-                          border: '1px solid #e8e8e8'
-                        }}>
-                          <Text strong style={{ fontSize: '16px', color: '#2c3e50', marginBottom: '12px', display: 'block' }}>
-                            Calendar Legend (Activity Count):
-                          </Text>
-                          <Row gutter={16} style={{ marginTop: '12px' }}>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{
-                                  width: '24px',
-                                  height: '24px',
-                                  backgroundColor: '#27ae60',
-                                  borderRadius: '6px',
-                                  border: '2px solid #fff',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                }}></div>
-                                <Text style={{ fontSize: '14px', fontWeight: '500' }}>1-3 Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{
-                                  width: '24px',
-                                  height: '24px',
-                                  backgroundColor: '#f39c12',
-                                  borderRadius: '6px',
-                                  border: '2px solid #fff',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                }}></div>
-                                <Text style={{ fontSize: '14px', fontWeight: '500' }}>4-6 Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{
-                                  width: '24px',
-                                  height: '24px',
-                                  backgroundColor: '#e74c3c',
-                                  borderRadius: '6px',
-                                  border: '2px solid #fff',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                }}></div>
-                                <Text style={{ fontSize: '14px', fontWeight: '500' }}>7+ Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{
-                                  width: '24px',
-                                  height: '24px',
-                                  backgroundColor: 'transparent',
-                                  borderRadius: '6px',
-                                  border: '2px solid #d9d9d9'
-                                }}></div>
-                                <Text style={{ fontSize: '14px', fontWeight: '500' }}>No Activities</Text>
-                              </div>
-                            </Col>
-                          </Row>
-                        </div>
-                      </Card>
-                    </Col>
-                    
-                    <Col xs={24} lg={8}>
-                      <RecentActivities
-                        activities={getActivitiesForView()}
-                        onActivityClick={handleActivityClick}
-                        onViewAll={showAllActivitiesModal}
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab}
+        size="large"
+        items={[
+          {
+            key: 'organizational',
+            label: 'Organizational View',
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size="large">
+                <DepartmentFilter
+                  selectedDepartment={selectedDepartment}
+                  onDepartmentChange={setSelectedDepartment}
+                />
+                
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={16}>
+                    <Card
+                      title={
+                        <Space>
+                          <CalendarOutlined />
+                          Organizational Calendar - {selectedDepartment ? departments[selectedDepartment]?.name : 'All Departments'}
+                          {dateRange && (
+                            <Tag color="blue" style={{ marginLeft: '8px' }}>
+                              {dateRange[0].format('MMM D')} - {dateRange[1].format('MMM D, YYYY')}
+                            </Tag>
+                          )}
+                        </Space>
+                      }
+                      bordered={false}
+                      extra={
+                        <Button 
+                          icon={<SyncOutlined />} 
+                          onClick={manualRefresh}
+                          loading={isRefreshing}
+                          size="small"
+                        >
+                          Refresh Calendar
+                        </Button>
+                      }
+                    >
+                      <EnhancedFullCalendar
+                        events={getCalendarEvents()}
+                        onDateClick={handleDateClick}
+                        onEventClick={handleEventClick}
+                        view={calendarView}
+                        height="600px"
+                        dateRange={dateRange}
                       />
-                    </Col>
-                  </Row>
-                </Space>
-              )
-            },
-          ]}
-        />
-      </Card>
+                      
+                      {/* Calendar Legend */}
+                      <div style={{ 
+                        marginTop: '16px', 
+                        padding: '12px', 
+                        backgroundColor: '#f9f9f9', 
+                        borderRadius: '6px',
+                        border: '1px solid #e8e8e8'
+                      }}>
+                        <Text strong style={{ fontSize: '16px' }}>Calendar Legend (Activity Count):</Text>
+                        <Row gutter={16} style={{ marginTop: '12px' }}>
+                          <Col xs={12} sm={6}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <div style={{
+                                width: '20px',
+                                height: '20px',
+                                backgroundColor: '#52c41a',
+                                borderRadius: '4px',
+                                border: '2px solid #fff'
+                              }}></div>
+                              <Text style={{ fontSize: '14px' }}>1-3 Activities</Text>
+                            </div>
+                          </Col>
+                          <Col xs={12} sm={6}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <div style={{
+                                width: '20px',
+                                height: '20px',
+                                backgroundColor: '#fa8c16',
+                                borderRadius: '4px',
+                                border: '2px solid #fff'
+                              }}></div>
+                              <Text style={{ fontSize: '14px' }}>4-6 Activities</Text>
+                            </div>
+                          </Col>
+                          <Col xs={12} sm={6}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <div style={{
+                                width: '20px',
+                                height: '20px',
+                                backgroundColor: '#f5222d',
+                                borderRadius: '4px',
+                                border: '2px solid #fff'
+                              }}></div>
+                              <Text style={{ fontSize: '14px' }}>7+ Activities</Text>
+                            </div>
+                          </Col>
+                          <Col xs={12} sm={6}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <div style={{
+                                width: '20px',
+                                height: '20px',
+                                backgroundColor: 'transparent',
+                                borderRadius: '4px',
+                                border: '1px solid #d9d9d9'
+                              }}></div>
+                              <Text style={{ fontSize: '14px' }}>No Activities</Text>
+                            </div>
+                          </Col>
+                        </Row>
+                      </div>
+                    </Card>
+                  </Col>
+                  
+                  <Col xs={24} lg={8}>
+                    <RecentActivities
+                      activities={getActivitiesForView()}
+                      onActivityClick={handleActivityClick}
+                      onViewAll={() => setAllActivitiesModalVisible(true)}
+                    />
+                  </Col>
+                </Row>
+              </Space>
+            )
+          },
+        ]}
+      />
 
       {/* Date Activities Modal */}
       <DateActivitiesModal
@@ -1799,105 +1482,54 @@ const Dashboard = () => {
 
       {/* Activity Detail Modal */}
       <Modal
-        title={
-          <Space>
-            <InfoCircleOutlined style={{ color: '#3498db' }} />
-            <Text style={{ fontWeight: '600', color: '#2c3e50' }}>Activity Details</Text>
-          </Space>
-        }
+        title="Activity Details"
         open={isActivityModalVisible}
         onCancel={() => setIsActivityModalVisible(false)}
         footer={[
-          <Button 
-            key="close" 
-            onClick={() => setIsActivityModalVisible(false)} 
-            size="large"
-            style={{
-              borderRadius: '8px',
-              fontWeight: '600',
-              padding: '8px 24px',
-              height: 'auto'
-            }}
-          >
+          <Button key="close" onClick={() => setIsActivityModalVisible(false)} size="large">
             Close
           </Button>,
         ]}
         width={700}
-        style={{
-          top: 20
-        }}
-        styles={{
-          body: {
-            padding: '24px 0'
-          },
-          header: {
-            borderBottom: '1px solid #e8e8e8',
-            padding: '16px 24px'
-          }
-        }}
       >
         {selectedActivity ? (
           <div style={{ fontSize: '16px' }}>
             <Row gutter={[16, 16]}>
               <Col span={24}>
-                <Title level={3} style={{ margin: 0, color: '#3498db', fontSize: '24px' }}>
+                <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
                   {getActivityTitle(selectedActivity)}
                 </Title>
               </Col>
             </Row>
             
-            <Divider style={{ margin: '20px 0' }} />
+            <Divider />
             
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
                 <Text strong>Type: </Text>
-                <Tag 
-                  color={selectedActivity.type === 'meeting' ? '#3498db' : '#27ae60'} 
-                  style={{ 
-                    fontSize: '14px',
-                    border: 'none',
-                    fontWeight: '600',
-                    borderRadius: '6px'
-                  }}
-                >
+                <Tag color={selectedActivity.type === 'meeting' ? 'blue' : 'green'} style={{ fontSize: '14px' }}>
                   {selectedActivity.type === 'meeting' ? 'Meeting' : 'Task'}
                 </Tag>
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Department: </Text>
-                <Tag 
-                  color={departments[selectedActivity.department]?.color} 
-                  style={{ 
-                    fontSize: '14px',
-                    border: 'none',
-                    fontWeight: '600',
-                    borderRadius: '6px'
-                  }}
-                >
+                <Tag color={departments[selectedActivity.department]?.color} style={{ fontSize: '14px' }}>
                   {selectedActivity.departmentName || selectedActivity.department}
                 </Tag>
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Category: </Text>
-                <Text style={{ color: '#2c3e50', fontWeight: '500' }}>{selectedActivity.categoryName}</Text>
+                <Text>{selectedActivity.categoryName}</Text>
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Priority: </Text>
-                <Tag 
-                  color={priorityColors[selectedActivity.priority]} 
-                  style={{ 
-                    fontSize: '14px',
-                    border: 'none',
-                    fontWeight: '600',
-                    borderRadius: '6px'
-                  }}
-                >
+                <Tag color={priorityColors[selectedActivity.priority]} style={{ fontSize: '14px' }}>
                   {priorityLabels[selectedActivity.priority]}
                 </Tag>
               </Col>
               <Col xs={24} sm={12}>
                 <Text strong>Date: </Text>
-                <Text style={{ color: '#2c3e50', fontWeight: '500' }}>
+                <Text>
                   {new Date(
                     selectedActivity[getDateFieldName(selectedActivity.sourceTable)] || 
                     selectedActivity.created_at
@@ -1912,15 +1544,7 @@ const Dashboard = () => {
               {selectedActivity.status && (
                 <Col xs={24} sm={12}>
                   <Text strong>Status: </Text>
-                  <Tag 
-                    color={statusColors[selectedActivity.status]} 
-                    style={{ 
-                      fontSize: '14px',
-                      border: 'none',
-                      fontWeight: '600',
-                      borderRadius: '6px'
-                    }}
-                  >
+                  <Tag color={statusColors[selectedActivity.status]} style={{ fontSize: '14px' }}>
                     {selectedActivity.status}
                   </Tag>
                 </Col>
@@ -1929,16 +1553,11 @@ const Dashboard = () => {
 
             {selectedActivity.description && (
               <>
-                <Divider style={{ margin: '20px 0' }} />
+                <Divider />
                 <Row>
                   <Col span={24}>
-                    <Text strong style={{ display: 'block', marginBottom: '8px' }}>Description: </Text>
-                    <Text style={{ 
-                      display: 'block', 
-                      marginTop: '8px',
-                      color: '#2c3e50',
-                      lineHeight: '1.6'
-                    }}>
+                    <Text strong>Description: </Text>
+                    <Text style={{ display: 'block', marginTop: '8px' }}>
                       {selectedActivity.description}
                     </Text>
                   </Col>
@@ -1948,16 +1567,11 @@ const Dashboard = () => {
 
             {selectedActivity.remarks && (
               <>
-                <Divider style={{ margin: '20px 0' }} />
+                <Divider />
                 <Row>
                   <Col span={24}>
-                    <Text strong style={{ display: 'block', marginBottom: '8px' }}>Remarks: </Text>
-                    <Text style={{ 
-                      display: 'block', 
-                      marginTop: '8px',
-                      color: '#2c3e50',
-                      lineHeight: '1.6'
-                    }}>
+                    <Text strong>Remarks: </Text>
+                    <Text style={{ display: 'block', marginTop: '8px' }}>
                       {selectedActivity.remarks}
                     </Text>
                   </Col>
@@ -1967,27 +1581,81 @@ const Dashboard = () => {
 
             {selectedActivity.objectives && (
               <>
-                <Divider style={{ margin: '20px 0' }} />
+                <Divider />
                 <Row>
                   <Col span={24}>
-                    <Text strong style={{ display: 'block', marginBottom: '8px' }}>Objectives: </Text>
-                    <Text style={{ 
-                      display: 'block', 
-                      marginTop: '8px',
-                      color: '#2c3e50',
-                      lineHeight: '1.6'
-                    }}>
+                    <Text strong>Objectives: </Text>
+                    <Text style={{ display: 'block', marginTop: '8px' }}>
                       {selectedActivity.objectives}
                     </Text>
                   </Col>
                 </Row>
               </>
             )}
+
+            {/* Special handling for SCMT Weekly Meetings (Upcoming Shipments) */}
+            {selectedActivity.sourceTable === 'scmt_weekly_meetings' && (
+              <>
+                <Divider />
+                <Row gutter={[16, 16]}>
+                  <Col span={24}>
+                    <Text strong style={{ display: 'block', marginBottom: '8px' }}>Shipment Details:</Text>
+                  </Col>
+                  {selectedActivity.supplier && (
+                    <Col xs={24} sm={12}>
+                      <Text strong>Supplier: </Text>
+                      <Text>{selectedActivity.supplier}</Text>
+                    </Col>
+                  )}
+                  {selectedActivity.pord_no && (
+                    <Col xs={24} sm={12}>
+                      <Text strong>PO Number: </Text>
+                      <Text>{selectedActivity.pord_no}</Text>
+                    </Col>
+                  )}
+                  {selectedActivity.date_of_arrival && (
+                    <Col xs={24} sm={12}>
+                      <Text strong>Date of Arrival: </Text>
+                      <Text>
+                        {new Date(selectedActivity.date_of_arrival).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </Text>
+                    </Col>
+                  )}
+                  {selectedActivity.mode && (
+                    <Col xs={24} sm={12}>
+                      <Text strong>Mode: </Text>
+                      <Text>{selectedActivity.mode}</Text>
+                    </Col>
+                  )}
+                  {(selectedActivity.reagent || selectedActivity.spare_part || selectedActivity.instruments) && (
+                    <Col span={24}>
+                      <Text strong>Item Types: </Text>
+                      <Space style={{ marginTop: '8px' }}>
+                        {selectedActivity.reagent && <Tag color="blue">Reagent</Tag>}
+                        {selectedActivity.spare_part && <Tag color="green">Spare Part</Tag>}
+                        {selectedActivity.instruments && <Tag color="orange">Instruments</Tag>}
+                      </Space>
+                    </Col>
+                  )}
+                  {selectedActivity.main_item_list && (
+                    <Col span={24}>
+                      <Text strong style={{ display: 'block', marginBottom: '8px' }}>Main Item List:</Text>
+                      <Text style={{ display: 'block' }}>{selectedActivity.main_item_list}</Text>
+                    </Col>
+                  )}
+                </Row>
+              </>
+            )}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '40px' }}>
-            <FrownOutlined style={{ fontSize: '48px', color: '#bdc3c7', marginBottom: '16px' }} />
-            <div style={{ fontSize: '16px', color: '#7f8c8d' }}>Activity details not available</div>
+            <FrownOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }} />
+            <div style={{ fontSize: '16px' }}>Activity details not available</div>
           </div>
         )}
       </Modal>
