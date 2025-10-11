@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, message, Typography, Select } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, TeamOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, message, Typography, Select, Divider, Image, Alert } from 'antd';
+import { UserOutlined, LockOutlined, MailOutlined, TeamOutlined, SafetyOutlined, IdcardOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -10,33 +10,66 @@ const { Option } = Select;
 const Register = () => {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [emailError, setEmailError] = useState('');
   const navigate = useNavigate();
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchDepartments();
   }, []);
 
   const fetchDepartments = async () => {
-    const { data, error } = await supabase
-      .from('departments')
-      .select('*')
-      .order('name');
+    try {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .order('name');
 
-    if (!error) {
-      setDepartments(data || []);
-    } else {
-      console.error('Error fetching departments:', error);
+      if (error) {
+        console.error('Error fetching departments:', error);
+        message.warning('Departments loading slowly. You can still register.');
+      } else {
+        setDepartments(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
     }
+  };
+
+  // Email validation regex
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Password validation rules
+  const validatePassword = (password) => {
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    return null;
   };
 
   const onFinish = async (values) => {
     setLoading(true);
+    setEmailError('');
+    
     try {
       console.log('Registration values:', values);
       
-      // Register user with Supabase Auth
+      // Client-side validation
+      if (!validateEmail(values.email)) {
+        throw new Error('');
+      }
+
+      const passwordError = validatePassword(values.password);
+      if (passwordError) {
+        throw new Error(passwordError);
+      }
+
+      // Register user with Supabase Auth - SIMPLIFIED APPROACH
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: values.email,
+        email: values.email.trim().toLowerCase(),
         password: values.password,
         options: {
           data: {
@@ -44,67 +77,134 @@ const Register = () => {
             role: values.role,
             department_id: values.department_id
           }
+          // Remove emailRedirectTo temporarily to test
         }
       });
 
       if (authError) {
-        console.error('Auth error:', authError);
-        throw authError;
-      }
-
-      console.log('Auth data:', authData);
-
-      // If user is created successfully, create profile manually
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: authData.user.id,
-              email: values.email,
-              full_name: values.full_name,
-              role: values.role,
-              department_id: values.department_id
-            },
-          ]);
-
-        if (profileError) {
-          console.error('Profile error:', profileError);
+        console.error('Auth error details:', authError);
+        
+        // Handle specific auth errors
+        if (authError.message.includes('User already registered')) {
+          throw new Error('This email is already registered. Please try logging in or use a different email.');
+        } else if (authError.message.includes('Email not allowed')) {
+          throw new Error('This email domain is not allowed for registration.');
+        } else if (authError.message.includes('Password should be at least')) {
+          throw new Error('Password does not meet security requirements.');
+        } else if (authError.message.includes('Invalid email')) {
+          throw new Error('Please enter a valid email address.');
+        } else if (authError.message.includes('confirmation email')) {
+          // This might be a configuration issue
+          setEmailError('Email service temporarily unavailable. Your account was created but verification email failed. Please try logging in directly.');
+          message.warning('Account created but email verification failed. Try logging in directly.');
           
-          // If profile creation fails, try to update existing profile
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              full_name: values.full_name,
-              role: values.role,
-              department_id: values.department_id,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', authData.user.id);
-
-          if (updateError) {
-            console.error('Update error:', updateError);
-            throw updateError;
+          // Still proceed with profile creation
+          if (authData?.user) {
+            await createUserProfile(authData.user, values);
           }
+          navigate('/login');
+          return;
+        } else {
+          throw authError;
         }
       }
 
-      message.success('Registration successful! Please check your email for verification.');
-      navigate('/login');
+      console.log('Auth data received:', authData);
+
+      // Create user profile
+      if (authData.user) {
+        await createUserProfile(authData.user, values);
+      }
+
+      // Check if email confirmation was sent
+      if (authData.user && !authData.user.email_confirmed_at) {
+        message.success(
+          <span>
+            Account created successfully! 🎉<br />
+            {authData.user.identities && authData.user.identities.length > 0 
+              ? 'Check your email for verification link.'
+              : 'You can now try logging in.'
+            }
+          </span>,
+          8
+        );
+      } else {
+        message.success('Account created successfully! You can now log in.', 5);
+      }
+      
+      // Redirect to login after delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+
     } catch (error) {
       console.error('Registration error:', error);
-      message.error(error.message || 'Registration failed. Please try again.');
+      
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error instanceof TypeError) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Validate department selection
-  const validateDepartment = (_, value) => {
-    if (!value) {
-      return Promise.reject(new Error('Please select your department!'));
+  // Separate function for profile creation
+  const createUserProfile = async (user, values) => {
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: user.id,
+            email: values.email,
+            full_name: values.full_name,
+            role: values.role,
+            department_id: values.department_id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+        ]);
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        
+        // If profile creation fails, try to update existing profile
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: values.full_name,
+            role: values.role,
+            department_id: values.department_id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (updateError) {
+          console.error('Profile update also failed:', updateError);
+          // Don't throw error here as auth user was created successfully
+          message.warning('Account created but profile setup incomplete. Please contact support.');
+        }
+      }
+    } catch (profileError) {
+      console.error('Unexpected error in profile creation:', profileError);
     }
-    return Promise.resolve();
+  };
+
+  const onFinishFailed = (errorInfo) => {
+    console.log('Form validation failed:', errorInfo);
+    message.warning('Please fill in all required fields correctly.');
+  };
+
+  // Handle form reset
+  const handleReset = () => {
+    form.resetFields();
+    setEmailError('');
   };
 
   return (
@@ -113,126 +213,236 @@ const Register = () => {
       justifyContent: 'center', 
       alignItems: 'center', 
       minHeight: '100vh',
+      backgroundColor: '#ACAC9B',
       backgroundImage: `
-        linear-gradient(135deg, rgba(102,126,234,0.7) 0%, rgba(118,75,162,0.7) 100%),
+        linear-gradient(135deg, rgba(172, 172, 155, 0.9) 0%, rgba(172, 172, 155, 0.9) 100%),
         url('/images/image1.avif')
       `,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat'
+      backgroundRepeat: 'no-repeat',
+      backgroundBlendMode: 'overlay',
+      padding: '20px'
     }}>
-      <Card style={{ width: 480, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2}>Meeting App</Title>
-          <Text type="secondary">Create your account</Text>
+      <Card
+        style={{
+          width: 520,
+          maxWidth: '90vw',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          borderRadius: '16px',
+          border: 'none',
+          overflow: 'hidden',
+          background: 'linear-gradient(145deg, #ffffff 0%, #f8f8f8 100%)'
+        }}
+        bodyStyle={{ padding: '40px' }}
+      >
+        {/* Application Logo and Header */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ 
+            marginBottom: 20,
+            padding: '20px',
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}>
+            <Image
+              src="/images/main-app-logo.png"
+              alt="Schedify"
+              preview={false}
+              style={{
+                height: '80px',
+                width: 'auto',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
+          <Text style={{ 
+            fontSize: '16px', 
+            color: '#7f8c8d',
+            fontWeight: '500'
+          }}>
+            Create Your Account
+          </Text>
         </div>
-        
+
+        {/* Email Error Alert */}
+        {emailError && (
+          <Alert
+            message="Email Service Notice"
+            description={emailError}
+            type="warning"
+            showIcon
+            icon={<InfoCircleOutlined />}
+            style={{ marginBottom: 24 }}
+            closable
+          />
+        )}
+
+        {/* AIPL Logo Section */}
+        <div style={{
+          textAlign: 'center',
+          marginBottom: 28,
+          padding: '16px',
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          border: '2px solid #e74c3c'
+        }}>
+          <Text strong style={{ 
+            display: 'block', 
+            marginBottom: 8,
+            fontSize: '14px',
+            color: '#2c3e50'
+          }}>
+            Schedule Application For
+          </Text>
+          <Image
+            src="/images/aipl.png"
+            alt="AIPL"
+            preview={false}
+            style={{
+              height: '40px',
+              width: 'auto',
+              objectFit: 'contain'
+            }}
+          />
+        </div>
+
+        <Divider style={{ 
+          margin: '24px 0', 
+          borderColor: '#bdc3c7',
+          color: '#34495e',
+          fontSize: '15px',
+          fontWeight: '600'
+        }}>
+          <IdcardOutlined /> Registration Details
+        </Divider>
+
+        {/* Registration Form */}
         <Form
+          form={form}
           name="register"
           onFinish={onFinish}
+          onFinishFailed={onFinishFailed}
           autoComplete="off"
           layout="vertical"
           initialValues={{
-            role: 'User' // Using the second code's default role
+            role: 'user'
           }}
         >
           <Form.Item
             name="full_name"
-            label="Full Name"
+            label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Full Name</Text>}
             rules={[{ 
               required: true, 
               message: 'Please input your full name!' 
             }]}
+            hasFeedback
           >
             <Input 
-              prefix={<UserOutlined />} 
-              placeholder="Full Name" 
+              prefix={<UserOutlined style={{ color: '#3498db' }} />} 
+              placeholder="Enter your full name" 
               size="large"
+              style={{
+                height: '48px',
+                fontSize: '15px',
+                borderRadius: '8px',
+                border: '2px solid #dcdfe6',
+                padding: '0 16px'
+              }}
             />
           </Form.Item>
 
           <Form.Item
             name="email"
-            label="Email"
+            label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Email Address</Text>}
             rules={[
               { 
                 required: true, 
-                message: 'Please input your email!' 
+                message: 'Please input your email address!' 
               },
               { 
                 type: 'email', 
-                message: 'Please enter a valid email!' 
+                message: 'Please enter a valid email address!' 
               }
             ]}
+            hasFeedback
           >
             <Input 
-              prefix={<MailOutlined />} 
-              placeholder="Email" 
+              prefix={<MailOutlined style={{ color: '#3498db' }} />} 
+              placeholder="Enter your email address" 
               size="large"
+              style={{
+                height: '48px',
+                fontSize: '15px',
+                borderRadius: '8px',
+                border: '2px solid #dcdfe6',
+                padding: '0 16px'
+              }}
             />
           </Form.Item>
 
-          <Form.Item
-            name="department_id"
-            label="Department"
-            rules={[{ 
-              validator: validateDepartment 
-            }]}
-          >
-            <Select 
-              placeholder="Select department" 
-              size="large"
-              suffixIcon={<TeamOutlined />}
-              showSearch
-              filterOption={(input, option) =>
-                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-              }
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Form.Item
+              name="department_id"
+              label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Department</Text>}
+              rules={[{ 
+                required: true, 
+                message: 'Please select your department!' 
+              }]}
             >
-              {departments.map(dept => (
-                <Option key={dept.id} value={dept.id}>
-                  {dept.name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+              <Select 
+                placeholder="Select department" 
+                size="large"
+                suffixIcon={<TeamOutlined style={{ color: '#3498db' }} />}
+                showSearch
+                filterOption={(input, option) =>
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                }
+                style={{
+                  borderRadius: '8px'
+                }}
+                notFoundContent={
+                  <div style={{ padding: '10px', textAlign: 'center', color: '#999' }}>
+                    No departments loaded
+                  </div>
+                }
+              >
+                {departments.map(dept => (
+                  <Option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
 
-          <Form.Item
-            name="role"
-            label="Role"
-            rules={[{ 
-              required: true, 
-              message: 'Please select your role!' 
-            }]}
-          >
-            <Select placeholder="Select role" size="large">
-              {/* Using the second code's role options */}
-              <Option value="slt_member">
-                <UserOutlined /> SLT Member
-              </Option>
-              <Option value="sbu_head">
-                <UserOutlined /> SBU Head
-              </Option>
-              <Option value="operational_manager">
-                <UserOutlined /> Operational Manager
-              </Option>
-              <Option value="functional_manager">
-                <UserOutlined /> Functional Manager
-              </Option>
-              <Option value="secretary">
-                <UserOutlined /> Secretary
-              </Option>
-              <Option value="user">
-                <UserOutlined /> User
-              </Option>
-              <Option value="admin">
-                <UserOutlined /> Admin (System Administrators)
-              </Option>
-            </Select>
-          </Form.Item>
+            <Form.Item
+              name="role"
+              label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Role</Text>}
+              rules={[{ 
+                required: true, 
+                message: 'Please select your role!' 
+              }]}
+            >
+              <Select 
+                placeholder="Select role" 
+                size="large"
+                suffixIcon={<UserOutlined style={{ color: '#3498db' }} />}
+                style={{
+                  borderRadius: '8px'
+                }}
+              >
+                
+                <Option value="operational_manager">Operational Manager</Option>
+                <Option value="user">User</Option>
+                <Option value="admin">Admin</Option>
+              </Select>
+            </Form.Item>
+          </div>
 
           <Form.Item
             name="password"
-            label="Password"
+            label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Password</Text>}
             rules={[
               { 
                 required: true, 
@@ -243,17 +453,25 @@ const Register = () => {
                 message: 'Password must be at least 6 characters!' 
               }
             ]}
+            hasFeedback
           >
             <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="Password"
+              prefix={<LockOutlined style={{ color: '#3498db' }} />}
+              placeholder="Create a strong password"
               size="large"
+              style={{
+                height: '48px',
+                fontSize: '15px',
+                borderRadius: '8px',
+                border: '2px solid #dcdfe6',
+                padding: '0 16px'
+              }}
             />
           </Form.Item>
 
           <Form.Item
             name="confirmPassword"
-            label="Confirm Password"
+            label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Confirm Password</Text>}
             dependencies={['password']}
             rules={[
               { 
@@ -269,30 +487,117 @@ const Register = () => {
                 },
               }),
             ]}
+            hasFeedback
           >
             <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="Confirm Password"
+              prefix={<SafetyOutlined style={{ color: '#3498db' }} />}
+              placeholder="Confirm your password"
               size="large"
+              style={{
+                height: '48px',
+                fontSize: '15px',
+                borderRadius: '8px',
+                border: '2px solid #dcdfe6',
+                padding: '0 16px'
+              }}
             />
           </Form.Item>
 
-          <Form.Item>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={loading}
-              block 
-              size="large"
-            >
-              Register
-            </Button>
+          <Form.Item style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                block
+                size="large"
+                icon={<UserOutlined />}
+                style={{
+                  height: '50px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  boxShadow: '0 4px 15px rgba(39, 174, 96, 0.3)'
+                }}
+              >
+                Create Account
+              </Button>
+              <Button
+                onClick={handleReset}
+                block
+                size="large"
+                style={{
+                  height: '50px',
+                  fontSize: '16px',
+                  fontWeight: '500',
+                  background: '#ecf0f1',
+                  border: '2px solid #bdc3c7',
+                  color: '#2c3e50',
+                  borderRadius: '10px'
+                }}
+              >
+                Clear Form
+              </Button>
+            </div>
           </Form.Item>
         </Form>
 
-        <div style={{ textAlign: 'center' }}>
-          <Text type="secondary">Already have an account? </Text>
-          <Link to="/login">Sign in</Link>
+        {/* Additional Links */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <Text style={{ 
+            fontSize: '14px', 
+            color: '#7f8c8d',
+            fontWeight: '500'
+          }}>
+            Already have an account?{' '}
+          </Text>
+          <Link 
+            to="/login" 
+            style={{ 
+              fontSize: '14px',
+              color: '#3498db',
+              fontWeight: '600',
+              textDecoration: 'none'
+            }}
+          >
+            Sign in here
+          </Link>
+        </div>
+
+        {/* Footer with eHealth Logo */}
+        <Divider style={{ 
+          margin: '24px 0', 
+          borderColor: '#bdc3c7'
+        }} />
+        <div style={{
+          textAlign: 'center',
+          padding: '16px',
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          border: '2px solid #3498db'
+        }}>
+          <Text style={{
+            display: 'block',
+            marginBottom: 8,
+            fontSize: '12px',
+            color: '#7f8c8d',
+            fontWeight: '600'
+          }}>
+            Powered by
+          </Text>
+          <Image
+            src="/images/eHealth.png"
+            alt="eHealth"
+            preview={false}
+            style={{
+              height: '35px',
+              width: 'auto',
+              objectFit: 'contain'
+            }}
+          />
         </div>
       </Card>
     </div>

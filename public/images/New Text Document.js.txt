@@ -1,0 +1,467 @@
+// Dashboard.js (responsive)
+import React, { useMemo, useState } from "react";
+import {
+  Row,
+  Col,
+  Card,
+  Typography,
+  Badge,
+  Tabs,
+  List,
+  Pagination,
+  Modal,
+  Table,
+  Space,
+  Empty,
+  Grid,
+} from "antd";
+import {
+  Calendar as AntCalendar,
+} from "antd";
+import {
+  CalendarTwoTone,
+  CheckCircleOutlined,
+} from "@ant-design/icons";
+import dayjs from "dayjs";
+
+const { Text, Title } = Typography;
+const { useBreakpoint } = Grid;
+
+/* -------------------------------------------
+   Enhanced Calendar Cell (responsive)
+-------------------------------------------- */
+const EnhancedCalendarCell = ({
+  date,
+  meetings = [],
+  tasks = [],
+  onDateClick,
+  isPersonal = false,
+  isMobile = false,
+}) => {
+  const total = (meetings?.length || 0) + (tasks?.length || 0);
+
+  const getCellColor = () => {
+    if (total >= 5) return "#e6f7ff";
+    if (total >= 3) return "#f6ffed";
+    if (total >= 1) return "#fffbe6";
+    return "#fff";
+  };
+
+  const cellStyle = {
+    width: "100%",
+    height: "100%",
+    minHeight: isMobile ? 56 : 80,
+    padding: isMobile ? 3 : 6,
+    backgroundColor: getCellColor(),
+    border: total > 0 ? "2px solid #1890ff" : "1px solid #f0f0f0",
+    borderRadius: 6,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    cursor: total > 0 ? "pointer" : "default",
+    transition: "all .2s ease",
+  };
+
+  return (
+    <div style={cellStyle} onClick={() => total > 0 && onDateClick?.(date)}>
+      {/* date number */}
+      <div style={{ textAlign: "right" }}>
+        <Text strong style={{ fontSize: isMobile ? 11 : 13, color: total ? "#1890ff" : "#00000073" }}>
+          {date.date()}
+        </Text>
+      </div>
+
+      {/* badges */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+        <Badge
+          count={total}
+          size="small"
+          style={{ fontSize: isMobile ? 9 : 10, backgroundColor: total >= 5 ? "#1677ff" : total >= 3 ? "#52c41a" : "#faad14" }}
+        />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <CalendarTwoTone style={{ fontSize: isMobile ? 10 : 12 }} />
+          <Text style={{ fontSize: isMobile ? 10 : 12 }}>{meetings.length}M</Text>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <CheckCircleOutlined style={{ fontSize: isMobile ? 10 : 12, color: "#52c41a" }} />
+          <Text style={{ fontSize: isMobile ? 10 : 12 }}>{tasks.length}T</Text>
+        </div>
+      </div>
+
+      {/* footer hint */}
+      {total > 0 ? (
+        <Text style={{ marginTop: 2, fontSize: isMobile ? 10 : 11, color: "#666" }}>
+          {isPersonal ? "Personal" : "Schedule"}
+        </Text>
+      ) : (
+        <span />
+      )}
+    </div>
+  );
+};
+
+/* -------------------------------------------
+   Organizational Calendar (responsive)
+-------------------------------------------- */
+const OrganizationalCalendar = React.memo(function OrganizationalCalendar({
+  allMeetings,
+  allTasks,
+  mode,
+  onDateClick,
+  isMobile,
+}) {
+  const cellRender = (current) => {
+    const key = current.format("YYYY-MM-DD");
+    const m = allMeetings[key] || [];
+    const t = allTasks[key] || [];
+
+    return (
+      <EnhancedCalendarCell
+        date={current}
+        meetings={m}
+        tasks={t}
+        onDateClick={onDateClick}
+        isMobile={isMobile}
+      />
+    );
+  };
+
+  return (
+    <AntCalendar
+      cellRender={cellRender}
+      fullscreen={false}
+      mode={mode}
+      style={{
+        fontSize: isMobile ? 12 : 16,
+        minHeight: isMobile ? 360 : 520,
+      }}
+    />
+  );
+});
+
+/* -------------------------------------------
+   Personal Calendar (responsive)
+-------------------------------------------- */
+const PersonalCalendar = React.memo(function PersonalCalendar({
+  personalMeetings,
+  personalTasks,
+  mode,
+  onDateClick,
+  isMobile,
+}) {
+  const cellRender = (current) => {
+    const key = current.format("YYYY-MM-DD");
+    const m = personalMeetings[key] || [];
+    const t = personalTasks[key] || [];
+
+    return (
+      <EnhancedCalendarCell
+        date={current}
+        meetings={m}
+        tasks={t}
+        isPersonal
+        onDateClick={onDateClick}
+        isMobile={isMobile}
+      />
+    );
+  };
+
+  return (
+    <AntCalendar
+      cellRender={cellRender}
+      fullscreen={false}
+      mode={mode}
+      style={{
+        fontSize: isMobile ? 12 : 16,
+        minHeight: isMobile ? 360 : 520,
+      }}
+    />
+  );
+});
+
+/* -------------------------------------------
+   Date Activities Modal (responsive)
+-------------------------------------------- */
+const DateActivitiesModal = ({
+  open,
+  onClose,
+  date,
+  rows = [],
+  isMobile,
+}) => {
+  // smaller set of columns for phones
+  const columns = useMemo(() => {
+    const base = [
+      { title: "Type", dataIndex: "type", key: "type", width: 110 },
+      { title: "Title", dataIndex: "title", key: "title" },
+      { title: "Time", dataIndex: "time", key: "time", width: 120 },
+      { title: "Owner", dataIndex: "owner", key: "owner", width: 140, responsive: ["md"] },
+      { title: "Status", dataIndex: "status", key: "status", width: 110, responsive: ["md"] },
+    ];
+    return base;
+  }, []);
+
+  return (
+    <Modal
+      title={<span>Activities on {date?.format("YYYY-MM-DD")}</span>}
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={"min(95vw, 900px)"}
+      bodyStyle={{ padding: isMobile ? 12 : 24 }}
+    >
+      {rows.length === 0 ? (
+        <Empty description="No activities" />
+      ) : (
+        <Table
+          rowKey={(r, i) => `${r.type}-${i}`}
+          columns={columns}
+          dataSource={rows}
+          pagination={{ pageSize: 8 }}
+          size="small"
+          scroll={{ y: isMobile ? 260 : 400, x: true }}
+        />
+      )}
+    </Modal>
+  );
+};
+
+/* -------------------------------------------
+   Demo data helpers (replace with real API)
+-------------------------------------------- */
+const buildFakeIndex = () => {
+  // Generate a month of fake slots keyed by YYYY-MM-DD
+  const start = dayjs().startOf("month").startOf("week");
+  const end = dayjs().endOf("month").endOf("week");
+  const days = end.diff(start, "day");
+
+  const m = {};
+  const t = {};
+  for (let i = 0; i <= days; i++) {
+    const d = start.add(i, "day");
+    const key = d.format("YYYY-MM-DD");
+    const r = Math.floor(Math.random() * 4); // 0..3
+    const rr = Math.floor(Math.random() * 3);
+    m[key] = Array.from({ length: r }).map((_, j) => ({
+      type: "Meeting",
+      title: `Dept Sync ${j + 1}`,
+      time: d.hour(9 + j).format("HH:mm"),
+      owner: ["IT", "HR", "Sales"][j % 3],
+      status: ["Planned", "Confirmed", "Done"][j % 3],
+    }));
+    t[key] = Array.from({ length: rr }).map((_, j) => ({
+      type: "Task",
+      title: `Task ${j + 1}`,
+      time: d.hour(14 + j).format("HH:mm"),
+      owner: ["Sam", "Niv", "Kav"][j % 3],
+      status: ["Open", "In Progress", "Done"][j % 3],
+    }));
+  }
+  return { m, t };
+};
+
+/* -------------------------------------------
+   Dashboard (page)
+-------------------------------------------- */
+export default function Dashboard() {
+  const screens = useBreakpoint();
+  const isMobile = !screens.md; // < md
+
+  // replace these with your API data
+  const { m: allMeetings, t: allTasks } = useMemo(buildFakeIndex, []);
+  const { m: personalMeetings, t: personalTasks } = useMemo(buildFakeIndex, []);
+
+  const [mode, setMode] = useState("month"); // month | year
+  const [tab, setTab] = useState("org");
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const onDateClick = (d) => {
+    setSelectedDate(d);
+    setModalOpen(true);
+  };
+
+  const activityRows = useMemo(() => {
+    if (!selectedDate) return [];
+    const key = selectedDate.format("YYYY-MM-DD");
+    const orgRows = [
+      ...(allMeetings[key] || []),
+      ...(allTasks[key] || []),
+    ];
+    const perRows = [
+      ...(personalMeetings[key] || []),
+      ...(personalTasks[key] || []),
+    ];
+    return tab === "org" ? orgRows : perRows;
+  }, [selectedDate, allMeetings, allTasks, personalMeetings, personalTasks, tab]);
+
+  return (
+    <div style={{ padding: isMobile ? 12 : 24 }}>
+      <Title level={3} style={{ marginBottom: 16 }}>
+        Task Scheduler
+      </Title>
+
+      <Tabs activeKey={tab} onChange={setTab} items={[
+        { key: "org", label: "Organizational View" },
+        { key: "personal", label: "My Schedule" },
+      ]} />
+
+      {/* GRID FIX: keep both columns inside the SAME Row so it wraps on small screens */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={16}>
+          <Card
+            title="Calendar"
+            bordered={false}
+            extra={
+              <Space size={8}>
+                <Text style={{ fontSize: 12 }}>View:</Text>
+                <Tabs
+                  activeKey={mode}
+                  onChange={setMode}
+                  items={[
+                    { key: "month", label: "Month" },
+                    { key: "year", label: "Year" },
+                  ]}
+                  size="small"
+                />
+              </Space>
+            }
+          >
+            <div
+              style={{
+                border: "1px solid #f0f0f0",
+                borderRadius: 8,
+                padding: isMobile ? 8 : 16,
+                background: "#fff",
+              }}
+            >
+              {tab === "org" ? (
+                <OrganizationalCalendar
+                  allMeetings={allMeetings}
+                  allTasks={allTasks}
+                  mode={mode}
+                  onDateClick={onDateClick}
+                  isMobile={isMobile}
+                />
+              ) : (
+                <PersonalCalendar
+                  personalMeetings={personalMeetings}
+                  personalTasks={personalTasks}
+                  mode={mode}
+                  onDateClick={onDateClick}
+                  isMobile={isMobile}
+                />
+              )}
+            </div>
+
+            {/* Legend */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: isMobile ? 8 : 12,
+                background: "#f9f9f9",
+                borderRadius: 8,
+                border: "1px solid #e8e8e8",
+              }}
+            >
+              <Text strong>Legend</Text>
+              <Row gutter={[12, 8]} style={{ marginTop: 8 }}>
+                <Col xs={12} sm={6}>
+                  <Badge color="#fff" text="No activity" />
+                </Col>
+                <Col xs={12} sm={6}>
+                  <Badge color="#fffbe6" text="1–2 activities" />
+                </Col>
+                <Col xs={12} sm={6}>
+                  <Badge color="#f6ffed" text="3–4 activities" />
+                </Col>
+                <Col xs={12} sm={6}>
+                  <Badge color="#e6f7ff" text="5+ activities" />
+                </Col>
+              </Row>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={8}>
+          <Card title={tab === "org" ? "Meetings & Tasks" : "My Items"} bordered={false}>
+            <Tabs
+              defaultActiveKey="meetings"
+              items={[
+                {
+                  key: "meetings",
+                  label: "Meetings",
+                  children: (
+                    <List
+                      dataSource={
+                        tab === "org"
+                          ? Object.values(allMeetings).flat()
+                          : Object.values(personalMeetings).flat()
+                      }
+                      renderItem={(item) => (
+                        <List.Item>
+                          <List.Item.Meta
+                            title={item.title}
+                            description={`${item.time} • ${item.owner}`}
+                          />
+                          <Text type="secondary">{item.status}</Text>
+                        </List.Item>
+                      )}
+                      pagination={{
+                        pageSize: 5,
+                        size: "small",
+                        responsive: true,
+                      }}
+                      locale={{ emptyText: <Empty description="No meetings" /> }}
+                    />
+                  ),
+                },
+                {
+                  key: "tasks",
+                  label: "Tasks",
+                  children: (
+                    <List
+                      dataSource={
+                        tab === "org"
+                          ? Object.values(allTasks).flat()
+                          : Object.values(personalTasks).flat()
+                      }
+                      renderItem={(item) => (
+                        <List.Item>
+                          <List.ItemMeta
+                            title={item.title}
+                            description={`${item.time} • ${item.owner}`}
+                          />
+                          <Text type="secondary">{item.status}</Text>
+                        </List.Item>
+                      )}
+                      pagination={{
+                        pageSize: 5,
+                        size: "small",
+                        responsive: true,
+                      }}
+                      locale={{ emptyText: <Empty description="No tasks" /> }}
+                    />
+                  ),
+                },
+              ]}
+            />
+            <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+              <Pagination simple={isMobile} total={50} pageSize={10} />
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      <DateActivitiesModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        date={selectedDate}
+        rows={activityRows}
+        isMobile={isMobile}
+      />
+    </div>
+  );
+}
