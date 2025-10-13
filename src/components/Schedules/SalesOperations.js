@@ -457,9 +457,28 @@ const UserScheduleModal = React.memo(({
     };
 
     const getActivityType = (item) => {
-        if (item.type === 'personal_meeting') return 'Personal Meeting';
-        if (item.type === 'sales_ops_activity') return `Sales Ops ${item.activity_type}`;
-        return 'Unknown Activity';
+        try {
+            if (item.type === 'personal_meeting') return 'Personal Meeting';
+            if (item.type === 'sales_ops_activity') return `Sales Ops ${item.activity_type}`;
+            return 'Unknown Activity';
+        } catch (error) {
+            return 'Unknown Activity';
+        }
+    };
+
+    // ADDED: getActivityDescription function
+    const getActivityDescription = (item) => {
+        try {
+            if (item.type === 'personal_meeting') {
+                return item.description || 'No description available';
+            }
+            if (item.type === 'sales_ops_activity') {
+                return item.remarks || item.meeting || 'No description available';
+            }
+            return 'No description available';
+        } catch (error) {
+            return 'Description not available';
+        }
     };
 
     const safeDayjs = (date) => {
@@ -528,6 +547,14 @@ const UserScheduleModal = React.memo(({
                                                 {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
                                             </Space>
                                         </Descriptions.Item>
+                                        
+                                        {/* ADDED: Description field using getActivityDescription */}
+                                        <Descriptions.Item label="Description">
+                                            <Text type="secondary">
+                                                {getActivityDescription(item)}
+                                            </Text>
+                                        </Descriptions.Item>
+                                        
                                         {item.company && (
                                             <Descriptions.Item label="Company">
                                                 {item.company}
@@ -536,11 +563,6 @@ const UserScheduleModal = React.memo(({
                                         {item.venue && (
                                             <Descriptions.Item label="Venue">
                                                 <Tag color="blue">{item.venue}</Tag>
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.description && (
-                                            <Descriptions.Item label="Description">
-                                                {item.description}
                                             </Descriptions.Item>
                                         )}
                                         {item.remarks && (
@@ -973,16 +995,16 @@ const SalesOperations = () => {
         }
     };
 
+    // CORRECTED: fetchUserSchedule function with proper user filtering
     const fetchUserSchedule = async (userId, startDate, endDate) => {
         setAvailabilityLoading(true);
         try {
             const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
             const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-            // Get ALL data from all tables without user filtering first
             let allActivities = [];
 
-            // Personal meetings
+            // Personal meetings for the specific user
             const { data: personalMeetings } = await supabase
                 .from('personal_meetings')
                 .select('*')
@@ -991,15 +1013,34 @@ const SalesOperations = () => {
                 .lte('end_date', formattedEnd)
                 .order('start_date', { ascending: true });
 
-            // Sales Operations activities from all categories
+            // Sales Operations activities - filter by responsible users
             for (const category of salesOpsCategories) {
-                const { data: activities } = await supabase
+                let query = supabase
                     .from(category.table)
                     .select('*')
-                    .eq('user_id', userId)
                     .gte(category.dateField, formattedStart)
                     .lte(category.dateField, formattedEnd)
                     .order(category.dateField, { ascending: true });
+
+                // Get user details to filter by name/email
+                const user = salesOpsUsers.find(u => u.id === userId);
+                if (user) {
+                    const userName = user.full_name || user.email;
+                    
+                    // Filter based on category's responsible field
+                    switch (category.id) {
+                        case 'meetings':
+                            // Filter by conducted_by_2 field (text array)
+                            query = query.or(`conducted_by_2.cs.{"${userName}"}`);
+                            break;
+                        case 'special_tasks':
+                            // For tasks, we might need to check if user is involved in any way
+                            // Since there's no specific responsible field, we'll get all for now
+                            break;
+                    }
+                }
+
+                const { data: activities } = await query;
 
                 if (activities) {
                     allActivities.push(...activities.map(activity => ({
@@ -1012,7 +1053,7 @@ const SalesOperations = () => {
             }
 
             // Combine all activities
-            const allSchedule = [
+            const userSchedule = [
                 ...(personalMeetings || []).map(meeting => ({
                     ...meeting,
                     type: 'personal_meeting'
@@ -1020,8 +1061,9 @@ const SalesOperations = () => {
                 ...allActivities
             ];
 
-            safeSetState(setUserSchedule, allSchedule);
-            
+            safeSetState(setUserSchedule, userSchedule);
+            console.log(`Schedule items for user ${userId}:`, userSchedule.length);
+
         } catch (error) {
             handleError(error, 'fetching user schedule');
             safeSetState(setUserSchedule, []);
@@ -1379,14 +1421,16 @@ const SalesOperations = () => {
         }
     };
 
+    // CORRECTED: handleFormSubmit to fix department_id error and auto-create personal meetings
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission
-            const submitData = { ...values };
+            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
+            const { department_id, category_id, ...cleanData } = values;
+            const submitData = { ...cleanData };
 
             // Convert dayjs objects to ISO strings with error handling
             Object.keys(submitData).forEach(key => {
@@ -1399,27 +1443,116 @@ const SalesOperations = () => {
                 }
             });
 
+            let result;
+
             if (editingRecord) {
-                const { error } = await supabase
+                // Update existing record
+                const { data, error } = await supabase
                     .from(selectedCategory.table)
                     .update(submitData)
-                    .eq('id', editingRecord.id);
+                    .eq('id', editingRecord.id)
+                    .select();
 
                 if (error) throw error;
+                result = data[0];
                 toast.success('Record updated successfully');
             } else {
-                const { error } = await supabase
+                // Create new record
+                const { data, error } = await supabase
                     .from(selectedCategory.table)
-                    .insert([submitData]);
+                    .insert([submitData])
+                    .select();
 
                 if (error) throw error;
+                result = data[0];
                 toast.success('Record created successfully');
             }
+
+            // Auto-create personal meetings for responsible users
+            await createPersonalMeetingsForSalesOps(result, selectedCategory, submitData);
 
             safeSetState(setModalVisible, false);
             fetchTableData();
         } catch (error) {
             handleError(error, 'saving record');
+        }
+    };
+
+    // ADDED: Function to create personal meetings for Sales Ops users
+    const createPersonalMeetingsForSalesOps = async (record, category, formData) => {
+        try {
+            let responsibleUsers = [];
+            let meetingDate = '';
+            let meetingTitle = '';
+
+            // Extract responsible users and meeting details based on category
+            switch (category.id) {
+                case 'meetings':
+                    responsibleUsers = formData.conducted_by_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Sales Ops Meeting: ${formData.meeting}`;
+                    break;
+
+                case 'special_tasks':
+                    // For tasks, we might not have specific responsible users
+                    meetingDate = formData.start_date;
+                    meetingTitle = `Sales Ops Task: ${formData.meeting}`;
+                    break;
+            }
+
+            // If no responsible users, return
+            if (!responsibleUsers.length || !meetingDate) {
+                return;
+            }
+
+            // Convert string array to array if needed
+            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
+
+            // Create personal meetings for each responsible user
+            for (const userRef of usersArray) {
+                let user = null;
+
+                // Find user by different identifier types
+                if (typeof userRef === 'string') {
+                    // Try to find by full name
+                    user = salesOpsUsers.find(u => u.full_name === userRef);
+                    if (!user) {
+                        // Try to find by email
+                        user = salesOpsUsers.find(u => u.email === userRef);
+                    }
+                    if (!user) {
+                        // Try to find by ID
+                        user = salesOpsUsers.find(u => u.id === userRef);
+                    }
+                }
+
+                if (user) {
+                    // Create personal meeting
+                    const personalMeetingData = {
+                        topic: meetingTitle,
+                        start_date: meetingDate,
+                        end_date: meetingDate, // Same day for now
+                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
+                        venue: formData.company || 'TBD',
+                        user_id: user.id
+                    };
+
+                    const { error } = await supabase
+                        .from('personal_meetings')
+                        .insert([personalMeetingData]);
+
+                    if (error) {
+                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
+                    } else {
+                        console.log(`Personal meeting created for ${user.full_name}`);
+                    }
+                }
+            }
+
+            toast.info(`Created personal meetings for ${usersArray.length} team member(s)`);
+        } catch (error) {
+            console.error('Error creating personal meetings:', error);
+            // Don't throw error here to avoid affecting main form submission
         }
     };
 

@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress
+    Tabs, Switch, Pagination, Progress, Rate
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -13,7 +13,8 @@ import {
     ExclamationCircleOutlined, ReloadOutlined, WarningOutlined,
     MessageOutlined, WechatOutlined, SendOutlined,
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
-    InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined
+    InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
+    StarOutlined, FlagOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -52,6 +53,38 @@ const LoadingSpinner = ({ tip = "Loading BDM data..." }) => (
         <Spin size="large" tip={tip} />
     </div>
 );
+
+// Priority Badge Component
+const PriorityBadge = ({ priority }) => {
+    const getPriorityConfig = (priority) => {
+        switch (priority) {
+            case 1:
+                return { color: 'green', text: 'Low', icon: <FlagOutlined /> };
+            case 2:
+                return { color: 'blue', text: 'Normal', icon: <FlagOutlined /> };
+            case 3:
+                return { color: 'orange', text: 'Medium', icon: <FlagOutlined /> };
+            case 4:
+                return { color: 'red', text: 'High', icon: <FlagOutlined /> };
+            case 5:
+                return { color: 'purple', text: 'Critical', icon: <FlagOutlined /> };
+            default:
+                return { color: 'default', text: 'Normal', icon: <FlagOutlined /> };
+        }
+    };
+
+    const config = getPriorityConfig(priority);
+
+    return (
+        <Badge
+            count={
+                <Tag color={config.color} icon={config.icon} style={{ fontSize: '10px', padding: '2px 6px' }}>
+                    {config.text}
+                </Tag>
+            }
+        />
+    );
+};
 
 // Statistics Cards Component
 const BDMStatistics = ({ stats, loading = false }) => (
@@ -360,6 +393,7 @@ const DiscussionModal = React.memo(({
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
                     {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
                     {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
+                    <PriorityBadge priority={record.priority} />
                 </Space>
             }
             open={visible}
@@ -420,7 +454,7 @@ const DiscussionModal = React.memo(({
     );
 });
 
-// User Schedule Modal Component (SINGLE CORRECTED VERSION)
+// User Schedule Modal Component
 const UserScheduleModal = React.memo(({
     visible,
     onCancel,
@@ -533,9 +567,12 @@ const UserScheduleModal = React.memo(({
                                         style={{ marginBottom: 16 }}
                                     >
                                         <Descriptions.Item label="Activity Type">
-                                            <Tag color={getScheduleItemColor(item)}>
-                                                {getActivityType(item)}
-                                            </Tag>
+                                            <Space>
+                                                <Tag color={getScheduleItemColor(item)}>
+                                                    {getActivityType(item)}
+                                                </Tag>
+                                                <PriorityBadge priority={item.priority} />
+                                            </Space>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
@@ -552,7 +589,6 @@ const UserScheduleModal = React.memo(({
                                             </Space>
                                         </Descriptions.Item>
 
-                                        {/* NOW CALLING getActivityDescription */}
                                         <Descriptions.Item label="Description">
                                             <Text type="secondary">
                                                 {getActivityDescription(item)}
@@ -648,6 +684,9 @@ const BDM = () => {
     // User Schedule Modal State
     const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
+    // Priority filter state
+    const [priorityFilter, setPriorityFilter] = useState(null);
+
     // BDM Categories configuration
     const bdmCategories = [
         {
@@ -695,6 +734,15 @@ const BDM = () => {
             dateField: 'date',
             color: '#eb2f96'
         }
+    ];
+
+    // Priority options
+    const priorityOptions = [
+        { value: 1, label: 'Low', color: 'green' },
+        { value: 2, label: 'Normal', color: 'blue' },
+        { value: 3, label: 'Medium', color: 'orange' },
+        { value: 4, label: 'High', color: 'red' },
+        { value: 5, label: 'Critical', color: 'purple' }
     ];
 
     // Get default date range: yesterday to 9 days from today (total 10 days)
@@ -877,7 +925,7 @@ const BDM = () => {
         if (selectedCategory && dateRange[0] && dateRange[1]) {
             fetchTableData();
         }
-    }, [selectedCategory, dateRange]);
+    }, [selectedCategory, dateRange, priorityFilter]);
 
     const fetchCurrentUser = async () => {
         try {
@@ -979,7 +1027,13 @@ const BDM = () => {
                 .select('*')
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
+                .order('priority', { ascending: false }) // Sort by priority (high to low)
                 .order(selectedCategory.dateField, { ascending: true });
+
+            // Apply priority filter if selected
+            if (priorityFilter) {
+                query = query.eq('priority', priorityFilter);
+            }
 
             const { data, error } = await query;
 
@@ -1050,6 +1104,7 @@ const BDM = () => {
                 .eq('user_id', userId)
                 .gte('start_date', formattedStart)
                 .lte('end_date', formattedEnd)
+                .order('priority', { ascending: false })
                 .order('start_date', { ascending: true });
 
             // BDM activities - filter by responsible users
@@ -1059,6 +1114,7 @@ const BDM = () => {
                     .select('*')
                     .gte(category.dateField, formattedStart)
                     .lte(category.dateField, formattedEnd)
+                    .order('priority', { ascending: false })
                     .order(category.dateField, { ascending: true });
 
                 // Get user details to filter by name/email
@@ -1122,6 +1178,7 @@ const BDM = () => {
             safeSetState(setSelectedCategory, category);
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
+            safeSetState(setPriorityFilter, null);
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1137,6 +1194,14 @@ const BDM = () => {
             safeSetState(setDateRange, dates || [null, null]);
         } catch (error) {
             handleError(error, 'changing date range');
+        }
+    };
+
+    const handlePriorityFilterChange = (value) => {
+        try {
+            safeSetState(setPriorityFilter, value);
+        } catch (error) {
+            handleError(error, 'changing priority filter');
         }
     };
 
@@ -1316,6 +1381,15 @@ const BDM = () => {
                 ),
             };
 
+            const priorityColumn = {
+                title: 'Priority',
+                dataIndex: 'priority',
+                key: 'priority',
+                width: 100,
+                render: (priority) => <PriorityBadge priority={priority} />,
+                sorter: (a, b) => a.priority - b.priority,
+            };
+
             const baseColumns = [
                 {
                     title: 'Created',
@@ -1330,7 +1404,8 @@ const BDM = () => {
                         }
                     },
                     width: 100
-                }
+                },
+                priorityColumn
             ];
 
             switch (selectedCategory.id) {
@@ -1424,6 +1499,24 @@ const BDM = () => {
                         label="Remarks"
                     >
                         <TextArea rows={3} placeholder="Enter any remarks or notes" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="priority"
+                        label="Priority"
+                        initialValue={2}
+                        rules={[{ required: true, message: 'Please select priority' }]}
+                    >
+                        <Select placeholder="Select priority">
+                            {priorityOptions.map(option => (
+                                <Option key={option.value} value={option.value}>
+                                    <Space>
+                                        <Badge color={option.color} />
+                                        {option.label}
+                                    </Space>
+                                </Option>
+                            ))}
+                        </Select>
                     </Form.Item>
                 </>
             );
@@ -1848,7 +1941,8 @@ const BDM = () => {
                         end_date: meetingDate, // Same day for now
                         description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
                         venue: formData.company || 'TBD',
-                        user_id: user.id
+                        user_id: user.id,
+                        priority: formData.priority || 2 // Use same priority as main record
                     };
 
                     const { error } = await supabase
@@ -2033,7 +2127,7 @@ const BDM = () => {
                     title={
                         <Space>
                             <FilterOutlined />
-                            Filter Data by Date Range
+                            Filter Data
                             <Tag color="blue">
                                 Default: {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
@@ -2053,17 +2147,41 @@ const BDM = () => {
                     }
                 >
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Text>Select date range to view {selectedCategory.name} data:</Text>
-                        <RangePicker
-                            onChange={handleDateRangeChange}
-                            value={dateRange}
-                            style={{ width: '300px' }}
-                            format="DD/MM/YYYY"
-                            disabled={loading}
-                        />
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} md={12}>
+                                <Text>Select date range to view {selectedCategory.name} data:</Text>
+                                <RangePicker
+                                    onChange={handleDateRangeChange}
+                                    value={dateRange}
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    disabled={loading}
+                                />
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Text>Filter by priority:</Text>
+                                <Select
+                                    placeholder="All Priorities"
+                                    value={priorityFilter}
+                                    onChange={handlePriorityFilterChange}
+                                    style={{ width: '100%' }}
+                                    allowClear
+                                >
+                                    {priorityOptions.map(option => (
+                                        <Option key={option.value} value={option.value}>
+                                            <Space>
+                                                <Badge color={option.color} />
+                                                {option.label}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Col>
+                        </Row>
                         {dateRange[0] && dateRange[1] && (
                             <Text type="secondary">
                                 Showing data from {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} to {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
+                                {priorityFilter && ` • Priority: ${priorityOptions.find(opt => opt.value === priorityFilter)?.label}`}
                                 <Text style={{ marginLeft: 8, color: '#1890ff' }}>
                                     (Default range: Yesterday to 9 days from today)
                                 </Text>
@@ -2113,6 +2231,11 @@ const BDM = () => {
                             <Tag color="blue">
                                 {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
+                            {priorityFilter && (
+                                <Tag color={priorityOptions.find(opt => opt.value === priorityFilter)?.color}>
+                                    Priority: {priorityOptions.find(opt => opt.value === priorityFilter)?.label}
+                                </Tag>
+                            )}
                             <Button
                                 icon={<ReloadOutlined />}
                                 onClick={manualRefresh}
@@ -2131,8 +2254,8 @@ const BDM = () => {
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description={
                                 <Space direction="vertical">
-                                    <Text>No records found for selected date range</Text>
-                                    <Text type="secondary">Try selecting a different date range or create new records</Text>
+                                    <Text>No records found for selected criteria</Text>
+                                    <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
                                     <Button type="primary" onClick={handleCreate}>
                                         <PlusOutlined /> Create First Record
                                     </Button>
@@ -2318,7 +2441,8 @@ const BDM = () => {
                                 <ol>
                                     <li>Click on any category card above to select a data type</li>
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
-                                    <li>View the filtered data in the table below</li>
+                                    <li>Use priority filter to view high-priority items first</li>
+                                    <li>View the filtered data in the table below (sorted by priority)</li>
                                     <li>Use the "Add New Record" button to create new entries</li>
                                     <li>Use Edit/Delete actions in the table to manage records</li>
                                     <li>Use "Discuss" button to participate in group discussions for each record</li>
@@ -2329,6 +2453,7 @@ const BDM = () => {
                                 <Text type="secondary">
                                     Each category represents different BDM activities and tasks recorded in the system.
                                     Default date range shows data from yesterday to 9 days in the future (10 days total).
+                                    Priority levels help you focus on critical tasks first.
                                     Schedule details open in convenient popup windows for better visibility.
                                 </Text>
                             </div>
