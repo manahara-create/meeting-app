@@ -193,12 +193,12 @@ const DiscussionModal = React.memo(({
     // Get the correct feedback table name
     const getFeedbackTable = useCallback(() => {
         if (!category) return null;
-        
+
         const tableMap = {
             'meetings': 'sales_operations_meetings_fb',
             'special_tasks': 'sales_operations_tasks_fb'
         };
-        
+
         return tableMap[category.id] || null;
     }, [category]);
 
@@ -524,9 +524,9 @@ const UserScheduleModal = React.memo(({
                                 dot={getScheduleItemIcon(item)}
                             >
                                 <div style={{ padding: '8px 0' }}>
-                                    <Descriptions 
-                                        size="small" 
-                                        column={1} 
+                                    <Descriptions
+                                        size="small"
+                                        column={1}
                                         bordered
                                         style={{ marginBottom: 16 }}
                                     >
@@ -547,14 +547,14 @@ const UserScheduleModal = React.memo(({
                                                 {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
                                             </Space>
                                         </Descriptions.Item>
-                                        
+
                                         {/* ADDED: Description field using getActivityDescription */}
                                         <Descriptions.Item label="Description">
                                             <Text type="secondary">
                                                 {getActivityDescription(item)}
                                             </Text>
                                         </Descriptions.Item>
-                                        
+
                                         {item.company && (
                                             <Descriptions.Item label="Company">
                                                 {item.company}
@@ -580,7 +580,7 @@ const UserScheduleModal = React.memo(({
                             </Timeline.Item>
                         ))}
                     </Timeline>
-                    
+
                     <Alert
                         message={`Total ${schedule.length} scheduled items found`}
                         type="info"
@@ -817,7 +817,7 @@ const SalesOperations = () => {
                 fetchProfiles(),
                 fetchSalesOpsUsers()
             ]);
-            
+
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -970,7 +970,7 @@ const SalesOperations = () => {
                 'meetings': 'sales_operations_meetings_fb',
                 'special_tasks': 'sales_operations_tasks_fb'
             };
-            
+
             const feedbackTable = tableMap[category.id];
             if (!feedbackTable) return;
 
@@ -995,82 +995,204 @@ const SalesOperations = () => {
         }
     };
 
-    // CORRECTED: fetchUserSchedule function with proper user filtering
-    const fetchUserSchedule = async (userId, startDate, endDate) => {
-        setAvailabilityLoading(true);
-        try {
-            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
+// REFACTORED: fetchUserSchedule function with improved filtering and error handling
+const fetchUserSchedule = async (userId, startDate, endDate) => {
+    setAvailabilityLoading(true);
+    try {
+        console.log('Fetching schedule for user:', userId, 'from', startDate, 'to', endDate);
 
-            let allActivities = [];
+        // Validate inputs
+        if (!userId) {
+            throw new Error('User ID is required');
+        }
 
-            // Personal meetings for the specific user
-            const { data: personalMeetings } = await supabase
-                .from('personal_meetings')
-                .select('*')
-                .eq('user_id', userId)
-                .gte('start_date', formattedStart)
-                .lte('end_date', formattedEnd)
-                .order('start_date', { ascending: true });
+        if (!startDate || !endDate) {
+            throw new Error('Start and end dates are required');
+        }
 
-            // Sales Operations activities - filter by responsible users
+        const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
+        const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
+
+        if (!formattedStart || !formattedEnd) {
+            throw new Error('Invalid date range provided');
+        }
+
+        let allActivities = [];
+
+        // 1. Fetch personal meetings
+        const { data: personalMeetings, error: personalError } = await supabase
+            .from('personal_meetings')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('start_date', formattedStart)
+            .lte('end_date', formattedEnd)
+            .order('priority', { ascending: false })
+            .order('start_date', { ascending: true });
+
+        if (personalError) {
+            console.error('Error fetching personal meetings:', personalError);
+            throw personalError;
+        }
+
+        console.log('Personal meetings found:', personalMeetings?.length || 0);
+
+        // 2. Fetch Sales Operations activities
+        const user = salesOpsUsers.find(u => u.id === userId);
+        if (!user) {
+            console.warn('User not found in Sales Ops users list');
+        } else {
+            const userName = user.full_name || user.email;
+            console.log(`Searching activities for user: ${userName}`);
+
             for (const category of salesOpsCategories) {
-                let query = supabase
-                    .from(category.table)
-                    .select('*')
-                    .gte(category.dateField, formattedStart)
-                    .lte(category.dateField, formattedEnd)
-                    .order(category.dateField, { ascending: true });
-
-                // Get user details to filter by name/email
-                const user = salesOpsUsers.find(u => u.id === userId);
-                if (user) {
-                    const userName = user.full_name || user.email;
+                try {
+                    console.log(`Checking category: ${category.name}`);
                     
-                    // Filter based on category's responsible field
+                    let categoryActivities = [];
+
+                    // Different filtering strategies for each category
                     switch (category.id) {
                         case 'meetings':
-                            // Filter by conducted_by_2 field (text array)
-                            query = query.or(`conducted_by_2.cs.{"${userName}"}`);
+                            // For meetings with conducted_by_2 (text array)
+                            categoryActivities = await fetchMeetingsForUser(category, formattedStart, formattedEnd, userName);
                             break;
+
                         case 'special_tasks':
-                            // For tasks, we might need to check if user is involved in any way
-                            // Since there's no specific responsible field, we'll get all for now
+                            // For tasks - check various responsible fields
+                            categoryActivities = await fetchTasksForUser(category, formattedStart, formattedEnd, userName, userId);
                             break;
+
+                        default:
+                            console.warn(`Unknown category type: ${category.id}`);
+                            continue;
                     }
-                }
 
-                const { data: activities } = await query;
+                    console.log(`Category ${category.name} activities:`, categoryActivities.length);
 
-                if (activities) {
-                    allActivities.push(...activities.map(activity => ({
-                        ...activity,
-                        type: 'sales_ops_activity',
-                        activity_type: category.name,
-                        source_table: category.table
-                    })));
+                    // Add category info to activities
+                    if (categoryActivities.length > 0) {
+                        allActivities.push(...categoryActivities.map(activity => ({
+                            ...activity,
+                            type: 'sales_ops_activity',
+                            activity_type: category.name,
+                            source_table: category.table,
+                            category_id: category.id
+                        })));
+                    }
+
+                } catch (categoryError) {
+                    console.error(`Error fetching ${category.name} activities:`, categoryError);
                 }
             }
+        }
 
-            // Combine all activities
-            const userSchedule = [
-                ...(personalMeetings || []).map(meeting => ({
-                    ...meeting,
-                    type: 'personal_meeting'
-                })),
-                ...allActivities
+        // Combine all activities
+        const userSchedule = [
+            ...(personalMeetings || []).map(meeting => ({
+                ...meeting,
+                type: 'personal_meeting',
+                category_id: 'personal_meeting'
+            })),
+            ...allActivities
+        ];
+
+        console.log('Total schedule items found:', userSchedule.length);
+        console.log('Schedule details:', userSchedule);
+
+        safeSetState(setUserSchedule, userSchedule);
+        return userSchedule;
+
+    } catch (error) {
+        console.error('Error in fetchUserSchedule:', error);
+        handleError(error, 'fetching user schedule');
+        safeSetState(setUserSchedule, []);
+        return [];
+    } finally {
+        setAvailabilityLoading(false);
+    }
+};
+
+// Helper function to fetch meetings for a user
+const fetchMeetingsForUser = async (category, startDate, endDate, userName) => {
+    try {
+        // First get all meetings in date range
+        const { data: allMeetings, error } = await supabase
+            .from(category.table)
+            .select('*')
+            .gte(category.dateField, startDate)
+            .lte(category.dateField, endDate)
+            .order('priority', { ascending: false })
+            .order(category.dateField, { ascending: true });
+
+        if (error) throw error;
+
+        // Filter client-side for better matching
+        return (allMeetings || []).filter(meeting => {
+            const conductedBy = meeting.conducted_by_2;
+            if (!conductedBy) return false;
+
+            // Handle different data types
+            if (Array.isArray(conductedBy)) {
+                return conductedBy.some(name => 
+                    name && String(name).toLowerCase().includes(userName.toLowerCase())
+                );
+            } else if (typeof conductedBy === 'string') {
+                return conductedBy.toLowerCase().includes(userName.toLowerCase());
+            }
+            return false;
+        });
+
+    } catch (error) {
+        console.error(`Error fetching meetings for ${category.name}:`, error);
+        return [];
+    }
+};
+
+// Helper function to fetch tasks for a user
+const fetchTasksForUser = async (category, startDate, endDate, userName, userId) => {
+    try {
+        // Get all tasks in date range
+        const { data: allTasks, error } = await supabase
+            .from(category.table)
+            .select('*')
+            .gte(category.dateField, startDate)
+            .lte(category.dateField, endDate)
+            .order('priority', { ascending: false })
+            .order(category.dateField, { ascending: true });
+
+        if (error) throw error;
+
+        // Filter tasks where user is involved
+        return (allTasks || []).filter(task => {
+            // Check various possible responsible fields
+            const responsibleFields = [
+                task.assigned_users,
+                task.responsible_users,
+                task.conducted_by,
+                task.assigned_to
             ];
 
-            safeSetState(setUserSchedule, userSchedule);
-            console.log(`Schedule items for user ${userId}:`, userSchedule.length);
+            return responsibleFields.some(field => {
+                if (!field) return false;
 
-        } catch (error) {
-            handleError(error, 'fetching user schedule');
-            safeSetState(setUserSchedule, []);
-        } finally {
-            setAvailabilityLoading(false);
-        }
-    };
+                if (Array.isArray(field)) {
+                    return field.some(item => 
+                        item && String(item).toLowerCase().includes(userName.toLowerCase())
+                    );
+                } else if (typeof field === 'string') {
+                    return field.toLowerCase().includes(userName.toLowerCase());
+                } else if (typeof field === 'object' && field.id === userId) {
+                    return true;
+                }
+                return false;
+            });
+        });
+
+    } catch (error) {
+        console.error(`Error fetching tasks for ${category.name}:`, error);
+        return [];
+    }
+};
 
     const handleCategoryClick = (category) => {
         try {
@@ -1078,7 +1200,7 @@ const SalesOperations = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             form.resetFields();
-            
+
             // Set default date range when category is selected
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -1161,7 +1283,7 @@ const SalesOperations = () => {
         try {
             // Set default date range for availability modal
             const defaultRange = getDefaultDateRange();
-            
+
             safeSetState(setAvailabilityModalVisible, true);
             safeSetState(setSelectedUser, null);
             safeSetState(setUserSchedule, []);
@@ -1174,7 +1296,7 @@ const SalesOperations = () => {
     const handleUserSelect = async (user) => {
         try {
             safeSetState(setSelectedUser, user);
-            
+
             if (availabilityDateRange[0] && availabilityDateRange[1]) {
                 await fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
                 // Open the schedule modal after fetching data
@@ -1478,9 +1600,11 @@ const SalesOperations = () => {
         }
     };
 
-    // ADDED: Function to create personal meetings for Sales Ops users
+    // REFACTORED: Function to create personal meetings for Sales Ops users
     const createPersonalMeetingsForSalesOps = async (record, category, formData) => {
         try {
+            console.log('Creating personal meetings for Sales Ops:', { category: category.id, formData });
+
             let responsibleUsers = [];
             let meetingDate = '';
             let meetingTitle = '';
@@ -1490,70 +1614,143 @@ const SalesOperations = () => {
                 case 'meetings':
                     responsibleUsers = formData.conducted_by_2 || [];
                     meetingDate = formData.date;
-                    meetingTitle = `Sales Ops Meeting: ${formData.meeting}`;
+                    meetingTitle = `Sales Ops Meeting: ${formData.meeting || 'Untitled Meeting'}`;
                     break;
 
                 case 'special_tasks':
-                    // For tasks, we might not have specific responsible users
-                    meetingDate = formData.start_date;
-                    meetingTitle = `Sales Ops Task: ${formData.meeting}`;
+                    // For tasks, use assigned users or fallback to empty array
+                    responsibleUsers = formData.assigned_users || formData.responsible_users || [];
+                    meetingDate = formData.start_date || formData.due_date;
+                    meetingTitle = `Sales Ops Task: ${formData.meeting || formData.task_name || 'Untitled Task'}`;
                     break;
+
+                default:
+                    console.warn(`Unknown category for Sales Ops: ${category.id}`);
+                    return;
             }
 
-            // If no responsible users, return
-            if (!responsibleUsers.length || !meetingDate) {
+            // Validate required fields
+            if (!responsibleUsers.length) {
+                console.log('No responsible users found for creating personal meetings');
                 return;
             }
 
-            // Convert string array to array if needed
-            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
+            if (!meetingDate) {
+                console.warn('No meeting date found for creating personal meetings');
+                return;
+            }
+
+            // Convert to array and clean up user references
+            const usersArray = Array.isArray(responsibleUsers)
+                ? responsibleUsers
+                : typeof responsibleUsers === 'string'
+                    ? responsibleUsers.split(',').map(u => u.trim()).filter(u => u)
+                    : [responsibleUsers];
+
+            console.log('Processing users:', usersArray);
+
+            if (usersArray.length === 0) {
+                console.log('No valid users found after processing');
+                return;
+            }
+
+            let createdCount = 0;
+            const errors = [];
 
             // Create personal meetings for each responsible user
             for (const userRef of usersArray) {
-                let user = null;
+                try {
+                    const user = findUserByReference(userRef, salesOpsUsers);
 
-                // Find user by different identifier types
-                if (typeof userRef === 'string') {
-                    // Try to find by full name
-                    user = salesOpsUsers.find(u => u.full_name === userRef);
                     if (!user) {
-                        // Try to find by email
-                        user = salesOpsUsers.find(u => u.email === userRef);
+                        console.warn(`User not found for reference: ${userRef}`);
+                        continue;
                     }
-                    if (!user) {
-                        // Try to find by ID
-                        user = salesOpsUsers.find(u => u.id === userRef);
-                    }
-                }
 
-                if (user) {
-                    // Create personal meeting
+                    console.log(`Creating personal meeting for user: ${user.full_name}`);
+
+                    // Format the date properly
+                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
+
+                    if (!formattedDate || formattedDate === 'Invalid Date') {
+                        console.warn(`Invalid date format: ${meetingDate}`);
+                        continue;
+                    }
+
+                    // Create personal meeting data
                     const personalMeetingData = {
                         topic: meetingTitle,
-                        start_date: meetingDate,
-                        end_date: meetingDate, // Same day for now
-                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
-                        venue: formData.company || 'TBD',
-                        user_id: user.id
+                        start_date: formattedDate,
+                        end_date: formattedDate,
+                        description: `Automatically created from ${category.name}: ${formData.remarks || formData.description || 'No description'}`,
+                        venue: formData.company || formData.location || 'TBD',
+                        user_id: user.id,
+                        priority: formData.priority || 2,
+                        status: 'scheduled'
                     };
 
-                    const { error } = await supabase
+                    const { data, error } = await supabase
                         .from('personal_meetings')
-                        .insert([personalMeetingData]);
+                        .insert([personalMeetingData])
+                        .select();
 
                     if (error) {
-                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
+                        console.error(`Error creating personal meeting for ${user.full_name}:`, error);
+                        errors.push(`${user.full_name}: ${error.message}`);
                     } else {
-                        console.log(`Personal meeting created for ${user.full_name}`);
+                        console.log(`Personal meeting created for ${user.full_name}:`, data[0]?.id);
+                        createdCount++;
                     }
+
+                } catch (userError) {
+                    console.error(`Error processing user ${userRef}:`, userError);
+                    errors.push(`${userRef}: Processing error`);
                 }
             }
 
-            toast.info(`Created personal meetings for ${usersArray.length} team member(s)`);
+            // Show appropriate toast message
+            if (createdCount > 0) {
+                const message = `Created personal meetings for ${createdCount} team member(s)`;
+                if (errors.length > 0) {
+                    toast.warning(`${message} (${errors.length} errors)`);
+                } else {
+                    toast.success(message);
+                }
+            } else if (errors.length > 0) {
+                toast.error(`Failed to create personal meetings: ${errors.join('; ')}`);
+            }
+
         } catch (error) {
-            console.error('Error creating personal meetings:', error);
-            // Don't throw error here to avoid affecting main form submission
+            console.error('Error in createPersonalMeetingsForSalesOps:', error);
+            toast.error('Failed to create personal meetings for team members');
         }
+    };
+
+    // Helper function to find user by various reference types
+    const findUserByReference = (userRef, usersList) => {
+        if (!userRef || !usersList?.length) return null;
+
+        const refString = String(userRef).trim().toLowerCase();
+
+        // Try different matching strategies
+        return usersList.find(user => {
+            // Exact match on ID
+            if (user.id && String(user.id).toLowerCase() === refString) return true;
+
+            // Exact match on full name
+            if (user.full_name && user.full_name.toLowerCase() === refString) return true;
+
+            // Exact match on email
+            if (user.email && user.email.toLowerCase() === refString) return true;
+
+            // Partial match on full name
+            if (user.full_name && user.full_name.toLowerCase().includes(refString)) return true;
+
+            // Partial match on email
+            if (user.email && user.email.toLowerCase().includes(refString)) return true;
+
+            return false;
+        });
     };
 
     const getStats = () => {
@@ -1690,8 +1887,8 @@ const SalesOperations = () => {
             )}
 
             {/* Category Cards */}
-            <Card 
-                title="Sales Operations Categories" 
+            <Card
+                title="Sales Operations Categories"
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
@@ -1763,13 +1960,13 @@ const SalesOperations = () => {
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <>
                     <SalesOpsStatistics stats={stats} loading={loading} />
-                    
+
                     {/* Progress Bar for Completion Rate */}
                     <Card style={{ marginBottom: 24 }}>
                         <Space direction="vertical" style={{ width: '100%' }}>
                             <Text strong>Overall Completion Progress</Text>
-                            <Progress 
-                                percent={stats.completionRate} 
+                            <Progress
+                                percent={stats.completionRate}
                                 status={stats.completionRate >= 80 ? "success" : "active"}
                                 strokeColor={{
                                     '0%': '#108ee9',
@@ -1923,8 +2120,8 @@ const SalesOperations = () => {
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
-                                            <Tooltip 
-                                                key="view" 
+                                            <Tooltip
+                                                key="view"
                                                 title={!availabilityDateRange[0] || !availabilityDateRange[1] ? "Please select date range first" : "View detailed schedule"}
                                             >
                                                 <Button
@@ -1943,9 +2140,9 @@ const SalesOperations = () => {
                                         <List.Item.Meta
                                             title={user.full_name || user.email}
                                             description={
-                                                <Badge 
-                                                    status="success" 
-                                                    text="Sales Operations Team Member" 
+                                                <Badge
+                                                    status="success"
+                                                    text="Sales Operations Team Member"
                                                 />
                                             }
                                         />

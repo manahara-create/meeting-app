@@ -1088,90 +1088,139 @@ const BDM = () => {
         }
     };
 
-    // CORRECTED fetchUserSchedule function
-    const fetchUserSchedule = async (userId, startDate, endDate) => {
-        setAvailabilityLoading(true);
-        try {
-            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
+const fetchUserSchedule = async (userId, startDate, endDate) => {
+    setAvailabilityLoading(true);
+    try {
+        const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
+        const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-            let allActivities = [];
+        let allActivities = [];
 
-            // Personal meetings for the specific user
-            const { data: personalMeetings } = await supabase
-                .from('personal_meetings')
+        // Get user details
+        const user = bdmUsers.find(u => u.id === userId);
+        if (!user) {
+            console.warn('User not found in BDM users list');
+            safeSetState(setUserSchedule, []);
+            return;
+        }
+
+        const userName = user.full_name || user.email;
+        console.log(`Fetching schedule for user: ${userName} (${userId})`);
+
+        // 1. Personal meetings for the specific user
+        const { data: personalMeetings, error: personalError } = await supabase
+            .from('personal_meetings')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('start_date', formattedStart)
+            .lte('end_date', formattedEnd)
+            .order('priority', { ascending: false })
+            .order('start_date', { ascending: true });
+
+        if (personalError) console.error('Personal meetings error:', personalError);
+        console.log('Personal meetings:', personalMeetings?.length || 0);
+
+        // 2. BDM activities - CORRECTED FILTERING
+        for (const category of bdmCategories) {
+            console.log(`Checking category: ${category.name}`);
+            
+            let query = supabase
+                .from(category.table)
                 .select('*')
-                .eq('user_id', userId)
-                .gte('start_date', formattedStart)
-                .lte('end_date', formattedEnd)
+                .gte(category.dateField, formattedStart)
+                .lte(category.dateField, formattedEnd)
                 .order('priority', { ascending: false })
-                .order('start_date', { ascending: true });
+                .order(category.dateField, { ascending: true });
 
-            // BDM activities - filter by responsible users
-            for (const category of bdmCategories) {
-                let query = supabase
-                    .from(category.table)
-                    .select('*')
-                    .gte(category.dateField, formattedStart)
-                    .lte(category.dateField, formattedEnd)
-                    .order('priority', { ascending: false })
-                    .order(category.dateField, { ascending: true });
+            let categoryActivities = [];
 
-                // Get user details to filter by name/email
-                const user = bdmUsers.find(u => u.id === userId);
-                if (user) {
-                    const userName = user.full_name || user.email;
+            try {
+                // Different filtering strategies for each category
+                switch (category.id) {
+                    case 'customer_visit':
+                    case 'college_sessions':
+                    case 'promotional_activities':
+                        // These use responsible_bdm_2 field (text array)
+                        // First, get all records and filter client-side for better accuracy
+                        const { data: textArrayData } = await query;
+                        if (textArrayData) {
+                            categoryActivities = textArrayData.filter(item => {
+                                const responsibleUsers = item.responsible_bdm_2;
+                                if (!responsibleUsers) return false;
+                                
+                                // Handle both string arrays and comma-separated strings
+                                if (Array.isArray(responsibleUsers)) {
+                                    return responsibleUsers.some(name => 
+                                        name && name.toLowerCase().includes(userName.toLowerCase())
+                                    );
+                                } else if (typeof responsibleUsers === 'string') {
+                                    return responsibleUsers.toLowerCase().includes(userName.toLowerCase());
+                                }
+                                return false;
+                            });
+                        }
+                        break;
 
-                    // Filter based on category's responsible field
-                    switch (category.id) {
-                        case 'customer_visit':
-                        case 'college_sessions':
-                        case 'promotional_activities':
-                            // These use responsible_bdm_2 field (text array)
-                            query = query.or(`responsible_bdm_2.cs.{"${userName}"}`);
-                            break;
-                        case 'principle_visit':
-                            // This uses responsible_bdm field (uuid array)
-                            query = query.contains('responsible_bdm', [userId]);
-                            break;
-                        case 'weekly_meetings':
-                            // This uses conducted_by field
-                            query = query.ilike('conducted_by', `%${userName}%`);
-                            break;
-                    }
+                    case 'principle_visit':
+                        // This uses responsible_bdm field (uuid array)
+                        // Use contains filter for array fields
+                        const { data: uuidArrayData } = await query.contains('responsible_bdm', [userId]);
+                        categoryActivities = uuidArrayData || [];
+                        break;
+
+                    case 'weekly_meetings':
+                        // This uses conducted_by field (text)
+                        const { data: conductedData } = await query.ilike('conducted_by', `%${userName}%`);
+                        categoryActivities = conductedData || [];
+                        break;
+
+                    default:
+                        const { data: defaultData } = await query;
+                        categoryActivities = defaultData || [];
+                        break;
                 }
 
-                const { data: activities } = await query;
+                console.log(`Category ${category.name} activities:`, categoryActivities.length);
 
-                if (activities) {
-                    allActivities.push(...activities.map(activity => ({
+                // Add category info to activities
+                if (categoryActivities.length > 0) {
+                    allActivities.push(...categoryActivities.map(activity => ({
                         ...activity,
                         type: 'bdm_activity',
                         activity_type: category.name,
-                        source_table: category.table
+                        source_table: category.table,
+                        category_id: category.id
                     })));
                 }
+
+            } catch (categoryError) {
+                console.error(`Error fetching ${category.name}:`, categoryError);
             }
-
-            // Combine all activities
-            const userSchedule = [
-                ...(personalMeetings || []).map(meeting => ({
-                    ...meeting,
-                    type: 'personal_meeting'
-                })),
-                ...allActivities
-            ];
-
-            safeSetState(setUserSchedule, userSchedule);
-            console.log(`Schedule items for user ${userId}:`, userSchedule.length);
-
-        } catch (error) {
-            handleError(error, 'fetching user schedule');
-            safeSetState(setUserSchedule, []);
-        } finally {
-            setAvailabilityLoading(false);
         }
-    };
+
+        // Combine all activities
+        const userSchedule = [
+            ...(personalMeetings || []).map(meeting => ({
+                ...meeting,
+                type: 'personal_meeting',
+                category_id: 'personal_meeting'
+            })),
+            ...allActivities
+        ];
+
+        console.log('Total schedule items:', userSchedule.length);
+        console.log('Schedule details:', userSchedule);
+
+        safeSetState(setUserSchedule, userSchedule);
+
+    } catch (error) {
+        console.error('Error in fetchUserSchedule:', error);
+        handleError(error, 'fetching user schedule');
+        safeSetState(setUserSchedule, []);
+    } finally {
+        setAvailabilityLoading(false);
+    }
+};
 
     const handleCategoryClick = (category) => {
         try {
@@ -1865,104 +1914,129 @@ const BDM = () => {
         }
     };
 
-    // Function to create personal meetings for responsible BDMs
-    const createPersonalMeetingsForBDMs = async (record, category, formData) => {
-        try {
-            let responsibleUsers = [];
-            let meetingDate = '';
-            let meetingTitle = '';
+const createPersonalMeetingsForBDMs = async (record, category, formData) => {
+    try {
+        let responsibleUsers = [];
+        let meetingDate = '';
+        let meetingTitle = '';
 
-            // Extract responsible users and meeting details based on category
-            switch (category.id) {
-                case 'customer_visit':
-                    responsibleUsers = formData.responsible_bdm_2 || [];
-                    meetingDate = formData.schedule_date;
-                    meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
-                    break;
+        // Extract responsible users and meeting details based on category
+        switch (category.id) {
+            case 'customer_visit':
+                responsibleUsers = formData.responsible_bdm_2 || [];
+                meetingDate = formData.schedule_date;
+                meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
+                break;
 
-                case 'principle_visit':
-                    responsibleUsers = formData.responsible_bdm || [];
-                    meetingDate = formData.visit_duration_start;
-                    meetingTitle = `Principle Visit: ${formData.principle_name}`;
-                    break;
+            case 'principle_visit':
+                responsibleUsers = formData.responsible_bdm || [];
+                meetingDate = formData.visit_duration_start;
+                meetingTitle = `Principle Visit: ${formData.principle_name}`;
+                break;
 
-                case 'weekly_meetings':
-                    responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
-                    meetingDate = formData.date;
-                    meetingTitle = `Weekly Meeting: ${formData.meeting}`;
-                    break;
+            case 'weekly_meetings':
+                responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
+                meetingDate = formData.date;
+                meetingTitle = `Weekly Meeting: ${formData.meeting}`;
+                break;
 
-                case 'college_sessions':
-                    responsibleUsers = formData.responsible_bdm_2 || [];
-                    meetingDate = formData.start_date;
-                    meetingTitle = `College Session: ${formData.college_name}`;
-                    break;
+            case 'college_sessions':
+                responsibleUsers = formData.responsible_bdm_2 || [];
+                meetingDate = formData.start_date;
+                meetingTitle = `College Session: ${formData.college_name}`;
+                break;
 
-                case 'promotional_activities':
-                    responsibleUsers = formData.responsible_bdm_2 || [];
-                    meetingDate = formData.date;
-                    meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
-                    break;
-            }
-
-            // If no responsible users, return
-            if (!responsibleUsers.length || !meetingDate) {
-                return;
-            }
-
-            // Convert string array to array if needed
-            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
-
-            // Create personal meetings for each responsible BDM
-            for (const userRef of usersArray) {
-                let user = null;
-
-                // Find user by different identifier types
-                if (typeof userRef === 'string') {
-                    // Try to find by full name
-                    user = bdmUsers.find(u => u.full_name === userRef);
-                    if (!user) {
-                        // Try to find by email
-                        user = bdmUsers.find(u => u.email === userRef);
-                    }
-                    if (!user) {
-                        // Try to find by ID
-                        user = bdmUsers.find(u => u.id === userRef);
-                    }
-                } else if (typeof userRef === 'object') {
-                    user = bdmUsers.find(u => u.id === userRef.id);
-                }
-
-                if (user) {
-                    // Create personal meeting
-                    const personalMeetingData = {
-                        topic: meetingTitle,
-                        start_date: meetingDate,
-                        end_date: meetingDate, // Same day for now
-                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
-                        venue: formData.company || 'TBD',
-                        user_id: user.id,
-                        priority: formData.priority || 2 // Use same priority as main record
-                    };
-
-                    const { error } = await supabase
-                        .from('personal_meetings')
-                        .insert([personalMeetingData]);
-
-                    if (error) {
-                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
-                    } else {
-                        console.log(`Personal meeting created for ${user.full_name}`);
-                    }
-                }
-            }
-
-            toast.info(`Created personal meetings for ${usersArray.length} team member(s)`);
-        } catch (error) {
-            console.error('Error creating personal meetings:', error);
-            // Don't throw error here to avoid affecting main form submission
+            case 'promotional_activities':
+                responsibleUsers = formData.responsible_bdm_2 || [];
+                meetingDate = formData.date;
+                meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
+                break;
         }
-    };
+
+        console.log('Creating personal meetings for:', {
+            category: category.name,
+            responsibleUsers,
+            meetingDate,
+            meetingTitle
+        });
+
+        // If no responsible users, return
+        if (!responsibleUsers.length || !meetingDate) {
+            console.log('No responsible users or meeting date found');
+            return;
+        }
+
+        // Convert string array to array if needed
+        const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
+        console.log('Users array:', usersArray);
+
+        let createdCount = 0;
+
+        // Create personal meetings for each responsible BDM
+        for (const userRef of usersArray) {
+            let user = null;
+
+            // Find user by different identifier types
+            if (typeof userRef === 'string') {
+                // Try to find by full name (exact match first, then partial)
+                user = bdmUsers.find(u => u.full_name === userRef);
+                if (!user) {
+                    user = bdmUsers.find(u => u.full_name && u.full_name.toLowerCase().includes(userRef.toLowerCase()));
+                }
+                if (!user) {
+                    // Try to find by email
+                    user = bdmUsers.find(u => u.email === userRef);
+                }
+                if (!user) {
+                    // Try to find by ID
+                    user = bdmUsers.find(u => u.id === userRef);
+                }
+            } else if (typeof userRef === 'object' && userRef.id) {
+                user = bdmUsers.find(u => u.id === userRef.id);
+            }
+
+            if (user) {
+                console.log(`Creating personal meeting for user: ${user.full_name}`);
+
+                // Format the date properly
+                const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
+
+                // Create personal meeting
+                const personalMeetingData = {
+                    topic: meetingTitle,
+                    start_date: formattedDate,
+                    end_date: formattedDate, // Same day for now
+                    description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
+                    venue: formData.company || 'TBD',
+                    user_id: user.id,
+                    priority: formData.priority || 2 // Use same priority as main record
+                };
+
+                const { data, error } = await supabase
+                    .from('personal_meetings')
+                    .insert([personalMeetingData])
+                    .select();
+
+                if (error) {
+                    console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
+                } else {
+                    console.log(`Personal meeting created for ${user.full_name}:`, data);
+                    createdCount++;
+                }
+            } else {
+                console.warn(`User not found for reference:`, userRef);
+            }
+        }
+
+        if (createdCount > 0) {
+            toast.info(`Created personal meetings for ${createdCount} team member(s)`);
+        }
+
+    } catch (error) {
+        console.error('Error creating personal meetings:', error);
+        // Don't throw error here to avoid affecting main form submission
+    }
+};
 
     const getStats = () => {
         try {

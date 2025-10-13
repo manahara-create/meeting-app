@@ -226,14 +226,14 @@ const DiscussionModal = React.memo(({
     // Get the correct feedback table name
     const getFeedbackTable = useCallback(() => {
         if (!category) return null;
-        
+
         const tableMap = {
             'delivery_distribution': 'scmt_d_n_d_fb',
             'meetings_sessions': 'scmt_meetings_and_sessions_fb',
             'other_operations': 'scmt_others_fb',
             'weekly_meetings_scmt': 'scmt_weekly_meetings_fb'
         };
-        
+
         return tableMap[category.id] || null;
     }, [category]);
 
@@ -543,9 +543,9 @@ const UserScheduleModal = React.memo(({
                                 dot={getScheduleItemIcon(item)}
                             >
                                 <div style={{ padding: '8px 0' }}>
-                                    <Descriptions 
-                                        size="small" 
-                                        column={1} 
+                                    <Descriptions
+                                        size="small"
+                                        column={1}
                                         bordered
                                         style={{ marginBottom: 16 }}
                                     >
@@ -609,7 +609,7 @@ const UserScheduleModal = React.memo(({
                             </Timeline.Item>
                         ))}
                     </Timeline>
-                    
+
                     <Alert
                         message={`Total ${schedule.length} scheduled items found`}
                         type="info"
@@ -876,7 +876,7 @@ const SCMT = () => {
                 fetchProfiles(),
                 fetchSCMTUsers()
             ]);
-            
+
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -1037,7 +1037,7 @@ const SCMT = () => {
                 'other_operations': 'scmt_others_fb',
                 'weekly_meetings_scmt': 'scmt_weekly_meetings_fb'
             };
-            
+
             const feedbackTable = tableMap[category.id];
             if (!feedbackTable) return;
 
@@ -1062,17 +1062,32 @@ const SCMT = () => {
         }
     };
 
+    // REFACTORED: fetchUserSchedule function for SCMT with proper user filtering
     const fetchUserSchedule = async (userId, startDate, endDate) => {
         setAvailabilityLoading(true);
         try {
+            console.log('Fetching SCMT schedule for user:', userId, 'from', startDate, 'to', endDate);
+
+            // Validate inputs
+            if (!userId) {
+                throw new Error('User ID is required');
+            }
+
+            if (!startDate || !endDate) {
+                throw new Error('Start and end dates are required');
+            }
+
             const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
             const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-            // Get ALL data from all tables without user filtering first
+            if (!formattedStart || !formattedEnd) {
+                throw new Error('Invalid date range provided');
+            }
+
             let allActivities = [];
 
-            // Personal meetings
-            const { data: personalMeetings } = await supabase
+            // 1. Fetch personal meetings
+            const { data: personalMeetings, error: personalError } = await supabase
                 .from('personal_meetings')
                 .select('*')
                 .eq('user_id', userId)
@@ -1081,43 +1096,167 @@ const SCMT = () => {
                 .order('priority', { ascending: false })
                 .order('start_date', { ascending: true });
 
-            // SCMT activities from all categories
-            for (const category of scmtCategories) {
-                const { data: activities } = await supabase
-                    .from(category.table)
-                    .select('*')
-                    .eq('user_id', userId)
-                    .gte(category.dateField, formattedStart)
-                    .lte(category.dateField, formattedEnd)
-                    .order('priority', { ascending: false })
-                    .order(category.dateField, { ascending: true });
+            if (personalError) {
+                console.error('Error fetching personal meetings:', personalError);
+                throw personalError;
+            }
 
-                if (activities) {
-                    allActivities.push(...activities.map(activity => ({
-                        ...activity,
-                        type: 'scmt_activity',
-                        activity_type: category.name,
-                        source_table: category.table
-                    })));
+            console.log('Personal meetings found:', personalMeetings?.length || 0);
+
+            // 2. Fetch SCMT activities with proper user filtering
+            const user = scmtUsers.find(u => u.id === userId);
+            if (!user) {
+                console.warn('User not found in SCMT users list');
+            } else {
+                const userName = user.full_name || user.email;
+                console.log(`Searching SCMT activities for user: ${userName}`);
+
+                for (const category of scmtCategories) {
+                    try {
+                        console.log(`Checking SCMT category: ${category.name}`);
+
+                        let categoryActivities = [];
+
+                        // Different filtering strategies for each SCMT category
+                        switch (category.id) {
+                            case 'delivery_distribution':
+                            case 'meetings_sessions':
+                            case 'other_operations':
+                                // These categories use responsible_2 field (text array)
+                                categoryActivities = await fetchSCMTActivitiesForUser(
+                                    category,
+                                    formattedStart,
+                                    formattedEnd,
+                                    userName
+                                );
+                                break;
+
+                            case 'weekly_meetings_scmt':
+                                // Weekly shipments might have different responsible field
+                                categoryActivities = await fetchWeeklyShipmentsForUser(
+                                    category,
+                                    formattedStart,
+                                    formattedEnd,
+                                    userName
+                                );
+                                break;
+
+                            default:
+                                console.warn(`Unknown SCMT category type: ${category.id}`);
+                                continue;
+                        }
+
+                        console.log(`SCMT Category ${category.name} activities:`, categoryActivities.length);
+
+                        // Add category info to activities
+                        if (categoryActivities.length > 0) {
+                            allActivities.push(...categoryActivities.map(activity => ({
+                                ...activity,
+                                type: 'scmt_activity',
+                                activity_type: category.name,
+                                source_table: category.table,
+                                category_id: category.id
+                            })));
+                        }
+
+                    } catch (categoryError) {
+                        console.error(`Error fetching ${category.name} activities:`, categoryError);
+                    }
                 }
             }
 
             // Combine all activities
-            const allSchedule = [
+            const userSchedule = [
                 ...(personalMeetings || []).map(meeting => ({
                     ...meeting,
-                    type: 'personal_meeting'
+                    type: 'personal_meeting',
+                    category_id: 'personal_meeting'
                 })),
                 ...allActivities
             ];
 
-            safeSetState(setUserSchedule, allSchedule);
-            
+            console.log('Total SCMT schedule items found:', userSchedule.length);
+            console.log('SCMT Schedule details:', userSchedule);
+
+            safeSetState(setUserSchedule, userSchedule);
+            return userSchedule;
+
         } catch (error) {
+            console.error('Error in fetchUserSchedule:', error);
             handleError(error, 'fetching user schedule');
             safeSetState(setUserSchedule, []);
+            return [];
         } finally {
             setAvailabilityLoading(false);
+        }
+    };
+
+    // Helper function to fetch SCMT activities for a user (delivery, meetings, operations)
+    const fetchSCMTActivitiesForUser = async (category, startDate, endDate, userName) => {
+        try {
+            // First get all activities in date range
+            const { data: allActivities, error } = await supabase
+                .from(category.table)
+                .select('*')
+                .gte(category.dateField, startDate)
+                .lte(category.dateField, endDate)
+                .order('priority', { ascending: false })
+                .order(category.dateField, { ascending: true });
+
+            if (error) throw error;
+
+            // Filter client-side for better matching on responsible_2 field
+            return (allActivities || []).filter(activity => {
+                const responsiblePersons = activity.responsible_2;
+                if (!responsiblePersons) return false;
+
+                // Handle different data types for responsible_2 field
+                if (Array.isArray(responsiblePersons)) {
+                    return responsiblePersons.some(name =>
+                        name && String(name).toLowerCase().includes(userName.toLowerCase())
+                    );
+                } else if (typeof responsiblePersons === 'string') {
+                    // Handle comma-separated strings or single names
+                    const namesArray = responsiblePersons.split(',').map(name => name.trim());
+                    return namesArray.some(name =>
+                        name.toLowerCase().includes(userName.toLowerCase())
+                    );
+                }
+                return false;
+            });
+
+        } catch (error) {
+            console.error(`Error fetching ${category.name} activities:`, error);
+            return [];
+        }
+    };
+
+    // Helper function to fetch weekly shipments for a user
+    const fetchWeeklyShipmentsForUser = async (category, startDate, endDate, userName) => {
+        try {
+            // For weekly shipments, we might need to check different fields
+            const { data: allShipments, error } = await supabase
+                .from(category.table)
+                .select('*')
+                .gte(category.dateField, startDate)
+                .lte(category.dateField, endDate)
+                .order('priority', { ascending: false })
+                .order(category.dateField, { ascending: true });
+
+            if (error) throw error;
+
+            // Filter shipments where user might be involved
+            // Since weekly shipments might not have explicit responsible field,
+            // we'll return all for now or implement specific logic based on your data structure
+            console.log(`Weekly shipments found: ${allShipments?.length || 0}, need to implement user filtering logic`);
+
+            // TODO: Implement specific user filtering logic for weekly shipments based on your data structure
+            // For now, return all shipments or implement based on your specific fields
+            return allShipments || [];
+
+        } catch (error) {
+            console.error(`Error fetching ${category.name} shipments:`, error);
+            return [];
         }
     };
 
@@ -1128,7 +1267,7 @@ const SCMT = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             form.resetFields();
-            
+
             // Set default date range when category is selected
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -1217,7 +1356,7 @@ const SCMT = () => {
         try {
             // Set default date range for availability modal
             const defaultRange = getDefaultDateRange();
-            
+
             safeSetState(setAvailabilityModalVisible, true);
             safeSetState(setSelectedUser, null);
             safeSetState(setUserSchedule, []);
@@ -1230,7 +1369,7 @@ const SCMT = () => {
     const handleUserSelect = async (user) => {
         try {
             safeSetState(setSelectedUser, user);
-            
+
             if (availabilityDateRange[0] && availabilityDateRange[1]) {
                 await fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
                 // Open the schedule modal after fetching data
@@ -1719,49 +1858,224 @@ const SCMT = () => {
         }
     };
 
-    const handleFormSubmit = async (values) => {
+    // Helper function to find user by various reference types
+    const findUserByReference = (userRef, usersList) => {
+        if (!userRef || !usersList?.length) return null;
+
+        const refString = String(userRef).trim().toLowerCase();
+
+        // Try different matching strategies
+        return usersList.find(user => {
+            // Exact match on ID
+            if (user.id && String(user.id).toLowerCase() === refString) return true;
+
+            // Exact match on full name
+            if (user.full_name && user.full_name.toLowerCase() === refString) return true;
+
+            // Exact match on email
+            if (user.email && user.email.toLowerCase() === refString) return true;
+
+            // Partial match on full name
+            if (user.full_name && user.full_name.toLowerCase().includes(refString)) return true;
+
+            // Partial match on email
+            if (user.email && user.email.toLowerCase().includes(refString)) return true;
+
+            return false;
+        });
+    };
+
+    // Function to create personal meetings for SCMT users when records are created/edited
+    const createPersonalMeetingsForSCMT = async (record, category, formData) => {
         try {
-            if (!selectedCategory?.table) {
-                throw new Error('No category selected');
+            console.log('Creating personal meetings for SCMT:', { category: category.id, formData });
+
+            let responsibleUsers = [];
+            let meetingDate = '';
+            let meetingTitle = '';
+
+            // Extract responsible users and meeting details based on category
+            switch (category.id) {
+                case 'delivery_distribution':
+                    responsibleUsers = formData.responsible_2 || [];
+                    meetingDate = formData.start_date;
+                    meetingTitle = `SCMT Delivery: ${formData.type || 'Delivery Activity'}`;
+                    break;
+
+                case 'meetings_sessions':
+                    responsibleUsers = formData.responsible_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `SCMT Meeting: ${formData.type || 'Meeting'}`;
+                    break;
+
+                case 'other_operations':
+                    responsibleUsers = formData.responsible_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `SCMT Operations: ${formData.type || 'Operation'}`;
+                    break;
+
+                case 'weekly_meetings_scmt':
+                    // For weekly shipments, you might want to assign to specific users
+                    // You can modify this based on your business logic
+                    responsibleUsers = []; // Add logic to determine responsible users for shipments
+                    meetingDate = formData.date_of_arrival;
+                    meetingTitle = `SCMT Shipment: ${formData.supplier || 'Shipment'}`;
+                    break;
+
+                default:
+                    console.warn(`Unknown category for SCMT: ${category.id}`);
+                    return;
             }
 
-            // Prepare data for submission
-            const submitData = { ...values };
+            // Validate required fields
+            if (!responsibleUsers.length) {
+                console.log('No responsible users found for creating personal meetings');
+                return;
+            }
 
-            // Convert dayjs objects to ISO strings with error handling
-            Object.keys(submitData).forEach(key => {
+            if (!meetingDate) {
+                console.warn('No meeting date found for creating personal meetings');
+                return;
+            }
+
+            // Convert to array and clean up user references
+            const usersArray = Array.isArray(responsibleUsers)
+                ? responsibleUsers
+                : typeof responsibleUsers === 'string'
+                    ? responsibleUsers.split(',').map(u => u.trim()).filter(u => u)
+                    : [responsibleUsers];
+
+            console.log('Processing SCMT users:', usersArray);
+
+            if (usersArray.length === 0) {
+                console.log('No valid users found after processing');
+                return;
+            }
+
+            let createdCount = 0;
+            const errors = [];
+
+            // Create personal meetings for each responsible user
+            for (const userRef of usersArray) {
                 try {
-                    if (dayjs.isDayjs(submitData[key])) {
-                        submitData[key] = safeDayjs(submitData[key]).format('YYYY-MM-DD');
+                    const user = findUserByReference(userRef, scmtUsers);
+
+                    if (!user) {
+                        console.warn(`SCMT User not found for reference: ${userRef}`);
+                        continue;
                     }
-                } catch (dateError) {
-                    console.warn(`Error converting date field ${key}:`, dateError);
+
+                    console.log(`Creating personal meeting for SCMT user: ${user.full_name}`);
+
+                    // Format the date properly
+                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
+
+                    if (!formattedDate || formattedDate === 'Invalid Date') {
+                        console.warn(`Invalid date format: ${meetingDate}`);
+                        continue;
+                    }
+
+                    // Create personal meeting data
+                    const personalMeetingData = {
+                        topic: meetingTitle,
+                        start_date: formattedDate,
+                        end_date: formattedDate,
+                        description: `Automatically created from ${category.name}: ${formData.remarks || formData.description || 'No description'}`,
+                        venue: formData.location || 'TBD',
+                        user_id: user.id,
+                        priority: formData.priority || 2,
+                        status: 'scheduled'
+                    };
+
+                    const { data, error } = await supabase
+                        .from('personal_meetings')
+                        .insert([personalMeetingData])
+                        .select();
+
+                    if (error) {
+                        console.error(`Error creating personal meeting for ${user.full_name}:`, error);
+                        errors.push(`${user.full_name}: ${error.message}`);
+                    } else {
+                        console.log(`Personal meeting created for ${user.full_name}:`, data[0]?.id);
+                        createdCount++;
+                    }
+
+                } catch (userError) {
+                    console.error(`Error processing SCMT user ${userRef}:`, userError);
+                    errors.push(`${userRef}: Processing error`);
                 }
-            });
-
-            if (editingRecord) {
-                const { error } = await supabase
-                    .from(selectedCategory.table)
-                    .update(submitData)
-                    .eq('id', editingRecord.id);
-
-                if (error) throw error;
-                toast.success('Record updated successfully');
-            } else {
-                const { error } = await supabase
-                    .from(selectedCategory.table)
-                    .insert([submitData]);
-
-                if (error) throw error;
-                toast.success('Record created successfully');
             }
 
-            safeSetState(setModalVisible, false);
-            fetchTableData();
+            // Show appropriate toast message
+            if (createdCount > 0) {
+                const message = `Created personal meetings for ${createdCount} SCMT team member(s)`;
+                if (errors.length > 0) {
+                    toast.warning(`${message} (${errors.length} errors)`);
+                } else {
+                    toast.success(message);
+                }
+            } else if (errors.length > 0) {
+                toast.error(`Failed to create personal meetings: ${errors.join('; ')}`);
+            }
+
         } catch (error) {
-            handleError(error, 'saving record');
+            console.error('Error in createPersonalMeetingsForSCMT:', error);
+            toast.error('Failed to create personal meetings for SCMT team members');
         }
     };
+
+const handleFormSubmit = async (values) => {
+    try {
+        if (!selectedCategory?.table) {
+            throw new Error('No category selected');
+        }
+
+        // Prepare data for submission
+        const submitData = { ...values };
+
+        // Convert dayjs objects to ISO strings with error handling
+        Object.keys(submitData).forEach(key => {
+            try {
+                if (dayjs.isDayjs(submitData[key])) {
+                    submitData[key] = safeDayjs(submitData[key]).format('YYYY-MM-DD');
+                }
+            } catch (dateError) {
+                console.warn(`Error converting date field ${key}:`, dateError);
+            }
+        });
+
+        let result;
+
+        if (editingRecord) {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .update(submitData)
+                .eq('id', editingRecord.id)
+                .select();
+
+            if (error) throw error;
+            result = data[0];
+            toast.success('Record updated successfully');
+        } else {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert([submitData])
+                .select();
+
+            if (error) throw error;
+            result = data[0];
+            toast.success('Record created successfully');
+        }
+
+        // Create personal meetings for responsible SCMT users
+        await createPersonalMeetingsForSCMT(result, selectedCategory, submitData);
+
+        safeSetState(setModalVisible, false);
+        fetchTableData();
+    } catch (error) {
+        handleError(error, 'saving record');
+    }
+};
 
     const getStats = () => {
         try {
@@ -1897,8 +2211,8 @@ const SCMT = () => {
             )}
 
             {/* Category Cards */}
-            <Card 
-                title="SCMT Categories" 
+            <Card
+                title="SCMT Categories"
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
@@ -1994,13 +2308,13 @@ const SCMT = () => {
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <>
                     <SCMTStatistics stats={stats} loading={loading} />
-                    
+
                     {/* Progress Bar for Completion Rate */}
                     <Card style={{ marginBottom: 24 }}>
                         <Space direction="vertical" style={{ width: '100%' }}>
                             <Text strong>Overall Completion Progress</Text>
-                            <Progress 
-                                percent={stats.completionRate} 
+                            <Progress
+                                percent={stats.completionRate}
                                 status={stats.completionRate >= 80 ? "success" : "active"}
                                 strokeColor={{
                                     '0%': '#108ee9',
@@ -2159,8 +2473,8 @@ const SCMT = () => {
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
-                                            <Tooltip 
-                                                key="view" 
+                                            <Tooltip
+                                                key="view"
                                                 title={!availabilityDateRange[0] || !availabilityDateRange[1] ? "Please select date range first" : "View detailed schedule"}
                                             >
                                                 <Button
@@ -2179,9 +2493,9 @@ const SCMT = () => {
                                         <List.Item.Meta
                                             title={user.full_name || user.email}
                                             description={
-                                                <Badge 
-                                                    status="success" 
-                                                    text="SCMT Team Member" 
+                                                <Badge
+                                                    status="success"
+                                                    text="SCMT Team Member"
                                                 />
                                             }
                                         />
