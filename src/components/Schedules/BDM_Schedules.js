@@ -192,15 +192,15 @@ const DiscussionModal = React.memo(({
     // Get the correct feedback table name
     const getFeedbackTable = useCallback(() => {
         if (!category) return null;
-        
+
         const tableMap = {
             'customer_visit': 'bdm_customer_visit_fb',
-            'principle_visit': 'bdm_principle_visit_fb', 
+            'principle_visit': 'bdm_principle_visit_fb',
             'weekly_meetings': 'bdm_weekly_meetings_fb',
             'college_sessions': 'bdm_college_session_fb',
             'promotional_activities': 'bdm_promotional_activities_fb'
         };
-        
+
         return tableMap[category.id] || null;
     }, [category]);
 
@@ -420,7 +420,7 @@ const DiscussionModal = React.memo(({
     );
 });
 
-// User Schedule Modal Component
+// User Schedule Modal Component (SINGLE CORRECTED VERSION)
 const UserScheduleModal = React.memo(({
     visible,
     onCancel,
@@ -460,9 +460,27 @@ const UserScheduleModal = React.memo(({
     };
 
     const getActivityType = (item) => {
-        if (item.type === 'personal_meeting') return 'Personal Meeting';
-        if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
-        return 'Unknown Activity';
+        try {
+            if (item.type === 'personal_meeting') return 'Personal Meeting';
+            if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
+            return 'Unknown Activity';
+        } catch (error) {
+            return 'Unknown Activity';
+        }
+    };
+
+    const getActivityDescription = (item) => {
+        try {
+            if (item.type === 'personal_meeting') {
+                return item.description || 'No description available';
+            }
+            if (item.type === 'bdm_activity') {
+                return item.remarks || item.objectives || item.purpose || 'No description available';
+            }
+            return 'No description available';
+        } catch (error) {
+            return 'Description not available';
+        }
     };
 
     const safeDayjs = (date) => {
@@ -508,9 +526,9 @@ const UserScheduleModal = React.memo(({
                                 dot={getScheduleItemIcon(item)}
                             >
                                 <div style={{ padding: '8px 0' }}>
-                                    <Descriptions 
-                                        size="small" 
-                                        column={1} 
+                                    <Descriptions
+                                        size="small"
+                                        column={1}
                                         bordered
                                         style={{ marginBottom: 16 }}
                                     >
@@ -521,9 +539,9 @@ const UserScheduleModal = React.memo(({
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.topic || item.meeting || item.promotional_activity || 
-                                                 item.session || item.customer_name || item.principle_name || 
-                                                 item.activity_type || 'Unknown Activity'}
+                                                {item.topic || item.meeting || item.promotional_activity ||
+                                                    item.session || item.customer_name || item.principle_name ||
+                                                    item.activity_type || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Date">
@@ -533,6 +551,14 @@ const UserScheduleModal = React.memo(({
                                                 {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
                                             </Space>
                                         </Descriptions.Item>
+
+                                        {/* NOW CALLING getActivityDescription */}
+                                        <Descriptions.Item label="Description">
+                                            <Text type="secondary">
+                                                {getActivityDescription(item)}
+                                            </Text>
+                                        </Descriptions.Item>
+
                                         {item.company && (
                                             <Descriptions.Item label="Company">
                                                 {item.company}
@@ -541,11 +567,6 @@ const UserScheduleModal = React.memo(({
                                         {item.venue && (
                                             <Descriptions.Item label="Venue">
                                                 <Tag color="blue">{item.venue}</Tag>
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.description && (
-                                            <Descriptions.Item label="Description">
-                                                {item.description}
                                             </Descriptions.Item>
                                         )}
                                         {item.remarks && (
@@ -568,7 +589,7 @@ const UserScheduleModal = React.memo(({
                             </Timeline.Item>
                         ))}
                     </Timeline>
-                    
+
                     <Alert
                         message={`Total ${schedule.length} scheduled items found`}
                         type="info"
@@ -832,7 +853,7 @@ const BDM = () => {
                 fetchProfiles(),
                 fetchBDMUsers()
             ]);
-            
+
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -983,12 +1004,12 @@ const BDM = () => {
         try {
             const tableMap = {
                 'customer_visit': 'bdm_customer_visit_fb',
-                'principle_visit': 'bdm_principle_visit_fb', 
+                'principle_visit': 'bdm_principle_visit_fb',
                 'weekly_meetings': 'bdm_weekly_meetings_fb',
                 'college_sessions': 'bdm_college_session_fb',
                 'promotional_activities': 'bdm_promotional_activities_fb'
             };
-            
+
             const feedbackTable = tableMap[category.id];
             if (!feedbackTable) return;
 
@@ -1013,61 +1034,88 @@ const BDM = () => {
         }
     };
 
- const fetchUserSchedule = async (userId, startDate, endDate) => {
-    setAvailabilityLoading(true);
-    try {
-        const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-        const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
+    // CORRECTED fetchUserSchedule function
+    const fetchUserSchedule = async (userId, startDate, endDate) => {
+        setAvailabilityLoading(true);
+        try {
+            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
+            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-        // Get ALL data from all tables without user filtering first
-        let allActivities = [];
+            let allActivities = [];
 
-        // Personal meetings
-        const { data: personalMeetings } = await supabase
-            .from('personal_meetings')
-            .select('*')
-            .gte('start_date', formattedStart)
-            .lte('end_date', formattedEnd)
-            .order('start_date', { ascending: true });
-
-        // BDM activities from all categories
-        for (const category of bdmCategories) {
-            const { data: activities } = await supabase
-                .from(category.table)
+            // Personal meetings for the specific user
+            const { data: personalMeetings } = await supabase
+                .from('personal_meetings')
                 .select('*')
-                .gte(category.dateField, formattedStart)
-                .lte(category.dateField, formattedEnd)
-                .order(category.dateField, { ascending: true });
+                .eq('user_id', userId)
+                .gte('start_date', formattedStart)
+                .lte('end_date', formattedEnd)
+                .order('start_date', { ascending: true });
 
-            if (activities) {
-                allActivities.push(...activities.map(activity => ({
-                    ...activity,
-                    type: 'bdm_activity',
-                    activity_type: category.name,
-                    source_table: category.table
-                })));
+            // BDM activities - filter by responsible users
+            for (const category of bdmCategories) {
+                let query = supabase
+                    .from(category.table)
+                    .select('*')
+                    .gte(category.dateField, formattedStart)
+                    .lte(category.dateField, formattedEnd)
+                    .order(category.dateField, { ascending: true });
+
+                // Get user details to filter by name/email
+                const user = bdmUsers.find(u => u.id === userId);
+                if (user) {
+                    const userName = user.full_name || user.email;
+
+                    // Filter based on category's responsible field
+                    switch (category.id) {
+                        case 'customer_visit':
+                        case 'college_sessions':
+                        case 'promotional_activities':
+                            // These use responsible_bdm_2 field (text array)
+                            query = query.or(`responsible_bdm_2.cs.{"${userName}"}`);
+                            break;
+                        case 'principle_visit':
+                            // This uses responsible_bdm field (uuid array)
+                            query = query.contains('responsible_bdm', [userId]);
+                            break;
+                        case 'weekly_meetings':
+                            // This uses conducted_by field
+                            query = query.ilike('conducted_by', `%${userName}%`);
+                            break;
+                    }
+                }
+
+                const { data: activities } = await query;
+
+                if (activities) {
+                    allActivities.push(...activities.map(activity => ({
+                        ...activity,
+                        type: 'bdm_activity',
+                        activity_type: category.name,
+                        source_table: category.table
+                    })));
+                }
             }
+
+            // Combine all activities
+            const userSchedule = [
+                ...(personalMeetings || []).map(meeting => ({
+                    ...meeting,
+                    type: 'personal_meeting'
+                })),
+                ...allActivities
+            ];
+
+            safeSetState(setUserSchedule, userSchedule);
+            console.log(`Schedule items for user ${userId}:`, userSchedule.length);
+
+        } catch (error) {
+            handleError(error, 'fetching user schedule');
+            safeSetState(setUserSchedule, []);
+        } finally {
+            setAvailabilityLoading(false);
         }
-
-        // Combine all activities
-        const allSchedule = [
-            ...(personalMeetings || []).map(meeting => ({
-                ...meeting,
-                type: 'personal_meeting'
-            })),
-            ...allActivities
-        ];
-
-        safeSetState(setUserSchedule, allSchedule);
-        console.log('ALL Schedule items (no filtering):', allSchedule.length);
-        
-    } catch (error) {
-        handleError(error, 'fetching user schedule');
-        safeSetState(setUserSchedule, []);
-    } finally {
-        setAvailabilityLoading(false);
-    }
-};
+    };
 
     const handleCategoryClick = (category) => {
         try {
@@ -1075,7 +1123,7 @@ const BDM = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             form.resetFields();
-            
+
             // Set default date range when category is selected
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -1169,7 +1217,7 @@ const BDM = () => {
         try {
             // Set default date range for availability modal
             const defaultRange = getDefaultDateRange();
-            
+
             safeSetState(setAvailabilityModalVisible, true);
             safeSetState(setSelectedUser, null);
             safeSetState(setUserSchedule, []);
@@ -1182,7 +1230,7 @@ const BDM = () => {
     const handleUserSelect = async (user) => {
         try {
             safeSetState(setSelectedUser, user);
-            
+
             if (availabilityDateRange[0] && availabilityDateRange[1]) {
                 await fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
                 // Open the schedule modal after fetching data
@@ -1583,7 +1631,7 @@ const BDM = () => {
                                 <DatePicker
                                     style={{ width: '100%' }}
                                     format="DD/MM/YYYY"
-                                    placeholder="Select session end date"
+                                    placeholder="Select session start date"
                                 />
                             </Form.Item>
                             <Form.Item
@@ -1667,14 +1715,16 @@ const BDM = () => {
         }
     };
 
+    // CORRECTED handleFormSubmit to fix department_id error
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission
-            const submitData = { ...values };
+            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
+            const { department_id, category_id, ...cleanData } = values;
+            const submitData = { ...cleanData };
 
             // Convert dayjs objects to ISO strings with error handling
             Object.keys(submitData).forEach(key => {
@@ -1687,27 +1737,136 @@ const BDM = () => {
                 }
             });
 
+            let result;
+
             if (editingRecord) {
-                const { error } = await supabase
+                // Update existing record
+                const { data, error } = await supabase
                     .from(selectedCategory.table)
                     .update(submitData)
-                    .eq('id', editingRecord.id);
+                    .eq('id', editingRecord.id)
+                    .select();
 
                 if (error) throw error;
+                result = data[0];
                 toast.success('Record updated successfully');
             } else {
-                const { error } = await supabase
+                // Create new record
+                const { data, error } = await supabase
                     .from(selectedCategory.table)
-                    .insert([submitData]);
+                    .insert([submitData])
+                    .select();
 
                 if (error) throw error;
+                result = data[0];
                 toast.success('Record created successfully');
             }
+
+            // Auto-create personal meetings for responsible BDMs
+            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
 
             safeSetState(setModalVisible, false);
             fetchTableData();
         } catch (error) {
             handleError(error, 'saving record');
+        }
+    };
+
+    // Function to create personal meetings for responsible BDMs
+    const createPersonalMeetingsForBDMs = async (record, category, formData) => {
+        try {
+            let responsibleUsers = [];
+            let meetingDate = '';
+            let meetingTitle = '';
+
+            // Extract responsible users and meeting details based on category
+            switch (category.id) {
+                case 'customer_visit':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.schedule_date;
+                    meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
+                    break;
+
+                case 'principle_visit':
+                    responsibleUsers = formData.responsible_bdm || [];
+                    meetingDate = formData.visit_duration_start;
+                    meetingTitle = `Principle Visit: ${formData.principle_name}`;
+                    break;
+
+                case 'weekly_meetings':
+                    responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Weekly Meeting: ${formData.meeting}`;
+                    break;
+
+                case 'college_sessions':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.start_date;
+                    meetingTitle = `College Session: ${formData.college_name}`;
+                    break;
+
+                case 'promotional_activities':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
+                    break;
+            }
+
+            // If no responsible users, return
+            if (!responsibleUsers.length || !meetingDate) {
+                return;
+            }
+
+            // Convert string array to array if needed
+            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
+
+            // Create personal meetings for each responsible BDM
+            for (const userRef of usersArray) {
+                let user = null;
+
+                // Find user by different identifier types
+                if (typeof userRef === 'string') {
+                    // Try to find by full name
+                    user = bdmUsers.find(u => u.full_name === userRef);
+                    if (!user) {
+                        // Try to find by email
+                        user = bdmUsers.find(u => u.email === userRef);
+                    }
+                    if (!user) {
+                        // Try to find by ID
+                        user = bdmUsers.find(u => u.id === userRef);
+                    }
+                } else if (typeof userRef === 'object') {
+                    user = bdmUsers.find(u => u.id === userRef.id);
+                }
+
+                if (user) {
+                    // Create personal meeting
+                    const personalMeetingData = {
+                        topic: meetingTitle,
+                        start_date: meetingDate,
+                        end_date: meetingDate, // Same day for now
+                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
+                        venue: formData.company || 'TBD',
+                        user_id: user.id
+                    };
+
+                    const { error } = await supabase
+                        .from('personal_meetings')
+                        .insert([personalMeetingData]);
+
+                    if (error) {
+                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
+                    } else {
+                        console.log(`Personal meeting created for ${user.full_name}`);
+                    }
+                }
+            }
+
+            toast.info(`Created personal meetings for ${usersArray.length} team member(s)`);
+        } catch (error) {
+            console.error('Error creating personal meetings:', error);
+            // Don't throw error here to avoid affecting main form submission
         }
     };
 
@@ -1845,8 +2004,8 @@ const BDM = () => {
             )}
 
             {/* Category Cards */}
-            <Card 
-                title="BDM Categories" 
+            <Card
+                title="BDM Categories"
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
@@ -1918,13 +2077,13 @@ const BDM = () => {
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <>
                     <BDMStatistics stats={stats} loading={loading} />
-                    
+
                     {/* Progress Bar for Completion Rate */}
                     <Card style={{ marginBottom: 24 }}>
                         <Space direction="vertical" style={{ width: '100%' }}>
                             <Text strong>Overall Completion Progress</Text>
-                            <Progress 
-                                percent={stats.completionRate} 
+                            <Progress
+                                percent={stats.completionRate}
                                 status={stats.completionRate >= 80 ? "success" : "active"}
                                 strokeColor={{
                                     '0%': '#108ee9',
@@ -2078,8 +2237,8 @@ const BDM = () => {
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
-                                            <Tooltip 
-                                                key="view" 
+                                            <Tooltip
+                                                key="view"
                                                 title={!availabilityDateRange[0] || !availabilityDateRange[1] ? "Please select date range first" : "View detailed schedule"}
                                             >
                                                 <Button
@@ -2098,9 +2257,9 @@ const BDM = () => {
                                         <List.Item.Meta
                                             title={user.full_name || user.email}
                                             description={
-                                                <Badge 
-                                                    status="success" 
-                                                    text="BDM Team Member" 
+                                                <Badge
+                                                    status="success"
+                                                    text="BDM Team Member"
                                                 />
                                             }
                                         />

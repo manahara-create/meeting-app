@@ -1020,6 +1020,7 @@ const SCMT = () => {
             const { data: personalMeetings } = await supabase
                 .from('personal_meetings')
                 .select('*')
+                .eq('user_id', userId)
                 .gte('start_date', formattedStart)
                 .lte('end_date', formattedEnd)
                 .order('start_date', { ascending: true });
@@ -1029,6 +1030,7 @@ const SCMT = () => {
                 const { data: activities } = await supabase
                     .from(category.table)
                     .select('*')
+                    .eq('user_id', userId)
                     .gte(category.dateField, formattedStart)
                     .lte(category.dateField, formattedEnd)
                     .order(category.dateField, { ascending: true });
