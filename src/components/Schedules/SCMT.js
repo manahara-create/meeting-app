@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Checkbox
+    Tabs, Switch, Pagination, Progress, Checkbox, TimePicker
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -85,6 +85,34 @@ const PriorityBadge = ({ priority }) => {
             }
         />
     );
+};
+
+// Time Display Component
+const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+    if (!time) return '-';
+    
+    try {
+        // Handle both string time and dayjs object
+        let timeObj;
+        if (typeof time === 'string') {
+            // Try different time formats
+            const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+            for (const fmt of formats) {
+                timeObj = dayjs(time, fmt);
+                if (timeObj.isValid()) break;
+            }
+            // If no format works, try creating from string directly
+            if (!timeObj || !timeObj.isValid()) {
+                timeObj = dayjs(`1970-01-01T${time}`);
+            }
+        } else {
+            timeObj = time;
+        }
+        
+        return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
+    } catch (error) {
+        return '-';
+    }
 };
 
 // Statistics Cards Component
@@ -169,6 +197,7 @@ const CategoryCard = ({ category, isSelected, onClick, loading = false }) => (
         </Title>
         <Text type="secondary" style={{ fontSize: '12px' }}>
             {category.type}
+            {category.hasTimeFields && ' • With Time'}
         </Text>
     </Card>
 );
@@ -562,11 +591,16 @@ const UserScheduleModal = React.memo(({
                                                 {item.topic || item.type || item.activity_type || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Date">
+                                        <Descriptions.Item label="Date & Time">
                                             <Space>
                                                 <CalendarOutlined />
                                                 {safeDayjs(item.start_date || item.date || item.date_of_arrival).format('DD/MM/YYYY')}
                                                 {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
+                                                {(item.start_time || item.end_time) && (
+                                                    <Tag color="purple">
+                                                        <TimeDisplay time={item.start_time} /> - <TimeDisplay time={item.end_time} />
+                                                    </Tag>
+                                                )}
                                             </Space>
                                         </Descriptions.Item>
                                         {item.location && (
@@ -671,45 +705,9 @@ const SCMT = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // SCMT Categories configuration
-    const scmtCategories = [
-        {
-            id: 'delivery_distribution',
-            name: 'Delivery and Distribution',
-            table: 'scmt_d_n_d',
-            type: 'Task',
-            icon: <CarryOutOutlined />,
-            dateField: 'start_date',
-            color: '#1890ff'
-        },
-        {
-            id: 'meetings_sessions',
-            name: 'Meetings and Sessions',
-            table: 'scmt_meetings_and_sessions',
-            type: 'Meeting',
-            icon: <CalendarOutlined />,
-            dateField: 'date',
-            color: '#52c41a'
-        },
-        {
-            id: 'other_operations',
-            name: 'Other Operations Activities',
-            table: 'scmt_others',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
-            dateField: 'date',
-            color: '#fa8c16'
-        },
-        {
-            id: 'weekly_meetings_scmt',
-            name: 'Weekly Shipments',
-            table: 'scmt_weekly_meetings',
-            type: 'Task',
-            icon: <ShoppingOutlined />,
-            dateField: 'date_of_arrival',
-            color: '#722ed1'
-        }
-    ];
+    // Default time values
+    const defaultStartTime = dayjs('09:00', 'HH:mm');
+    const defaultEndTime = dayjs('17:00', 'HH:mm');
 
     // Priority options
     const priorityOptions = [
@@ -718,6 +716,50 @@ const SCMT = () => {
         { value: 3, label: 'Medium', color: 'orange' },
         { value: 4, label: 'High', color: 'red' },
         { value: 5, label: 'Critical', color: 'purple' }
+    ];
+
+    // SCMT Categories configuration with time fields
+    const scmtCategories = [
+        {
+            id: 'delivery_distribution',
+            name: 'Delivery and Distribution',
+            table: 'scmt_d_n_d',
+            type: 'Task',
+            icon: <CarryOutOutlined />,
+            dateField: 'start_date',
+            color: '#1890ff',
+            hasTimeFields: false
+        },
+        {
+            id: 'meetings_sessions',
+            name: 'Meetings and Sessions',
+            table: 'scmt_meetings_and_sessions',
+            type: 'Meeting',
+            icon: <CalendarOutlined />,
+            dateField: 'date',
+            color: '#52c41a',
+            hasTimeFields: true // Enable time fields for meetings and sessions
+        },
+        {
+            id: 'other_operations',
+            name: 'Other Operations Activities',
+            table: 'scmt_others',
+            type: 'Task',
+            icon: <CheckCircleOutlined />,
+            dateField: 'date',
+            color: '#fa8c16',
+            hasTimeFields: true // Enable time fields for operations
+        },
+        {
+            id: 'weekly_meetings_scmt',
+            name: 'Weekly Shipments',
+            table: 'scmt_weekly_meetings',
+            type: 'Task',
+            icon: <ShoppingOutlined />,
+            dateField: 'date_of_arrival',
+            color: '#722ed1',
+            hasTimeFields: false
+        }
     ];
 
     // Get default date range: yesterday to 9 days from today (total 10 days)
@@ -787,6 +829,40 @@ const SCMT = () => {
             return dayjs();
         }
     }, []);
+
+    // Safe time parsing function
+    const safeTimeParse = useCallback((time) => {
+        try {
+            if (!time) return defaultStartTime;
+            
+            if (dayjs.isDayjs(time)) {
+                return time;
+            }
+
+            if (typeof time === 'string') {
+                // Try different time formats
+                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+                for (const format of formats) {
+                    const parsed = dayjs(time, format);
+                    if (parsed.isValid()) {
+                        return parsed;
+                    }
+                }
+                
+                // If no format works, try creating from string directly
+                const directParse = dayjs(`1970-01-01T${time}`);
+                if (directParse.isValid()) {
+                    return directParse;
+                }
+            }
+
+            console.warn('Invalid time provided, using default:', time);
+            return defaultStartTime;
+        } catch (error) {
+            console.error('Error parsing time:', time, error);
+            return defaultStartTime;
+        }
+    }, [defaultStartTime]);
 
     // Reset error boundary
     const resetErrorBoundary = useCallback(() => {
@@ -1322,8 +1398,18 @@ const SCMT = () => {
                 if (selectedCategory.id === 'weekly_meetings_scmt' && record.date_of_arrival) {
                     formattedRecord.date_of_arrival = safeDayjs(record.date_of_arrival);
                 }
+
+                // Format time fields using the dedicated time parser
+                if (selectedCategory.hasTimeFields) {
+                    if (record.start_time) {
+                        formattedRecord.start_time = safeTimeParse(record.start_time);
+                    }
+                    if (record.end_time) {
+                        formattedRecord.end_time = safeTimeParse(record.end_time);
+                    }
+                }
             } catch (dateError) {
-                console.warn('Error formatting dates for editing:', dateError);
+                console.warn('Error formatting dates/times for editing:', dateError);
             }
 
             form.setFieldsValue(formattedRecord);
@@ -1403,6 +1489,268 @@ const SCMT = () => {
         }
     };
 
+    // Helper function to ensure time fields have defaults
+    const ensureTimeDefaults = (values) => {
+        if (!selectedCategory?.hasTimeFields) return values;
+        
+        return {
+            ...values,
+            start_time: values.start_time || defaultStartTime,
+            end_time: values.end_time || defaultEndTime
+        };
+    };
+
+    // CORRECTED: handleFormSubmit to fix time handling and department_id error
+    const handleFormSubmit = async (values) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            // Ensure time defaults
+            const valuesWithDefaults = ensureTimeDefaults(values);
+            
+            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
+            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
+            const submitData = { ...cleanData };
+
+            // Convert dayjs objects to proper formats with error handling
+            Object.keys(submitData).forEach(key => {
+                try {
+                    const value = submitData[key];
+                    if (dayjs.isDayjs(value)) {
+                        if (key.includes('time')) {
+                            // Convert time to HH:mm:ss format
+                            submitData[key] = value.format('HH:mm:ss');
+                        } else {
+                            // Convert date to YYYY-MM-DD format
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
+                    }
+                } catch (dateError) {
+                    console.warn(`Error converting date/time field ${key}:`, dateError);
+                }
+            });
+
+            // Handle time fields specifically
+            if (selectedCategory.hasTimeFields) {
+                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
+                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
+                }
+                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
+                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
+                }
+            }
+
+            let result;
+
+            if (editingRecord) {
+                // Update existing record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .update(submitData)
+                    .eq('id', editingRecord.id)
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+                toast.success('Record updated successfully');
+            } else {
+                // Create new record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .insert([submitData])
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+                toast.success('Record created successfully');
+            }
+
+            // Auto-create personal meetings for responsible SCMT users
+            await createPersonalMeetingsForSCMT(result, selectedCategory, submitData);
+
+            safeSetState(setModalVisible, false);
+            fetchTableData();
+        } catch (error) {
+            handleError(error, 'saving record');
+        }
+    };
+
+    // Function to create personal meetings for SCMT users when records are created/edited
+    const createPersonalMeetingsForSCMT = async (record, category, formData) => {
+        try {
+            console.log('Creating personal meetings for SCMT:', { category: category.id, formData });
+
+            let responsibleUsers = [];
+            let meetingDate = '';
+            let meetingTitle = '';
+
+            // Extract responsible users and meeting details based on category
+            switch (category.id) {
+                case 'delivery_distribution':
+                    responsibleUsers = formData.responsible_2 || [];
+                    meetingDate = formData.start_date;
+                    meetingTitle = `SCMT Delivery: ${formData.type || 'Delivery Activity'}`;
+                    break;
+
+                case 'meetings_sessions':
+                    responsibleUsers = formData.responsible_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `SCMT Meeting: ${formData.type || 'Meeting'}`;
+                    break;
+
+                case 'other_operations':
+                    responsibleUsers = formData.responsible_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `SCMT Operations: ${formData.type || 'Operation'}`;
+                    break;
+
+                case 'weekly_meetings_scmt':
+                    // For weekly shipments, you might want to assign to specific users
+                    // You can modify this based on your business logic
+                    responsibleUsers = []; // Add logic to determine responsible users for shipments
+                    meetingDate = formData.date_of_arrival;
+                    meetingTitle = `SCMT Shipment: ${formData.supplier || 'Shipment'}`;
+                    break;
+
+                default:
+                    console.warn(`Unknown category for SCMT: ${category.id}`);
+                    return;
+            }
+
+            // Validate required fields
+            if (!responsibleUsers.length) {
+                console.log('No responsible users found for creating personal meetings');
+                return;
+            }
+
+            if (!meetingDate) {
+                console.warn('No meeting date found for creating personal meetings');
+                return;
+            }
+
+            // Convert to array and clean up user references
+            const usersArray = Array.isArray(responsibleUsers)
+                ? responsibleUsers
+                : typeof responsibleUsers === 'string'
+                    ? responsibleUsers.split(',').map(u => u.trim()).filter(u => u)
+                    : [responsibleUsers];
+
+            console.log('Processing SCMT users:', usersArray);
+
+            if (usersArray.length === 0) {
+                console.log('No valid users found after processing');
+                return;
+            }
+
+            let createdCount = 0;
+            const errors = [];
+
+            // Create personal meetings for each responsible user
+            for (const userRef of usersArray) {
+                try {
+                    const user = findUserByReference(userRef, scmtUsers);
+
+                    if (!user) {
+                        console.warn(`SCMT User not found for reference: ${userRef}`);
+                        continue;
+                    }
+
+                    console.log(`Creating personal meeting for SCMT user: ${user.full_name}`);
+
+                    // Format the date properly
+                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
+
+                    if (!formattedDate || formattedDate === 'Invalid Date') {
+                        console.warn(`Invalid date format: ${meetingDate}`);
+                        continue;
+                    }
+
+                    // Create personal meeting data
+                    const personalMeetingData = {
+                        topic: meetingTitle,
+                        start_date: formattedDate,
+                        end_date: formattedDate,
+                        description: `Automatically created from ${category.name}: ${formData.remarks || formData.description || 'No description'}`,
+                        venue: formData.location || 'TBD',
+                        user_id: user.id,
+                        priority: formData.priority || 2,
+                        status: 'scheduled'
+                    };
+
+                    // Add time fields if available
+                    if (formData.start_time) {
+                        personalMeetingData.start_time = formData.start_time;
+                    }
+                    if (formData.end_time) {
+                        personalMeetingData.end_time = formData.end_time;
+                    }
+
+                    const { data, error } = await supabase
+                        .from('personal_meetings')
+                        .insert([personalMeetingData])
+                        .select();
+
+                    if (error) {
+                        console.error(`Error creating personal meeting for ${user.full_name}:`, error);
+                        errors.push(`${user.full_name}: ${error.message}`);
+                    } else {
+                        console.log(`Personal meeting created for ${user.full_name}:`, data[0]?.id);
+                        createdCount++;
+                    }
+
+                } catch (userError) {
+                    console.error(`Error processing SCMT user ${userRef}:`, userError);
+                    errors.push(`${userRef}: Processing error`);
+                }
+            }
+
+            // Show appropriate toast message
+            if (createdCount > 0) {
+                const message = `Created personal meetings for ${createdCount} SCMT team member(s)`;
+                if (errors.length > 0) {
+                    toast.warning(`${message} (${errors.length} errors)`);
+                } else {
+                    toast.success(message);
+                }
+            } else if (errors.length > 0) {
+                toast.error(`Failed to create personal meetings: ${errors.join('; ')}`);
+            }
+
+        } catch (error) {
+            console.error('Error in createPersonalMeetingsForSCMT:', error);
+            toast.error('Failed to create personal meetings for SCMT team members');
+        }
+    };
+
+    // Helper function to find user by various reference types
+    const findUserByReference = (userRef, usersList) => {
+        if (!userRef || !usersList?.length) return null;
+
+        const refString = String(userRef).trim().toLowerCase();
+
+        // Try different matching strategies
+        return usersList.find(user => {
+            // Exact match on ID
+            if (user.id && String(user.id).toLowerCase() === refString) return true;
+
+            // Exact match on full name
+            if (user.full_name && user.full_name.toLowerCase() === refString) return true;
+
+            // Exact match on email
+            if (user.email && user.email.toLowerCase() === refString) return true;
+
+            // Partial match on full name
+            if (user.full_name && user.full_name.toLowerCase().includes(refString)) return true;
+
+            // Partial match on email
+            if (user.email && user.email.toLowerCase().includes(refString)) return true;
+
+            return false;
+        });
+    };
+
     const getTableColumns = () => {
         if (!selectedCategory) return [];
 
@@ -1464,6 +1812,23 @@ const SCMT = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
+            const timeColumn = selectedCategory.hasTimeFields ? [
+                {
+                    title: 'Start Time',
+                    dataIndex: 'start_time',
+                    key: 'start_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                },
+                {
+                    title: 'End Time',
+                    dataIndex: 'end_time',
+                    key: 'end_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                }
+            ] : [];
+
             const baseColumns = [
                 {
                     title: 'Created',
@@ -1479,7 +1844,8 @@ const SCMT = () => {
                     },
                     width: 100
                 },
-                priorityColumn
+                priorityColumn,
+                ...timeColumn
             ];
 
             switch (selectedCategory.id) {
@@ -1686,6 +2052,33 @@ const SCMT = () => {
                 </>
             );
 
+            const timeFields = selectedCategory.hasTimeFields ? (
+                <>
+                    <Form.Item
+                        name="start_time"
+                        label="Start Time"
+                        initialValue={defaultStartTime}
+                    >
+                        <TimePicker 
+                            format="HH:mm" 
+                            style={{ width: '100%' }}
+                            placeholder="Select start time"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="end_time"
+                        label="End Time"
+                        initialValue={defaultEndTime}
+                    >
+                        <TimePicker 
+                            format="HH:mm" 
+                            style={{ width: '100%' }}
+                            placeholder="Select end time"
+                        />
+                    </Form.Item>
+                </>
+            ) : null;
+
             switch (selectedCategory.id) {
                 case 'delivery_distribution':
                     return (
@@ -1719,6 +2112,7 @@ const SCMT = () => {
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             {commonFields}
                         </>
                     );
@@ -1737,6 +2131,7 @@ const SCMT = () => {
                                     placeholder="Select activity date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             {commonFields}
                         </>
                     );
@@ -1857,225 +2252,6 @@ const SCMT = () => {
             return <Alert message="Error loading form" type="error" />;
         }
     };
-
-    // Helper function to find user by various reference types
-    const findUserByReference = (userRef, usersList) => {
-        if (!userRef || !usersList?.length) return null;
-
-        const refString = String(userRef).trim().toLowerCase();
-
-        // Try different matching strategies
-        return usersList.find(user => {
-            // Exact match on ID
-            if (user.id && String(user.id).toLowerCase() === refString) return true;
-
-            // Exact match on full name
-            if (user.full_name && user.full_name.toLowerCase() === refString) return true;
-
-            // Exact match on email
-            if (user.email && user.email.toLowerCase() === refString) return true;
-
-            // Partial match on full name
-            if (user.full_name && user.full_name.toLowerCase().includes(refString)) return true;
-
-            // Partial match on email
-            if (user.email && user.email.toLowerCase().includes(refString)) return true;
-
-            return false;
-        });
-    };
-
-    // Function to create personal meetings for SCMT users when records are created/edited
-    const createPersonalMeetingsForSCMT = async (record, category, formData) => {
-        try {
-            console.log('Creating personal meetings for SCMT:', { category: category.id, formData });
-
-            let responsibleUsers = [];
-            let meetingDate = '';
-            let meetingTitle = '';
-
-            // Extract responsible users and meeting details based on category
-            switch (category.id) {
-                case 'delivery_distribution':
-                    responsibleUsers = formData.responsible_2 || [];
-                    meetingDate = formData.start_date;
-                    meetingTitle = `SCMT Delivery: ${formData.type || 'Delivery Activity'}`;
-                    break;
-
-                case 'meetings_sessions':
-                    responsibleUsers = formData.responsible_2 || [];
-                    meetingDate = formData.date;
-                    meetingTitle = `SCMT Meeting: ${formData.type || 'Meeting'}`;
-                    break;
-
-                case 'other_operations':
-                    responsibleUsers = formData.responsible_2 || [];
-                    meetingDate = formData.date;
-                    meetingTitle = `SCMT Operations: ${formData.type || 'Operation'}`;
-                    break;
-
-                case 'weekly_meetings_scmt':
-                    // For weekly shipments, you might want to assign to specific users
-                    // You can modify this based on your business logic
-                    responsibleUsers = []; // Add logic to determine responsible users for shipments
-                    meetingDate = formData.date_of_arrival;
-                    meetingTitle = `SCMT Shipment: ${formData.supplier || 'Shipment'}`;
-                    break;
-
-                default:
-                    console.warn(`Unknown category for SCMT: ${category.id}`);
-                    return;
-            }
-
-            // Validate required fields
-            if (!responsibleUsers.length) {
-                console.log('No responsible users found for creating personal meetings');
-                return;
-            }
-
-            if (!meetingDate) {
-                console.warn('No meeting date found for creating personal meetings');
-                return;
-            }
-
-            // Convert to array and clean up user references
-            const usersArray = Array.isArray(responsibleUsers)
-                ? responsibleUsers
-                : typeof responsibleUsers === 'string'
-                    ? responsibleUsers.split(',').map(u => u.trim()).filter(u => u)
-                    : [responsibleUsers];
-
-            console.log('Processing SCMT users:', usersArray);
-
-            if (usersArray.length === 0) {
-                console.log('No valid users found after processing');
-                return;
-            }
-
-            let createdCount = 0;
-            const errors = [];
-
-            // Create personal meetings for each responsible user
-            for (const userRef of usersArray) {
-                try {
-                    const user = findUserByReference(userRef, scmtUsers);
-
-                    if (!user) {
-                        console.warn(`SCMT User not found for reference: ${userRef}`);
-                        continue;
-                    }
-
-                    console.log(`Creating personal meeting for SCMT user: ${user.full_name}`);
-
-                    // Format the date properly
-                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
-
-                    if (!formattedDate || formattedDate === 'Invalid Date') {
-                        console.warn(`Invalid date format: ${meetingDate}`);
-                        continue;
-                    }
-
-                    // Create personal meeting data
-                    const personalMeetingData = {
-                        topic: meetingTitle,
-                        start_date: formattedDate,
-                        end_date: formattedDate,
-                        description: `Automatically created from ${category.name}: ${formData.remarks || formData.description || 'No description'}`,
-                        venue: formData.location || 'TBD',
-                        user_id: user.id,
-                        priority: formData.priority || 2,
-                        status: 'scheduled'
-                    };
-
-                    const { data, error } = await supabase
-                        .from('personal_meetings')
-                        .insert([personalMeetingData])
-                        .select();
-
-                    if (error) {
-                        console.error(`Error creating personal meeting for ${user.full_name}:`, error);
-                        errors.push(`${user.full_name}: ${error.message}`);
-                    } else {
-                        console.log(`Personal meeting created for ${user.full_name}:`, data[0]?.id);
-                        createdCount++;
-                    }
-
-                } catch (userError) {
-                    console.error(`Error processing SCMT user ${userRef}:`, userError);
-                    errors.push(`${userRef}: Processing error`);
-                }
-            }
-
-            // Show appropriate toast message
-            if (createdCount > 0) {
-                const message = `Created personal meetings for ${createdCount} SCMT team member(s)`;
-                if (errors.length > 0) {
-                    toast.warning(`${message} (${errors.length} errors)`);
-                } else {
-                    toast.success(message);
-                }
-            } else if (errors.length > 0) {
-                toast.error(`Failed to create personal meetings: ${errors.join('; ')}`);
-            }
-
-        } catch (error) {
-            console.error('Error in createPersonalMeetingsForSCMT:', error);
-            toast.error('Failed to create personal meetings for SCMT team members');
-        }
-    };
-
-const handleFormSubmit = async (values) => {
-    try {
-        if (!selectedCategory?.table) {
-            throw new Error('No category selected');
-        }
-
-        // Prepare data for submission
-        const submitData = { ...values };
-
-        // Convert dayjs objects to ISO strings with error handling
-        Object.keys(submitData).forEach(key => {
-            try {
-                if (dayjs.isDayjs(submitData[key])) {
-                    submitData[key] = safeDayjs(submitData[key]).format('YYYY-MM-DD');
-                }
-            } catch (dateError) {
-                console.warn(`Error converting date field ${key}:`, dateError);
-            }
-        });
-
-        let result;
-
-        if (editingRecord) {
-            const { data, error } = await supabase
-                .from(selectedCategory.table)
-                .update(submitData)
-                .eq('id', editingRecord.id)
-                .select();
-
-            if (error) throw error;
-            result = data[0];
-            toast.success('Record updated successfully');
-        } else {
-            const { data, error } = await supabase
-                .from(selectedCategory.table)
-                .insert([submitData])
-                .select();
-
-            if (error) throw error;
-            result = data[0];
-            toast.success('Record created successfully');
-        }
-
-        // Create personal meetings for responsible SCMT users
-        await createPersonalMeetingsForSCMT(result, selectedCategory, submitData);
-
-        safeSetState(setModalVisible, false);
-        fetchTableData();
-    } catch (error) {
-        handleError(error, 'saving record');
-    }
-};
 
     const getStats = () => {
         try {

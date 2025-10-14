@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -517,6 +517,34 @@ const UserScheduleModal = React.memo(({
         }
     };
 
+    // Safe time display function
+    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+        if (!time) return '-';
+        
+        try {
+            // Handle both string time and dayjs object
+            let timeObj;
+            if (typeof time === 'string') {
+                // Try different time formats
+                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+                for (const fmt of formats) {
+                    timeObj = dayjs(time, fmt);
+                    if (timeObj.isValid()) break;
+                }
+                // If no format works, try creating from string directly
+                if (!timeObj || !timeObj.isValid()) {
+                    timeObj = dayjs(`1970-01-01T${time}`);
+                }
+            } else {
+                timeObj = time;
+            }
+            
+            return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
+        } catch (error) {
+            return '-';
+        }
+    };
+
     const safeDayjs = (date) => {
         try {
             if (!date) return dayjs();
@@ -581,11 +609,15 @@ const UserScheduleModal = React.memo(({
                                                     item.activity_type || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Date">
+                                        <Descriptions.Item label="Date & Time">
                                             <Space>
                                                 <CalendarOutlined />
                                                 {safeDayjs(item.start_date || item.date || item.schedule_date || item.visit_duration_start).format('DD/MM/YYYY')}
-                                                {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
+                                                {(item.start_time || item.end_time) && (
+                                                    <Tag color="purple">
+                                                        <TimeDisplay time={item.start_time} /> - <TimeDisplay time={item.end_time} />
+                                                    </Tag>
+                                                )}
                                             </Space>
                                         </Descriptions.Item>
 
@@ -687,6 +719,10 @@ const BDM = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
+    // Default time values
+    const defaultStartTime = dayjs('06:00', 'HH:mm');
+    const defaultEndTime = dayjs('21:00', 'HH:mm');
+
     // BDM Categories configuration
     const bdmCategories = [
         {
@@ -696,7 +732,8 @@ const BDM = () => {
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'schedule_date',
-            color: '#1890ff'
+            color: '#1890ff',
+            hasTimeFields: true
         },
         {
             id: 'principle_visit',
@@ -705,7 +742,8 @@ const BDM = () => {
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'visit_duration_start',
-            color: '#52c41a'
+            color: '#52c41a',
+            hasTimeFields: false
         },
         {
             id: 'weekly_meetings',
@@ -714,7 +752,8 @@ const BDM = () => {
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'date',
-            color: '#fa8c16'
+            color: '#fa8c16',
+            hasTimeFields: true
         },
         {
             id: 'college_sessions',
@@ -723,7 +762,8 @@ const BDM = () => {
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'start_date',
-            color: '#722ed1'
+            color: '#722ed1',
+            hasTimeFields: true
         },
         {
             id: 'promotional_activities',
@@ -732,7 +772,8 @@ const BDM = () => {
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'date',
-            color: '#eb2f96'
+            color: '#eb2f96',
+            hasTimeFields: false
         }
     ];
 
@@ -783,6 +824,40 @@ const BDM = () => {
         }
     }, [handleError]);
 
+    // Safe time parsing function
+    const safeTimeParse = useCallback((time) => {
+        try {
+            if (!time) return defaultStartTime;
+            
+            if (dayjs.isDayjs(time)) {
+                return time;
+            }
+
+            if (typeof time === 'string') {
+                // Try different time formats
+                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+                for (const format of formats) {
+                    const parsed = dayjs(time, format);
+                    if (parsed.isValid()) {
+                        return parsed;
+                    }
+                }
+                
+                // If no format works, try creating from string directly
+                const directParse = dayjs(`1970-01-01T${time}`);
+                if (directParse.isValid()) {
+                    return directParse;
+                }
+            }
+
+            console.warn('Invalid time provided, using default:', time);
+            return defaultStartTime;
+        } catch (error) {
+            console.error('Error parsing time:', time, error);
+            return defaultStartTime;
+        }
+    }, [defaultStartTime]);
+
     // Safe date parsing function
     const safeDayjs = useCallback((date, format = null) => {
         try {
@@ -795,6 +870,12 @@ const BDM = () => {
             }
 
             if (typeof date === 'string' || typeof date === 'number') {
+                // Skip time-only strings
+                if (typeof date === 'string' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(date)) {
+                    console.warn('Time string provided to date parser:', date);
+                    return dayjs(); // Return current date for time strings
+                }
+
                 const parsedDate = format ? dayjs(date, format) : dayjs(date);
 
                 if (!parsedDate.isValid()) {
@@ -812,6 +893,19 @@ const BDM = () => {
             return dayjs();
         }
     }, []);
+
+    // Time Display Component
+    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+        if (!time) return '-';
+        
+        try {
+            // Handle both string time and dayjs object
+            const timeObj = safeTimeParse(time);
+            return timeObj.isValid() ? timeObj.format(format) : '-';
+        } catch (error) {
+            return '-';
+        }
+    };
 
     // Reset error boundary
     const resetErrorBoundary = useCallback(() => {
@@ -1088,139 +1182,139 @@ const BDM = () => {
         }
     };
 
-const fetchUserSchedule = async (userId, startDate, endDate) => {
-    setAvailabilityLoading(true);
-    try {
-        const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-        const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
+    const fetchUserSchedule = async (userId, startDate, endDate) => {
+        setAvailabilityLoading(true);
+        try {
+            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
+            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-        let allActivities = [];
+            let allActivities = [];
 
-        // Get user details
-        const user = bdmUsers.find(u => u.id === userId);
-        if (!user) {
-            console.warn('User not found in BDM users list');
-            safeSetState(setUserSchedule, []);
-            return;
-        }
-
-        const userName = user.full_name || user.email;
-        console.log(`Fetching schedule for user: ${userName} (${userId})`);
-
-        // 1. Personal meetings for the specific user
-        const { data: personalMeetings, error: personalError } = await supabase
-            .from('personal_meetings')
-            .select('*')
-            .eq('user_id', userId)
-            .gte('start_date', formattedStart)
-            .lte('end_date', formattedEnd)
-            .order('priority', { ascending: false })
-            .order('start_date', { ascending: true });
-
-        if (personalError) console.error('Personal meetings error:', personalError);
-        console.log('Personal meetings:', personalMeetings?.length || 0);
-
-        // 2. BDM activities - CORRECTED FILTERING
-        for (const category of bdmCategories) {
-            console.log(`Checking category: ${category.name}`);
-            
-            let query = supabase
-                .from(category.table)
-                .select('*')
-                .gte(category.dateField, formattedStart)
-                .lte(category.dateField, formattedEnd)
-                .order('priority', { ascending: false })
-                .order(category.dateField, { ascending: true });
-
-            let categoryActivities = [];
-
-            try {
-                // Different filtering strategies for each category
-                switch (category.id) {
-                    case 'customer_visit':
-                    case 'college_sessions':
-                    case 'promotional_activities':
-                        // These use responsible_bdm_2 field (text array)
-                        // First, get all records and filter client-side for better accuracy
-                        const { data: textArrayData } = await query;
-                        if (textArrayData) {
-                            categoryActivities = textArrayData.filter(item => {
-                                const responsibleUsers = item.responsible_bdm_2;
-                                if (!responsibleUsers) return false;
-                                
-                                // Handle both string arrays and comma-separated strings
-                                if (Array.isArray(responsibleUsers)) {
-                                    return responsibleUsers.some(name => 
-                                        name && name.toLowerCase().includes(userName.toLowerCase())
-                                    );
-                                } else if (typeof responsibleUsers === 'string') {
-                                    return responsibleUsers.toLowerCase().includes(userName.toLowerCase());
-                                }
-                                return false;
-                            });
-                        }
-                        break;
-
-                    case 'principle_visit':
-                        // This uses responsible_bdm field (uuid array)
-                        // Use contains filter for array fields
-                        const { data: uuidArrayData } = await query.contains('responsible_bdm', [userId]);
-                        categoryActivities = uuidArrayData || [];
-                        break;
-
-                    case 'weekly_meetings':
-                        // This uses conducted_by field (text)
-                        const { data: conductedData } = await query.ilike('conducted_by', `%${userName}%`);
-                        categoryActivities = conductedData || [];
-                        break;
-
-                    default:
-                        const { data: defaultData } = await query;
-                        categoryActivities = defaultData || [];
-                        break;
-                }
-
-                console.log(`Category ${category.name} activities:`, categoryActivities.length);
-
-                // Add category info to activities
-                if (categoryActivities.length > 0) {
-                    allActivities.push(...categoryActivities.map(activity => ({
-                        ...activity,
-                        type: 'bdm_activity',
-                        activity_type: category.name,
-                        source_table: category.table,
-                        category_id: category.id
-                    })));
-                }
-
-            } catch (categoryError) {
-                console.error(`Error fetching ${category.name}:`, categoryError);
+            // Get user details
+            const user = bdmUsers.find(u => u.id === userId);
+            if (!user) {
+                console.warn('User not found in BDM users list');
+                safeSetState(setUserSchedule, []);
+                return;
             }
+
+            const userName = user.full_name || user.email;
+            console.log(`Fetching schedule for user: ${userName} (${userId})`);
+
+            // 1. Personal meetings for the specific user
+            const { data: personalMeetings, error: personalError } = await supabase
+                .from('personal_meetings')
+                .select('*')
+                .eq('user_id', userId)
+                .gte('start_date', formattedStart)
+                .lte('end_date', formattedEnd)
+                .order('priority', { ascending: false })
+                .order('start_date', { ascending: true });
+
+            if (personalError) console.error('Personal meetings error:', personalError);
+            console.log('Personal meetings:', personalMeetings?.length || 0);
+
+            // 2. BDM activities - CORRECTED FILTERING
+            for (const category of bdmCategories) {
+                console.log(`Checking category: ${category.name}`);
+                
+                let query = supabase
+                    .from(category.table)
+                    .select('*')
+                    .gte(category.dateField, formattedStart)
+                    .lte(category.dateField, formattedEnd)
+                    .order('priority', { ascending: false })
+                    .order(category.dateField, { ascending: true });
+
+                let categoryActivities = [];
+
+                try {
+                    // Different filtering strategies for each category
+                    switch (category.id) {
+                        case 'customer_visit':
+                        case 'college_sessions':
+                        case 'promotional_activities':
+                            // These use responsible_bdm_2 field (text array)
+                            // First, get all records and filter client-side for better accuracy
+                            const { data: textArrayData } = await query;
+                            if (textArrayData) {
+                                categoryActivities = textArrayData.filter(item => {
+                                    const responsibleUsers = item.responsible_bdm_2;
+                                    if (!responsibleUsers) return false;
+                                    
+                                    // Handle both string arrays and comma-separated strings
+                                    if (Array.isArray(responsibleUsers)) {
+                                        return responsibleUsers.some(name => 
+                                            name && name.toLowerCase().includes(userName.toLowerCase())
+                                        );
+                                    } else if (typeof responsibleUsers === 'string') {
+                                        return responsibleUsers.toLowerCase().includes(userName.toLowerCase());
+                                    }
+                                    return false;
+                                });
+                            }
+                            break;
+
+                        case 'principle_visit':
+                            // This uses responsible_bdm field (uuid array)
+                            // Use contains filter for array fields
+                            const { data: uuidArrayData } = await query.contains('responsible_bdm', [userId]);
+                            categoryActivities = uuidArrayData || [];
+                            break;
+
+                        case 'weekly_meetings':
+                            // This uses conducted_by field (text)
+                            const { data: conductedData } = await query.ilike('conducted_by', `%${userName}%`);
+                            categoryActivities = conductedData || [];
+                            break;
+
+                        default:
+                            const { data: defaultData } = await query;
+                            categoryActivities = defaultData || [];
+                            break;
+                    }
+
+                    console.log(`Category ${category.name} activities:`, categoryActivities.length);
+
+                    // Add category info to activities
+                    if (categoryActivities.length > 0) {
+                        allActivities.push(...categoryActivities.map(activity => ({
+                            ...activity,
+                            type: 'bdm_activity',
+                            activity_type: category.name,
+                            source_table: category.table,
+                            category_id: category.id
+                        })));
+                    }
+
+                } catch (categoryError) {
+                    console.error(`Error fetching ${category.name}:`, categoryError);
+                }
+            }
+
+            // Combine all activities
+            const userSchedule = [
+                ...(personalMeetings || []).map(meeting => ({
+                    ...meeting,
+                    type: 'personal_meeting',
+                    category_id: 'personal_meeting'
+                })),
+                ...allActivities
+            ];
+
+            console.log('Total schedule items:', userSchedule.length);
+            console.log('Schedule details:', userSchedule);
+
+            safeSetState(setUserSchedule, userSchedule);
+
+        } catch (error) {
+            console.error('Error in fetchUserSchedule:', error);
+            handleError(error, 'fetching user schedule');
+            safeSetState(setUserSchedule, []);
+        } finally {
+            setAvailabilityLoading(false);
         }
-
-        // Combine all activities
-        const userSchedule = [
-            ...(personalMeetings || []).map(meeting => ({
-                ...meeting,
-                type: 'personal_meeting',
-                category_id: 'personal_meeting'
-            })),
-            ...allActivities
-        ];
-
-        console.log('Total schedule items:', userSchedule.length);
-        console.log('Schedule details:', userSchedule);
-
-        safeSetState(setUserSchedule, userSchedule);
-
-    } catch (error) {
-        console.error('Error in fetchUserSchedule:', error);
-        handleError(error, 'fetching user schedule');
-        safeSetState(setUserSchedule, []);
-    } finally {
-        setAvailabilityLoading(false);
-    }
-};
+    };
 
     const handleCategoryClick = (category) => {
         try {
@@ -1297,8 +1391,18 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                         formattedRecord.end_date = safeDayjs(record.end_date);
                     }
                 }
+
+                // Format time fields using the dedicated time parser
+                if (selectedCategory.hasTimeFields) {
+                    if (record.start_time) {
+                        formattedRecord.start_time = safeTimeParse(record.start_time);
+                    }
+                    if (record.end_time) {
+                        formattedRecord.end_time = safeTimeParse(record.end_time);
+                    }
+                }
             } catch (dateError) {
-                console.warn('Error formatting dates for editing:', dateError);
+                console.warn('Error formatting dates/times for editing:', dateError);
             }
 
             form.setFieldsValue(formattedRecord);
@@ -1378,6 +1482,232 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
         }
     };
 
+    // Helper function to ensure time fields have defaults
+    const ensureTimeDefaults = (values) => {
+        if (!selectedCategory?.hasTimeFields) return values;
+        
+        return {
+            ...values,
+            start_time: values.start_time || defaultStartTime,
+            end_time: values.end_time || defaultEndTime
+        };
+    };
+
+    // CORRECTED handleFormSubmit to fix time handling
+    const handleFormSubmit = async (values) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            // Ensure time defaults
+            const valuesWithDefaults = ensureTimeDefaults(values);
+            
+            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
+            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
+            const submitData = { ...cleanData };
+
+            // Convert dayjs objects to proper formats with error handling
+            Object.keys(submitData).forEach(key => {
+                try {
+                    const value = submitData[key];
+                    if (dayjs.isDayjs(value)) {
+                        if (key.includes('time')) {
+                            // Convert time to HH:mm:ss format
+                            submitData[key] = value.format('HH:mm:ss');
+                        } else {
+                            // Convert date to YYYY-MM-DD format
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
+                    }
+                } catch (dateError) {
+                    console.warn(`Error converting date/time field ${key}:`, dateError);
+                }
+            });
+
+            // Handle time fields specifically
+            if (selectedCategory.hasTimeFields) {
+                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
+                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
+                }
+                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
+                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
+                }
+            }
+
+            let result;
+
+            if (editingRecord) {
+                // Update existing record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .update(submitData)
+                    .eq('id', editingRecord.id)
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+                toast.success('Record updated successfully');
+            } else {
+                // Create new record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .insert([submitData])
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+                toast.success('Record created successfully');
+            }
+
+            // Auto-create personal meetings for responsible BDMs
+            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
+
+            safeSetState(setModalVisible, false);
+            fetchTableData();
+        } catch (error) {
+            handleError(error, 'saving record');
+        }
+    };
+
+    const createPersonalMeetingsForBDMs = async (record, category, formData) => {
+        try {
+            let responsibleUsers = [];
+            let meetingDate = '';
+            let meetingTitle = '';
+            let startTime = defaultStartTime;
+            let endTime = defaultEndTime;
+
+            // Extract responsible users and meeting details based on category
+            switch (category.id) {
+                case 'customer_visit':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.schedule_date;
+                    meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
+                    startTime = formData.start_time || defaultStartTime;
+                    endTime = formData.end_time || defaultEndTime;
+                    break;
+
+                case 'principle_visit':
+                    responsibleUsers = formData.responsible_bdm || [];
+                    meetingDate = formData.visit_duration_start;
+                    meetingTitle = `Principle Visit: ${formData.principle_name}`;
+                    break;
+
+                case 'weekly_meetings':
+                    responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Weekly Meeting: ${formData.meeting}`;
+                    startTime = formData.start_time || defaultStartTime;
+                    endTime = formData.end_time || defaultEndTime;
+                    break;
+
+                case 'college_sessions':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.start_date;
+                    meetingTitle = `College Session: ${formData.college_name}`;
+                    startTime = formData.start_time || defaultStartTime;
+                    endTime = formData.end_time || defaultEndTime;
+                    break;
+
+                case 'promotional_activities':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
+                    break;
+            }
+
+            console.log('Creating personal meetings for:', {
+                category: category.name,
+                responsibleUsers,
+                meetingDate,
+                meetingTitle,
+                startTime,
+                endTime
+            });
+
+            // If no responsible users, return
+            if (!responsibleUsers.length || !meetingDate) {
+                console.log('No responsible users or meeting date found');
+                return;
+            }
+
+            // Convert string array to array if needed
+            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
+            console.log('Users array:', usersArray);
+
+            let createdCount = 0;
+
+            // Create personal meetings for each responsible BDM
+            for (const userRef of usersArray) {
+                let user = null;
+
+                // Find user by different identifier types
+                if (typeof userRef === 'string') {
+                    // Try to find by full name (exact match first, then partial)
+                    user = bdmUsers.find(u => u.full_name === userRef);
+                    if (!user) {
+                        user = bdmUsers.find(u => u.full_name && u.full_name.toLowerCase().includes(userRef.toLowerCase()));
+                    }
+                    if (!user) {
+                        // Try to find by email
+                        user = bdmUsers.find(u => u.email === userRef);
+                    }
+                    if (!user) {
+                        // Try to find by ID
+                        user = bdmUsers.find(u => u.id === userRef);
+                    }
+                } else if (typeof userRef === 'object' && userRef.id) {
+                    user = bdmUsers.find(u => u.id === userRef.id);
+                }
+
+                if (user) {
+                    console.log(`Creating personal meeting for user: ${user.full_name}`);
+
+                    // Format the date properly
+                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
+                    const formattedStartTime = startTime ? safeDayjs(startTime).format('HH:mm:ss') : null;
+                    const formattedEndTime = endTime ? safeDayjs(endTime).format('HH:mm:ss') : null;
+
+                    // Create personal meeting
+                    const personalMeetingData = {
+                        topic: meetingTitle,
+                        start_date: formattedDate,
+                        end_date: formattedDate, // Same day for now
+                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
+                        venue: formData.company || 'TBD',
+                        user_id: user.id,
+                        priority: formData.priority || 2, // Use same priority as main record
+                        ...(formattedStartTime && { start_time: formattedStartTime }),
+                        ...(formattedEndTime && { end_time: formattedEndTime })
+                    };
+
+                    const { data, error } = await supabase
+                        .from('personal_meetings')
+                        .insert([personalMeetingData])
+                        .select();
+
+                    if (error) {
+                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
+                    } else {
+                        console.log(`Personal meeting created for ${user.full_name}:`, data);
+                        createdCount++;
+                    }
+                } else {
+                    console.warn(`User not found for reference:`, userRef);
+                }
+            }
+
+            if (createdCount > 0) {
+                toast.info(`Created personal meetings for ${createdCount} team member(s)`);
+            }
+
+        } catch (error) {
+            console.error('Error creating personal meetings:', error);
+            // Don't throw error here to avoid affecting main form submission
+        }
+    };
+
     const getTableColumns = () => {
         if (!selectedCategory) return [];
 
@@ -1439,6 +1769,23 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
+            const timeColumn = selectedCategory.hasTimeFields ? [
+                {
+                    title: 'Start Time',
+                    dataIndex: 'start_time',
+                    key: 'start_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                },
+                {
+                    title: 'End Time',
+                    dataIndex: 'end_time',
+                    key: 'end_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                }
+            ] : [];
+
             const baseColumns = [
                 {
                     title: 'Created',
@@ -1454,7 +1801,8 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                     },
                     width: 100
                 },
-                priorityColumn
+                priorityColumn,
+                ...timeColumn
             ];
 
             switch (selectedCategory.id) {
@@ -1570,6 +1918,33 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                 </>
             );
 
+            const timeFields = selectedCategory.hasTimeFields ? (
+                <>
+                    <Form.Item
+                        name="start_time"
+                        label="Start Time"
+                        initialValue={defaultStartTime}
+                    >
+                        <TimePicker 
+                            format="HH:mm" 
+                            style={{ width: '100%' }}
+                            placeholder="Select start time"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="end_time"
+                        label="End Time"
+                        initialValue={defaultEndTime}
+                    >
+                        <TimePicker 
+                            format="HH:mm" 
+                            style={{ width: '100%' }}
+                            placeholder="Select end time"
+                        />
+                    </Form.Item>
+                </>
+            ) : null;
+
             switch (selectedCategory.id) {
                 case 'customer_visit':
                     return (
@@ -1585,6 +1960,7 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                                     placeholder="Select schedule date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             {commonFields}
                             <Form.Item
                                 name="customer_name"
@@ -1720,6 +2096,7 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             {commonFields}
                             <Form.Item
                                 name="meeting"
@@ -1776,6 +2153,7 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
                                     placeholder="Select session start date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             <Form.Item
                                 name="responsible_bdm_2"
                                 label="Responsible BDM"
@@ -1856,187 +2234,6 @@ const fetchUserSchedule = async (userId, startDate, endDate) => {
             return <Alert message="Error loading form" type="error" />;
         }
     };
-
-    // CORRECTED handleFormSubmit to fix department_id error
-    const handleFormSubmit = async (values) => {
-        try {
-            if (!selectedCategory?.table) {
-                throw new Error('No category selected');
-            }
-
-            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
-            const { department_id, category_id, ...cleanData } = values;
-            const submitData = { ...cleanData };
-
-            // Convert dayjs objects to ISO strings with error handling
-            Object.keys(submitData).forEach(key => {
-                try {
-                    if (dayjs.isDayjs(submitData[key])) {
-                        submitData[key] = safeDayjs(submitData[key]).format('YYYY-MM-DD');
-                    }
-                } catch (dateError) {
-                    console.warn(`Error converting date field ${key}:`, dateError);
-                }
-            });
-
-            let result;
-
-            if (editingRecord) {
-                // Update existing record
-                const { data, error } = await supabase
-                    .from(selectedCategory.table)
-                    .update(submitData)
-                    .eq('id', editingRecord.id)
-                    .select();
-
-                if (error) throw error;
-                result = data[0];
-                toast.success('Record updated successfully');
-            } else {
-                // Create new record
-                const { data, error } = await supabase
-                    .from(selectedCategory.table)
-                    .insert([submitData])
-                    .select();
-
-                if (error) throw error;
-                result = data[0];
-                toast.success('Record created successfully');
-            }
-
-            // Auto-create personal meetings for responsible BDMs
-            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
-
-            safeSetState(setModalVisible, false);
-            fetchTableData();
-        } catch (error) {
-            handleError(error, 'saving record');
-        }
-    };
-
-const createPersonalMeetingsForBDMs = async (record, category, formData) => {
-    try {
-        let responsibleUsers = [];
-        let meetingDate = '';
-        let meetingTitle = '';
-
-        // Extract responsible users and meeting details based on category
-        switch (category.id) {
-            case 'customer_visit':
-                responsibleUsers = formData.responsible_bdm_2 || [];
-                meetingDate = formData.schedule_date;
-                meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
-                break;
-
-            case 'principle_visit':
-                responsibleUsers = formData.responsible_bdm || [];
-                meetingDate = formData.visit_duration_start;
-                meetingTitle = `Principle Visit: ${formData.principle_name}`;
-                break;
-
-            case 'weekly_meetings':
-                responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
-                meetingDate = formData.date;
-                meetingTitle = `Weekly Meeting: ${formData.meeting}`;
-                break;
-
-            case 'college_sessions':
-                responsibleUsers = formData.responsible_bdm_2 || [];
-                meetingDate = formData.start_date;
-                meetingTitle = `College Session: ${formData.college_name}`;
-                break;
-
-            case 'promotional_activities':
-                responsibleUsers = formData.responsible_bdm_2 || [];
-                meetingDate = formData.date;
-                meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
-                break;
-        }
-
-        console.log('Creating personal meetings for:', {
-            category: category.name,
-            responsibleUsers,
-            meetingDate,
-            meetingTitle
-        });
-
-        // If no responsible users, return
-        if (!responsibleUsers.length || !meetingDate) {
-            console.log('No responsible users or meeting date found');
-            return;
-        }
-
-        // Convert string array to array if needed
-        const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
-        console.log('Users array:', usersArray);
-
-        let createdCount = 0;
-
-        // Create personal meetings for each responsible BDM
-        for (const userRef of usersArray) {
-            let user = null;
-
-            // Find user by different identifier types
-            if (typeof userRef === 'string') {
-                // Try to find by full name (exact match first, then partial)
-                user = bdmUsers.find(u => u.full_name === userRef);
-                if (!user) {
-                    user = bdmUsers.find(u => u.full_name && u.full_name.toLowerCase().includes(userRef.toLowerCase()));
-                }
-                if (!user) {
-                    // Try to find by email
-                    user = bdmUsers.find(u => u.email === userRef);
-                }
-                if (!user) {
-                    // Try to find by ID
-                    user = bdmUsers.find(u => u.id === userRef);
-                }
-            } else if (typeof userRef === 'object' && userRef.id) {
-                user = bdmUsers.find(u => u.id === userRef.id);
-            }
-
-            if (user) {
-                console.log(`Creating personal meeting for user: ${user.full_name}`);
-
-                // Format the date properly
-                const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
-
-                // Create personal meeting
-                const personalMeetingData = {
-                    topic: meetingTitle,
-                    start_date: formattedDate,
-                    end_date: formattedDate, // Same day for now
-                    description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
-                    venue: formData.company || 'TBD',
-                    user_id: user.id,
-                    priority: formData.priority || 2 // Use same priority as main record
-                };
-
-                const { data, error } = await supabase
-                    .from('personal_meetings')
-                    .insert([personalMeetingData])
-                    .select();
-
-                if (error) {
-                    console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
-                } else {
-                    console.log(`Personal meeting created for ${user.full_name}:`, data);
-                    createdCount++;
-                }
-            } else {
-                console.warn(`User not found for reference:`, userRef);
-            }
-        }
-
-        if (createdCount > 0) {
-            toast.info(`Created personal meetings for ${createdCount} team member(s)`);
-        }
-
-    } catch (error) {
-        console.error('Error creating personal meetings:', error);
-        // Don't throw error here to avoid affecting main form submission
-    }
-};
 
     const getStats = () => {
         try {

@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress
+    Tabs, Switch, Pagination, Progress, TimePicker
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -53,6 +53,62 @@ const LoadingSpinner = ({ tip = "Loading Sales Operations data..." }) => (
         <Spin size="large" tip={tip} />
     </div>
 );
+
+// Priority Badge Component
+const PriorityBadge = ({ priority }) => {
+    const getPriorityConfig = (priority) => {
+        switch (priority) {
+            case 1:
+                return { color: 'green', text: 'Low' };
+            case 2:
+                return { color: 'blue', text: 'Normal' };
+            case 3:
+                return { color: 'orange', text: 'Medium' };
+            case 4:
+                return { color: 'red', text: 'High' };
+            case 5:
+                return { color: 'purple', text: 'Critical' };
+            default:
+                return { color: 'default', text: 'Normal' };
+        }
+    };
+
+    const config = getPriorityConfig(priority);
+
+    return (
+        <Tag color={config.color} style={{ fontSize: '10px', padding: '2px 6px' }}>
+            {config.text}
+        </Tag>
+    );
+};
+
+// Time Display Component
+const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+    if (!time) return '-';
+    
+    try {
+        // Handle both string time and dayjs object
+        let timeObj;
+        if (typeof time === 'string') {
+            // Try different time formats
+            const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+            for (const fmt of formats) {
+                timeObj = dayjs(time, fmt);
+                if (timeObj.isValid()) break;
+            }
+            // If no format works, try creating from string directly
+            if (!timeObj || !timeObj.isValid()) {
+                timeObj = dayjs(`1970-01-01T${time}`);
+            }
+        } else {
+            timeObj = time;
+        }
+        
+        return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
+    } catch (error) {
+        return '-';
+    }
+};
 
 // Statistics Cards Component
 const SalesOpsStatistics = ({ stats, loading = false }) => (
@@ -136,6 +192,7 @@ const CategoryCard = ({ category, isSelected, onClick, loading = false }) => (
         </Title>
         <Text type="secondary" style={{ fontSize: '12px' }}>
             {category.type}
+            {category.hasTimeFields && ' • With Time'}
         </Text>
     </Card>
 );
@@ -357,6 +414,7 @@ const DiscussionModal = React.memo(({
                     Discussion: {record?.meeting || record?.company || 'Record'}
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
                     {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
+                    <PriorityBadge priority={record.priority} />
                 </Space>
             }
             open={visible}
@@ -466,7 +524,6 @@ const UserScheduleModal = React.memo(({
         }
     };
 
-    // ADDED: getActivityDescription function
     const getActivityDescription = (item) => {
         try {
             if (item.type === 'personal_meeting') {
@@ -531,24 +588,31 @@ const UserScheduleModal = React.memo(({
                                         style={{ marginBottom: 16 }}
                                     >
                                         <Descriptions.Item label="Activity Type">
-                                            <Tag color={getScheduleItemColor(item)}>
-                                                {getActivityType(item)}
-                                            </Tag>
+                                            <Space>
+                                                <Tag color={getScheduleItemColor(item)}>
+                                                    {getActivityType(item)}
+                                                </Tag>
+                                                <PriorityBadge priority={item.priority} />
+                                            </Space>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
                                                 {item.topic || item.meeting || item.activity_type || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Date">
+                                        <Descriptions.Item label="Date & Time">
                                             <Space>
                                                 <CalendarOutlined />
                                                 {safeDayjs(item.start_date || item.date || item[item.dateField]).format('DD/MM/YYYY')}
                                                 {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
+                                                {(item.start_time || item.end_time) && (
+                                                    <Tag color="purple">
+                                                        <TimeDisplay time={item.start_time} /> - <TimeDisplay time={item.end_time} />
+                                                    </Tag>
+                                                )}
                                             </Space>
                                         </Descriptions.Item>
 
-                                        {/* ADDED: Description field using getActivityDescription */}
                                         <Descriptions.Item label="Description">
                                             <Text type="secondary">
                                                 {getActivityDescription(item)}
@@ -639,7 +703,23 @@ const SalesOperations = () => {
     // User Schedule Modal State
     const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
-    // Sales Operations Categories configuration
+    // Priority filter state
+    const [priorityFilter, setPriorityFilter] = useState(null);
+
+    // Default time values
+    const defaultStartTime = dayjs('09:00', 'HH:mm');
+    const defaultEndTime = dayjs('17:00', 'HH:mm');
+
+    // Priority options
+    const priorityOptions = [
+        { value: 1, label: 'Low', color: 'green' },
+        { value: 2, label: 'Normal', color: 'blue' },
+        { value: 3, label: 'Medium', color: 'orange' },
+        { value: 4, label: 'High', color: 'red' },
+        { value: 5, label: 'Critical', color: 'purple' }
+    ];
+
+    // Sales Operations Categories configuration with time fields
     const salesOpsCategories = [
         {
             id: 'meetings',
@@ -648,7 +728,8 @@ const SalesOperations = () => {
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'date',
-            color: '#1890ff'
+            color: '#1890ff',
+            hasTimeFields: true // Enable time fields for meetings
         },
         {
             id: 'special_tasks',
@@ -657,7 +738,8 @@ const SalesOperations = () => {
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'start_date',
-            color: '#52c41a'
+            color: '#52c41a',
+            hasTimeFields: true // Enable time fields for tasks
         }
     ];
 
@@ -728,6 +810,53 @@ const SalesOperations = () => {
             return dayjs();
         }
     }, []);
+
+    // Safe time parsing function
+    const safeTimeParse = useCallback((time) => {
+        try {
+            if (!time) return defaultStartTime;
+            
+            if (dayjs.isDayjs(time)) {
+                return time;
+            }
+
+            if (typeof time === 'string') {
+                // Try different time formats
+                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+                for (const format of formats) {
+                    const parsed = dayjs(time, format);
+                    if (parsed.isValid()) {
+                        return parsed;
+                    }
+                }
+                
+                // If no format works, try creating from string directly
+                const directParse = dayjs(`1970-01-01T${time}`);
+                if (directParse.isValid()) {
+                    return directParse;
+                }
+            }
+
+            console.warn('Invalid time provided, using default:', time);
+            return defaultStartTime;
+        } catch (error) {
+            console.error('Error parsing time:', time, error);
+            return defaultStartTime;
+        }
+    }, [defaultStartTime]);
+
+    // Time Display Component
+    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+        if (!time) return '-';
+        
+        try {
+            // Handle both string time and dayjs object
+            const timeObj = safeTimeParse(time);
+            return timeObj.isValid() ? timeObj.format(format) : '-';
+        } catch (error) {
+            return '-';
+        }
+    };
 
     // Reset error boundary
     const resetErrorBoundary = useCallback(() => {
@@ -841,7 +970,7 @@ const SalesOperations = () => {
         if (selectedCategory && dateRange[0] && dateRange[1]) {
             fetchTableData();
         }
-    }, [selectedCategory, dateRange]);
+    }, [selectedCategory, dateRange, priorityFilter]);
 
     const fetchCurrentUser = async () => {
         try {
@@ -943,7 +1072,13 @@ const SalesOperations = () => {
                 .select('*')
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
+                .order('priority', { ascending: false }) // Sort by priority (high to low)
                 .order(selectedCategory.dateField, { ascending: true });
+
+            // Apply priority filter if selected
+            if (priorityFilter) {
+                query = query.eq('priority', priorityFilter);
+            }
 
             const { data, error } = await query;
 
@@ -995,210 +1130,209 @@ const SalesOperations = () => {
         }
     };
 
-// REFACTORED: fetchUserSchedule function with improved filtering and error handling
-const fetchUserSchedule = async (userId, startDate, endDate) => {
-    setAvailabilityLoading(true);
-    try {
-        console.log('Fetching schedule for user:', userId, 'from', startDate, 'to', endDate);
+    const fetchUserSchedule = async (userId, startDate, endDate) => {
+        setAvailabilityLoading(true);
+        try {
+            console.log('Fetching schedule for user:', userId, 'from', startDate, 'to', endDate);
 
-        // Validate inputs
-        if (!userId) {
-            throw new Error('User ID is required');
-        }
+            if (!userId) {
+                throw new Error('User ID is required');
+            }
 
-        if (!startDate || !endDate) {
-            throw new Error('Start and end dates are required');
-        }
+            if (!startDate || !endDate) {
+                throw new Error('Start and end dates are required');
+            }
 
-        const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-        const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
+            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
+            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-        if (!formattedStart || !formattedEnd) {
-            throw new Error('Invalid date range provided');
-        }
+            if (!formattedStart || !formattedEnd) {
+                throw new Error('Invalid date range provided');
+            }
 
-        let allActivities = [];
+            let allActivities = [];
 
-        // 1. Fetch personal meetings
-        const { data: personalMeetings, error: personalError } = await supabase
-            .from('personal_meetings')
-            .select('*')
-            .eq('user_id', userId)
-            .gte('start_date', formattedStart)
-            .lte('end_date', formattedEnd)
-            .order('priority', { ascending: false })
-            .order('start_date', { ascending: true });
+            // 1. Fetch personal meetings
+            const { data: personalMeetings, error: personalError } = await supabase
+                .from('personal_meetings')
+                .select('*')
+                .eq('user_id', userId)
+                .gte('start_date', formattedStart)
+                .lte('end_date', formattedEnd)
+                .order('priority', { ascending: false })
+                .order('start_date', { ascending: true });
 
-        if (personalError) {
-            console.error('Error fetching personal meetings:', personalError);
-            throw personalError;
-        }
+            if (personalError) {
+                console.error('Error fetching personal meetings:', personalError);
+                throw personalError;
+            }
 
-        console.log('Personal meetings found:', personalMeetings?.length || 0);
+            console.log('Personal meetings found:', personalMeetings?.length || 0);
 
-        // 2. Fetch Sales Operations activities
-        const user = salesOpsUsers.find(u => u.id === userId);
-        if (!user) {
-            console.warn('User not found in Sales Ops users list');
-        } else {
-            const userName = user.full_name || user.email;
-            console.log(`Searching activities for user: ${userName}`);
+            // 2. Fetch Sales Operations activities
+            const user = salesOpsUsers.find(u => u.id === userId);
+            if (!user) {
+                console.warn('User not found in Sales Ops users list');
+            } else {
+                const userName = user.full_name || user.email;
+                console.log(`Searching activities for user: ${userName}`);
 
-            for (const category of salesOpsCategories) {
-                try {
-                    console.log(`Checking category: ${category.name}`);
-                    
-                    let categoryActivities = [];
+                for (const category of salesOpsCategories) {
+                    try {
+                        console.log(`Checking category: ${category.name}`);
+                        
+                        let categoryActivities = [];
 
-                    // Different filtering strategies for each category
-                    switch (category.id) {
-                        case 'meetings':
-                            // For meetings with conducted_by_2 (text array)
-                            categoryActivities = await fetchMeetingsForUser(category, formattedStart, formattedEnd, userName);
-                            break;
+                        // Different filtering strategies for each category
+                        switch (category.id) {
+                            case 'meetings':
+                                // For meetings with conducted_by_2 (text array)
+                                categoryActivities = await fetchMeetingsForUser(category, formattedStart, formattedEnd, userName);
+                                break;
 
-                        case 'special_tasks':
-                            // For tasks - check various responsible fields
-                            categoryActivities = await fetchTasksForUser(category, formattedStart, formattedEnd, userName, userId);
-                            break;
+                            case 'special_tasks':
+                                // For tasks - check various responsible fields
+                                categoryActivities = await fetchTasksForUser(category, formattedStart, formattedEnd, userName, userId);
+                                break;
 
-                        default:
-                            console.warn(`Unknown category type: ${category.id}`);
-                            continue;
+                            default:
+                                console.warn(`Unknown category type: ${category.id}`);
+                                continue;
+                        }
+
+                        console.log(`Category ${category.name} activities:`, categoryActivities.length);
+
+                        // Add category info to activities
+                        if (categoryActivities.length > 0) {
+                            allActivities.push(...categoryActivities.map(activity => ({
+                                ...activity,
+                                type: 'sales_ops_activity',
+                                activity_type: category.name,
+                                source_table: category.table,
+                                category_id: category.id
+                            })));
+                        }
+
+                    } catch (categoryError) {
+                        console.error(`Error fetching ${category.name} activities:`, categoryError);
                     }
-
-                    console.log(`Category ${category.name} activities:`, categoryActivities.length);
-
-                    // Add category info to activities
-                    if (categoryActivities.length > 0) {
-                        allActivities.push(...categoryActivities.map(activity => ({
-                            ...activity,
-                            type: 'sales_ops_activity',
-                            activity_type: category.name,
-                            source_table: category.table,
-                            category_id: category.id
-                        })));
-                    }
-
-                } catch (categoryError) {
-                    console.error(`Error fetching ${category.name} activities:`, categoryError);
                 }
             }
-        }
 
-        // Combine all activities
-        const userSchedule = [
-            ...(personalMeetings || []).map(meeting => ({
-                ...meeting,
-                type: 'personal_meeting',
-                category_id: 'personal_meeting'
-            })),
-            ...allActivities
-        ];
-
-        console.log('Total schedule items found:', userSchedule.length);
-        console.log('Schedule details:', userSchedule);
-
-        safeSetState(setUserSchedule, userSchedule);
-        return userSchedule;
-
-    } catch (error) {
-        console.error('Error in fetchUserSchedule:', error);
-        handleError(error, 'fetching user schedule');
-        safeSetState(setUserSchedule, []);
-        return [];
-    } finally {
-        setAvailabilityLoading(false);
-    }
-};
-
-// Helper function to fetch meetings for a user
-const fetchMeetingsForUser = async (category, startDate, endDate, userName) => {
-    try {
-        // First get all meetings in date range
-        const { data: allMeetings, error } = await supabase
-            .from(category.table)
-            .select('*')
-            .gte(category.dateField, startDate)
-            .lte(category.dateField, endDate)
-            .order('priority', { ascending: false })
-            .order(category.dateField, { ascending: true });
-
-        if (error) throw error;
-
-        // Filter client-side for better matching
-        return (allMeetings || []).filter(meeting => {
-            const conductedBy = meeting.conducted_by_2;
-            if (!conductedBy) return false;
-
-            // Handle different data types
-            if (Array.isArray(conductedBy)) {
-                return conductedBy.some(name => 
-                    name && String(name).toLowerCase().includes(userName.toLowerCase())
-                );
-            } else if (typeof conductedBy === 'string') {
-                return conductedBy.toLowerCase().includes(userName.toLowerCase());
-            }
-            return false;
-        });
-
-    } catch (error) {
-        console.error(`Error fetching meetings for ${category.name}:`, error);
-        return [];
-    }
-};
-
-// Helper function to fetch tasks for a user
-const fetchTasksForUser = async (category, startDate, endDate, userName, userId) => {
-    try {
-        // Get all tasks in date range
-        const { data: allTasks, error } = await supabase
-            .from(category.table)
-            .select('*')
-            .gte(category.dateField, startDate)
-            .lte(category.dateField, endDate)
-            .order('priority', { ascending: false })
-            .order(category.dateField, { ascending: true });
-
-        if (error) throw error;
-
-        // Filter tasks where user is involved
-        return (allTasks || []).filter(task => {
-            // Check various possible responsible fields
-            const responsibleFields = [
-                task.assigned_users,
-                task.responsible_users,
-                task.conducted_by,
-                task.assigned_to
+            // Combine all activities
+            const userSchedule = [
+                ...(personalMeetings || []).map(meeting => ({
+                    ...meeting,
+                    type: 'personal_meeting',
+                    category_id: 'personal_meeting'
+                })),
+                ...allActivities
             ];
 
-            return responsibleFields.some(field => {
-                if (!field) return false;
+            console.log('Total schedule items found:', userSchedule.length);
+            console.log('Schedule details:', userSchedule);
 
-                if (Array.isArray(field)) {
-                    return field.some(item => 
-                        item && String(item).toLowerCase().includes(userName.toLowerCase())
+            safeSetState(setUserSchedule, userSchedule);
+            return userSchedule;
+
+        } catch (error) {
+            console.error('Error in fetchUserSchedule:', error);
+            handleError(error, 'fetching user schedule');
+            safeSetState(setUserSchedule, []);
+            return [];
+        } finally {
+            setAvailabilityLoading(false);
+        }
+    };
+
+    // Helper function to fetch meetings for a user
+    const fetchMeetingsForUser = async (category, startDate, endDate, userName) => {
+        try {
+            // First get all meetings in date range
+            const { data: allMeetings, error } = await supabase
+                .from(category.table)
+                .select('*')
+                .gte(category.dateField, startDate)
+                .lte(category.dateField, endDate)
+                .order('priority', { ascending: false })
+                .order(category.dateField, { ascending: true });
+
+            if (error) throw error;
+
+            // Filter client-side for better matching
+            return (allMeetings || []).filter(meeting => {
+                const conductedBy = meeting.conducted_by_2;
+                if (!conductedBy) return false;
+
+                // Handle different data types
+                if (Array.isArray(conductedBy)) {
+                    return conductedBy.some(name => 
+                        name && String(name).toLowerCase().includes(userName.toLowerCase())
                     );
-                } else if (typeof field === 'string') {
-                    return field.toLowerCase().includes(userName.toLowerCase());
-                } else if (typeof field === 'object' && field.id === userId) {
-                    return true;
+                } else if (typeof conductedBy === 'string') {
+                    return conductedBy.toLowerCase().includes(userName.toLowerCase());
                 }
                 return false;
             });
-        });
 
-    } catch (error) {
-        console.error(`Error fetching tasks for ${category.name}:`, error);
-        return [];
-    }
-};
+        } catch (error) {
+            console.error(`Error fetching meetings for ${category.name}:`, error);
+            return [];
+        }
+    };
+
+    // Helper function to fetch tasks for a user
+    const fetchTasksForUser = async (category, startDate, endDate, userName, userId) => {
+        try {
+            // Get all tasks in date range
+            const { data: allTasks, error } = await supabase
+                .from(category.table)
+                .select('*')
+                .gte(category.dateField, startDate)
+                .lte(category.dateField, endDate)
+                .order('priority', { ascending: false })
+                .order(category.dateField, { ascending: true });
+
+            if (error) throw error;
+
+            // Filter tasks where user is involved
+            return (allTasks || []).filter(task => {
+                // Check various possible responsible fields
+                const responsibleFields = [
+                    task.assigned_users,
+                    task.responsible_users,
+                    task.conducted_by,
+                    task.assigned_to
+                ];
+
+                return responsibleFields.some(field => {
+                    if (!field) return false;
+
+                    if (Array.isArray(field)) {
+                        return field.some(item => 
+                            item && String(item).toLowerCase().includes(userName.toLowerCase())
+                        );
+                    } else if (typeof field === 'string') {
+                        return field.toLowerCase().includes(userName.toLowerCase());
+                    } else if (typeof field === 'object' && field.id === userId) {
+                        return true;
+                    }
+                    return false;
+                });
+            });
+
+        } catch (error) {
+            console.error(`Error fetching tasks for ${category.name}:`, error);
+            return [];
+        }
+    };
 
     const handleCategoryClick = (category) => {
         try {
             safeSetState(setSelectedCategory, category);
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
+            safeSetState(setPriorityFilter, null);
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1214,6 +1348,14 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
             safeSetState(setDateRange, dates || [null, null]);
         } catch (error) {
             handleError(error, 'changing date range');
+        }
+    };
+
+    const handlePriorityFilterChange = (value) => {
+        try {
+            safeSetState(setPriorityFilter, value);
+        } catch (error) {
+            handleError(error, 'changing priority filter');
         }
     };
 
@@ -1249,8 +1391,18 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                         formattedRecord.end_date = safeDayjs(record.end_date);
                     }
                 }
+
+                // Format time fields using the dedicated time parser
+                if (selectedCategory.hasTimeFields) {
+                    if (record.start_time) {
+                        formattedRecord.start_time = safeTimeParse(record.start_time);
+                    }
+                    if (record.end_time) {
+                        formattedRecord.end_time = safeTimeParse(record.end_time);
+                    }
+                }
             } catch (dateError) {
-                console.warn('Error formatting dates for editing:', dateError);
+                console.warn('Error formatting dates/times for editing:', dateError);
             }
 
             form.setFieldsValue(formattedRecord);
@@ -1330,240 +1482,58 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
         }
     };
 
-    const getTableColumns = () => {
-        if (!selectedCategory) return [];
-
-        try {
-            const actionColumn = {
-                title: 'Actions',
-                key: 'actions',
-                fixed: 'right',
-                width: 180,
-                render: (_, record) => (
-                    <Space size="small">
-                        <Tooltip title="Discuss">
-                            <Badge count={unreadCounts[record.id] || 0} size="small">
-                                <Button
-                                    type={unreadCounts[record.id] > 0 ? "primary" : "default"}
-                                    icon={<MessageOutlined />}
-                                    onClick={() => handleDiscussionClick(record)}
-                                    size="small"
-                                    danger={unreadCounts[record.id] > 0}
-                                >
-                                    Discuss
-                                </Button>
-                            </Badge>
-                        </Tooltip>
-                        <Button
-                            type="link"
-                            icon={<EditOutlined />}
-                            onClick={() => handleEdit(record)}
-                            size="small"
-                        >
-                            Edit
-                        </Button>
-                        <Popconfirm
-                            title="Are you sure to delete this record?"
-                            onConfirm={() => handleDelete(record)}
-                            okText="Yes"
-                            cancelText="No"
-                            okType="danger"
-                        >
-                            <Button
-                                type="link"
-                                danger
-                                icon={<DeleteOutlined />}
-                                size="small"
-                            >
-                                Delete
-                            </Button>
-                        </Popconfirm>
-                    </Space>
-                ),
-            };
-
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                }
-            ];
-
-            switch (selectedCategory.id) {
-                case 'meetings':
-                    return [
-                        ...baseColumns,
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Meeting', dataIndex: 'meeting', key: 'meeting', width: 200 },
-                        { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { title: 'Conducted By', dataIndex: 'conducted_by_2', key: 'conducted_by_2', width: 150 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        actionColumn
-                    ];
-
-                case 'special_tasks':
-                    return [
-                        ...baseColumns,
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Task', dataIndex: 'meeting', key: 'meeting', width: 200 },
-                        { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
-                        { title: 'End Date', dataIndex: 'end_date', key: 'end_date', width: 120 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        actionColumn
-                    ];
-
-                default:
-                    return [...baseColumns, actionColumn];
-            }
-        } catch (error) {
-            handleError(error, 'generating table columns');
-            return [];
-        }
+    // Helper function to ensure time fields have defaults
+    const ensureTimeDefaults = (values) => {
+        if (!selectedCategory?.hasTimeFields) return values;
+        
+        return {
+            ...values,
+            start_time: values.start_time || defaultStartTime,
+            end_time: values.end_time || defaultEndTime
+        };
     };
 
-    const getFormFields = () => {
-        if (!selectedCategory) return null;
-
-        try {
-            const commonFields = (
-                <>
-                    <Form.Item
-                        name="company"
-                        label="Company"
-                        rules={[{ required: true, message: 'Please enter company name' }]}
-                    >
-                        <Input placeholder="Enter company name" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="remarks"
-                        label="Remarks"
-                    >
-                        <TextArea rows={3} placeholder="Enter any remarks or notes" />
-                    </Form.Item>
-                </>
-            );
-
-            switch (selectedCategory.id) {
-                case 'meetings':
-                    return (
-                        <>
-                            <Form.Item
-                                name="date"
-                                label="Meeting Date"
-                                rules={[{ required: true, message: 'Please select meeting date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select meeting date"
-                                />
-                            </Form.Item>
-                            {commonFields}
-                            <Form.Item
-                                name="meeting"
-                                label="Meeting Description"
-                                rules={[{ required: true, message: 'Please enter meeting description' }]}
-                            >
-                                <TextArea rows={3} placeholder="Enter meeting description" />
-                            </Form.Item>
-                            <Form.Item
-                                name="conducted_by_2"
-                                label="Conducted By"
-                            >
-                                <Select
-                                    mode="multiple"
-                                    placeholder="Select persons who conducted the meeting"
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                                    }
-                                >
-                                    {salesOpsUsers.map(user => (
-                                        <Option key={user.id} value={user.full_name || user.email}>
-                                            {user.full_name || user.email}
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
-                        </>
-                    );
-
-                case 'special_tasks':
-                    return (
-                        <>
-                            <Form.Item
-                                name="start_date"
-                                label="Start Date"
-                                rules={[{ required: true, message: 'Please select start date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select start date"
-                                />
-                            </Form.Item>
-                            <Form.Item
-                                name="end_date"
-                                label="End Date"
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select end date"
-                                />
-                            </Form.Item>
-                            {commonFields}
-                            <Form.Item
-                                name="meeting"
-                                label="Task Description"
-                                rules={[{ required: true, message: 'Please enter task description' }]}
-                            >
-                                <TextArea rows={3} placeholder="Enter task description" />
-                            </Form.Item>
-                        </>
-                    );
-
-                default:
-                    return commonFields;
-            }
-        } catch (error) {
-            handleError(error, 'generating form fields');
-            return <Alert message="Error loading form" type="error" />;
-        }
-    };
-
-    // CORRECTED: handleFormSubmit to fix department_id error and auto-create personal meetings
+    // CORRECTED: handleFormSubmit to fix time handling and department_id error
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
+            // Ensure time defaults
+            const valuesWithDefaults = ensureTimeDefaults(values);
+            
             // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
-            const { department_id, category_id, ...cleanData } = values;
+            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
             const submitData = { ...cleanData };
 
-            // Convert dayjs objects to ISO strings with error handling
+            // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
                 try {
-                    if (dayjs.isDayjs(submitData[key])) {
-                        submitData[key] = safeDayjs(submitData[key]).format('YYYY-MM-DD');
+                    const value = submitData[key];
+                    if (dayjs.isDayjs(value)) {
+                        if (key.includes('time')) {
+                            // Convert time to HH:mm:ss format
+                            submitData[key] = value.format('HH:mm:ss');
+                        } else {
+                            // Convert date to YYYY-MM-DD format
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
                     }
                 } catch (dateError) {
-                    console.warn(`Error converting date field ${key}:`, dateError);
+                    console.warn(`Error converting date/time field ${key}:`, dateError);
                 }
             });
+
+            // Handle time fields specifically
+            if (selectedCategory.hasTimeFields) {
+                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
+                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
+                }
+                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
+                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
+                }
+            }
 
             let result;
 
@@ -1600,7 +1570,7 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
         }
     };
 
-    // REFACTORED: Function to create personal meetings for Sales Ops users
+    // Function to create personal meetings for Sales Ops users
     const createPersonalMeetingsForSalesOps = async (record, category, formData) => {
         try {
             console.log('Creating personal meetings for Sales Ops:', { category: category.id, formData });
@@ -1689,6 +1659,14 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                         status: 'scheduled'
                     };
 
+                    // Add time fields if available
+                    if (formData.start_time) {
+                        personalMeetingData.start_time = formData.start_time;
+                    }
+                    if (formData.end_time) {
+                        personalMeetingData.end_time = formData.end_time;
+                    }
+
                     const { data, error } = await supabase
                         .from('personal_meetings')
                         .insert([personalMeetingData])
@@ -1751,6 +1729,294 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
 
             return false;
         });
+    };
+
+    const getTableColumns = () => {
+        if (!selectedCategory) return [];
+
+        try {
+            const actionColumn = {
+                title: 'Actions',
+                key: 'actions',
+                fixed: 'right',
+                width: 180,
+                render: (_, record) => (
+                    <Space size="small">
+                        <Tooltip title="Discuss">
+                            <Badge count={unreadCounts[record.id] || 0} size="small">
+                                <Button
+                                    type={unreadCounts[record.id] > 0 ? "primary" : "default"}
+                                    icon={<MessageOutlined />}
+                                    onClick={() => handleDiscussionClick(record)}
+                                    size="small"
+                                    danger={unreadCounts[record.id] > 0}
+                                >
+                                    Discuss
+                                </Button>
+                            </Badge>
+                        </Tooltip>
+                        <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEdit(record)}
+                            size="small"
+                        >
+                            Edit
+                        </Button>
+                        <Popconfirm
+                            title="Are you sure to delete this record?"
+                            onConfirm={() => handleDelete(record)}
+                            okText="Yes"
+                            cancelText="No"
+                            okType="danger"
+                        >
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                size="small"
+                            >
+                                Delete
+                            </Button>
+                        </Popconfirm>
+                    </Space>
+                ),
+            };
+
+            const priorityColumn = {
+                title: 'Priority',
+                dataIndex: 'priority',
+                key: 'priority',
+                width: 100,
+                render: (priority) => <PriorityBadge priority={priority} />,
+                sorter: (a, b) => a.priority - b.priority,
+            };
+
+            const timeColumn = selectedCategory.hasTimeFields ? [
+                {
+                    title: 'Start Time',
+                    dataIndex: 'start_time',
+                    key: 'start_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                },
+                {
+                    title: 'End Time',
+                    dataIndex: 'end_time',
+                    key: 'end_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                }
+            ] : [];
+
+            const baseColumns = [
+                {
+                    title: 'Created',
+                    dataIndex: 'created_at',
+                    key: 'created_at',
+                    render: (date) => {
+                        try {
+                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
+                        } catch (error) {
+                            console.warn('Error formatting created_at date:', error);
+                            return '-';
+                        }
+                    },
+                    width: 100
+                },
+                priorityColumn,
+                ...timeColumn
+            ];
+
+            switch (selectedCategory.id) {
+                case 'meetings':
+                    return [
+                        ...baseColumns,
+                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
+                        { title: 'Meeting', dataIndex: 'meeting', key: 'meeting', width: 200 },
+                        { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
+                        { title: 'Conducted By', dataIndex: 'conducted_by_2', key: 'conducted_by_2', width: 150 },
+                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        actionColumn
+                    ];
+
+                case 'special_tasks':
+                    return [
+                        ...baseColumns,
+                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
+                        { title: 'Task', dataIndex: 'meeting', key: 'meeting', width: 200 },
+                        { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
+                        { title: 'End Date', dataIndex: 'end_date', key: 'end_date', width: 120 },
+                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        actionColumn
+                    ];
+
+                default:
+                    return [...baseColumns, actionColumn];
+            }
+        } catch (error) {
+            handleError(error, 'generating table columns');
+            return [];
+        }
+    };
+
+    const getFormFields = () => {
+        if (!selectedCategory) return null;
+
+        try {
+            const commonFields = (
+                <>
+                    <Form.Item
+                        name="company"
+                        label="Company"
+                        rules={[{ required: true, message: 'Please enter company name' }]}
+                    >
+                        <Input placeholder="Enter company name" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="remarks"
+                        label="Remarks"
+                    >
+                        <TextArea rows={3} placeholder="Enter any remarks or notes" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="priority"
+                        label="Priority"
+                        initialValue={2}
+                        rules={[{ required: true, message: 'Please select priority' }]}
+                    >
+                        <Select placeholder="Select priority">
+                            {priorityOptions.map(option => (
+                                <Option key={option.value} value={option.value}>
+                                    <Space>
+                                        <Badge color={option.color} />
+                                        {option.label}
+                                    </Space>
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                </>
+            );
+
+            const timeFields = selectedCategory.hasTimeFields ? (
+                <>
+                    <Form.Item
+                        name="start_time"
+                        label="Start Time"
+                        initialValue={defaultStartTime}
+                    >
+                        <TimePicker 
+                            format="HH:mm" 
+                            style={{ width: '100%' }}
+                            placeholder="Select start time"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="end_time"
+                        label="End Time"
+                        initialValue={defaultEndTime}
+                    >
+                        <TimePicker 
+                            format="HH:mm" 
+                            style={{ width: '100%' }}
+                            placeholder="Select end time"
+                        />
+                    </Form.Item>
+                </>
+            ) : null;
+
+            switch (selectedCategory.id) {
+                case 'meetings':
+                    return (
+                        <>
+                            <Form.Item
+                                name="date"
+                                label="Meeting Date"
+                                rules={[{ required: true, message: 'Please select meeting date' }]}
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    placeholder="Select meeting date"
+                                />
+                            </Form.Item>
+                            {timeFields}
+                            {commonFields}
+                            <Form.Item
+                                name="meeting"
+                                label="Meeting Description"
+                                rules={[{ required: true, message: 'Please enter meeting description' }]}
+                            >
+                                <TextArea rows={3} placeholder="Enter meeting description" />
+                            </Form.Item>
+                            <Form.Item
+                                name="conducted_by_2"
+                                label="Conducted By"
+                            >
+                                <Select
+                                    mode="multiple"
+                                    placeholder="Select persons who conducted the meeting"
+                                    showSearch
+                                    filterOption={(input, option) =>
+                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                    }
+                                >
+                                    {salesOpsUsers.map(user => (
+                                        <Option key={user.id} value={user.full_name || user.email}>
+                                            {user.full_name || user.email}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </>
+                    );
+
+                case 'special_tasks':
+                    return (
+                        <>
+                            <Form.Item
+                                name="start_date"
+                                label="Start Date"
+                                rules={[{ required: true, message: 'Please select start date' }]}
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    placeholder="Select start date"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="end_date"
+                                label="End Date"
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    placeholder="Select end date"
+                                />
+                            </Form.Item>
+                            {timeFields}
+                            {commonFields}
+                            <Form.Item
+                                name="meeting"
+                                label="Task Description"
+                                rules={[{ required: true, message: 'Please enter task description' }]}
+                            >
+                                <TextArea rows={3} placeholder="Enter task description" />
+                            </Form.Item>
+                        </>
+                    );
+
+                default:
+                    return commonFields;
+            }
+        } catch (error) {
+            handleError(error, 'generating form fields');
+            return <Alert message="Error loading form" type="error" />;
+        }
     };
 
     const getStats = () => {
@@ -1916,7 +2182,7 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                     title={
                         <Space>
                             <FilterOutlined />
-                            Filter Data by Date Range
+                            Filter Data
                             <Tag color="blue">
                                 Default: {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
@@ -1936,17 +2202,41 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                     }
                 >
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Text>Select date range to view {selectedCategory.name} data:</Text>
-                        <RangePicker
-                            onChange={handleDateRangeChange}
-                            value={dateRange}
-                            style={{ width: '300px' }}
-                            format="DD/MM/YYYY"
-                            disabled={loading}
-                        />
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} md={12}>
+                                <Text>Select date range to view {selectedCategory.name} data:</Text>
+                                <RangePicker
+                                    onChange={handleDateRangeChange}
+                                    value={dateRange}
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    disabled={loading}
+                                />
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Text>Filter by priority:</Text>
+                                <Select
+                                    placeholder="All Priorities"
+                                    value={priorityFilter}
+                                    onChange={handlePriorityFilterChange}
+                                    style={{ width: '100%' }}
+                                    allowClear
+                                >
+                                    {priorityOptions.map(option => (
+                                        <Option key={option.value} value={option.value}>
+                                            <Space>
+                                                <Badge color={option.color} />
+                                                {option.label}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Col>
+                        </Row>
                         {dateRange[0] && dateRange[1] && (
                             <Text type="secondary">
                                 Showing data from {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} to {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
+                                {priorityFilter && ` • Priority: ${priorityOptions.find(opt => opt.value === priorityFilter)?.label}`}
                                 <Text style={{ marginLeft: 8, color: '#1890ff' }}>
                                     (Default range: Yesterday to 9 days from today)
                                 </Text>
@@ -1996,6 +2286,11 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                             <Tag color="blue">
                                 {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
+                            {priorityFilter && (
+                                <Tag color={priorityOptions.find(opt => opt.value === priorityFilter)?.color}>
+                                    Priority: {priorityOptions.find(opt => opt.value === priorityFilter)?.label}
+                                </Tag>
+                            )}
                             <Button
                                 icon={<ReloadOutlined />}
                                 onClick={manualRefresh}
@@ -2014,8 +2309,8 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description={
                                 <Space direction="vertical">
-                                    <Text>No records found for selected date range</Text>
-                                    <Text type="secondary">Try selecting a different date range or create new records</Text>
+                                    <Text>No records found for selected criteria</Text>
+                                    <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
                                     <Button type="primary" onClick={handleCreate}>
                                         <PlusOutlined /> Create First Record
                                     </Button>
@@ -2201,7 +2496,8 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                                 <ol>
                                     <li>Click on any category card above to select a data type</li>
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
-                                    <li>View the filtered data in the table below</li>
+                                    <li>Use priority filter to view high-priority items first</li>
+                                    <li>View the filtered data in the table below (sorted by priority)</li>
                                     <li>Use the "Add New Record" button to create new entries</li>
                                     <li>Use Edit/Delete actions in the table to manage records</li>
                                     <li>Use "Discuss" button to participate in group discussions for each record</li>
@@ -2212,6 +2508,7 @@ const fetchTasksForUser = async (category, startDate, endDate, userName, userId)
                                 <Text type="secondary">
                                     Sales Operations department manages meetings and special tasks to optimize sales processes and ensure smooth operations.
                                     Default date range shows data from yesterday to 9 days in the future (10 days total).
+                                    Priority levels help you focus on critical tasks first.
                                     Schedule details open in convenient popup windows for better visibility.
                                 </Text>
                             </div>

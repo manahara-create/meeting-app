@@ -112,7 +112,7 @@ const tableCategoryMapping = {
   'scmt_weekly_meetings': { type: 'task', categoryName: 'Upcoming Shipments', department: 'SCMT' }
 };
 
-// Enhanced FullCalendar Component
+// Enhanced FullCalendar Component with proper time support
 const EnhancedFullCalendar = React.memo(({ 
   events, 
   onDateClick, 
@@ -390,7 +390,10 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                           {activity.departmentName} • {activity.categoryName}
                         </Text>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {new Date(activity.date || activity.created_at).toLocaleDateString()}
+                          {activity.hasTime ? 
+                            new Date(activity.start).toLocaleString() : 
+                            new Date(activity.date || activity.created_at).toLocaleDateString()
+                          }
                         </Text>
                       </Space>
                     }
@@ -474,6 +477,20 @@ const DateActivitiesModal = ({
       )
     },
     {
+      title: 'Time',
+      dataIndex: 'start',
+      key: 'time',
+      width: 100,
+      render: (start, record) => (
+        <Text>
+          {record.hasTime ? 
+            new Date(start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+            'All Day'
+          }
+        </Text>
+      )
+    },
+    {
       title: 'Department',
       dataIndex: 'department',
       key: 'department',
@@ -518,7 +535,7 @@ const DateActivitiesModal = ({
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         <Row gutter={16}>
-          <Col span={8}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="Total Activities"
@@ -527,7 +544,7 @@ const DateActivitiesModal = ({
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="Meetings"
@@ -536,12 +553,21 @@ const DateActivitiesModal = ({
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Card size="small">
               <Statistic
                 title="Tasks"
                 value={activities.filter(a => a.type === 'task').length}
                 valueStyle={{ color: '#fa8c16' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card size="small">
+              <Statistic
+                title="Timed Events"
+                value={activities.filter(a => a.hasTime).length}
+                valueStyle={{ color: '#722ed1' }}
               />
             </Card>
           </Col>
@@ -642,6 +668,20 @@ const AllActivitiesModal = ({
       )
     },
     {
+      title: 'Time',
+      dataIndex: 'start',
+      key: 'time',
+      width: 120,
+      render: (start, record) => (
+        <Text>
+          {record.hasTime ? 
+            new Date(start).toLocaleString() : 
+            new Date(start).toLocaleDateString()
+          }
+        </Text>
+      )
+    },
+    {
       title: 'Department',
       dataIndex: 'department',
       key: 'department',
@@ -667,17 +707,6 @@ const AllActivitiesModal = ({
         <Tag color={priorityColors[priority]}>
           {priorityLabels[priority]}
         </Tag>
-      )
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      width: 120,
-      render: (date, record) => (
-        <Text>
-          {new Date(date || record.created_at).toLocaleDateString()}
-        </Text>
       )
     }
   ];
@@ -727,6 +756,31 @@ const ActivityDetailModal = ({
   getDateFieldName,
   getActivityTitle
 }) => {
+  const formatDateTime = (activity) => {
+    if (!activity) return 'N/A';
+    
+    const dateField = getDateFieldName(activity.sourceTable);
+    const baseDate = activity[dateField] || activity.created_at;
+    
+    if (activity.hasTime && activity.start) {
+      return new Date(activity.start).toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } else {
+      return new Date(baseDate).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+  };
+
   return (
     <Modal
       title="Activity Details"
@@ -739,7 +793,7 @@ const ActivityDetailModal = ({
       ]}
       width={700}
       style={{ top: 20 }}
-      zIndex={1003} // Highest z-index for the detail modal
+      zIndex={1003}
     >
       {selectedActivity ? (
         <div style={{ fontSize: '16px' }}>
@@ -776,19 +830,14 @@ const ActivityDetailModal = ({
                 {priorityLabels[selectedActivity.priority]}
               </Tag>
             </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Date: </Text>
-              <Text>
-                {new Date(
-                  selectedActivity[getDateFieldName(selectedActivity.sourceTable)] || 
-                  selectedActivity.created_at
-                ).toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </Text>
+            <Col xs={24}>
+              <Text strong>Date & Time: </Text>
+              <Text>{formatDateTime(selectedActivity)}</Text>
+              {selectedActivity.hasTime && (
+                <Tag color="blue" style={{ marginLeft: '8px' }}>
+                  Timed Event
+                </Tag>
+              )}
             </Col>
             {selectedActivity.status && (
               <Col xs={24} sm={12}>
@@ -951,10 +1000,11 @@ const Dashboard = () => {
     thisWeekMeetings: 0,
     highPriorityMeetings: 0,
     completedMeetings: 0,
-    pendingTasks: 0
+    pendingTasks: 0,
+    timedEvents: 0
   });
 
-  // Modal states - Using explicit z-index management
+  // Modal states
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isActivityModalVisible, setIsActivityModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -1009,13 +1059,11 @@ const Dashboard = () => {
     }
   };
 
-  // Enhanced modal handlers with proper z-index management
+  // Enhanced modal handlers
   const showActivityModal = (activity) => {
-    // Close other modals first to ensure proper stacking
     setDateActivitiesModalVisible(false);
     setAllActivitiesModalVisible(false);
     
-    // Small timeout to ensure state updates before opening new modal
     setTimeout(() => {
       setSelectedActivity(activity);
       setIsActivityModalVisible(true);
@@ -1023,7 +1071,6 @@ const Dashboard = () => {
   };
 
   const showDateActivitiesModal = (date, activities) => {
-    // Close other modals first
     setIsActivityModalVisible(false);
     setAllActivitiesModalVisible(false);
     
@@ -1035,20 +1082,12 @@ const Dashboard = () => {
   };
 
   const showAllActivitiesModal = () => {
-    // Close other modals first
     setIsActivityModalVisible(false);
     setDateActivitiesModalVisible(false);
     
     setTimeout(() => {
       setAllActivitiesModalVisible(true);
     }, 10);
-  };
-
-  // Close all modals
-  const closeAllModals = () => {
-    setIsActivityModalVisible(false);
-    setDateActivitiesModalVisible(false);
-    setAllActivitiesModalVisible(false);
   };
 
   useEffect(() => {
@@ -1183,6 +1222,20 @@ const Dashboard = () => {
     return dateFields[tableName] || 'created_at';
   };
 
+  // Helper function to get time fields based on table
+  const getTimeFields = (tableName) => {
+    const timeFields = {
+      'bdm_customer_visit': { start: 'start_time', end: 'end_time' },
+      'bdm_weekly_meetings': { start: 'start_time', end: 'end_time' },
+      'bdm_college_session': { start: 'start_time', end: 'end_time' },
+      'sales_operations_meetings': { start: 'start_time', end: 'end_time' },
+      'sales_operations_tasks': { start: 'start_time', end: 'end_time' },
+      'scmt_meetings_and_sessions': { start: 'start_time', end: 'end_time' },
+      'scmt_others': { start: 'start_time', end: 'end_time' }
+    };
+    return timeFields[tableName] || null;
+  };
+
   // Helper function to get activity title
   const getActivityTitle = (item) => {
     if (!item) return 'Unknown Activity';
@@ -1196,6 +1249,25 @@ const Dashboard = () => {
     if (item.supplier) return `Shipment: ${item.supplier} - ${item.pord_no || ''}`;
     if (item.type) return item.type;
     return `${item.categoryName} Activity`;
+  };
+
+  // Helper function to create datetime string from date and time
+  const createDateTime = (dateString, timeString) => {
+    if (!dateString || !timeString) return null;
+    
+    try {
+      const date = new Date(dateString);
+      const timeParts = timeString.split(':');
+      
+      if (timeParts.length >= 2) {
+        date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+        return date.toISOString();
+      }
+    } catch (error) {
+      console.warn('Error creating datetime:', error);
+    }
+    
+    return null;
   };
 
   const fetchAllData = async () => {
@@ -1221,6 +1293,26 @@ const Dashboard = () => {
             data.forEach(item => {
               try {
                 const dateField = getDateFieldName(tableName);
+                const timeFields = getTimeFields(tableName);
+                
+                const baseDate = item[dateField] || item.created_at;
+                let startDateTime = baseDate;
+                let endDateTime = null;
+                let hasTime = false;
+
+                // If time fields exist and have values, create proper datetime
+                if (timeFields && item[timeFields.start]) {
+                  const startTime = item[timeFields.start];
+                  startDateTime = createDateTime(baseDate, startTime);
+                  
+                  if (timeFields.end && item[timeFields.end]) {
+                    const endTime = item[timeFields.end];
+                    endDateTime = createDateTime(baseDate, endTime);
+                  }
+                  
+                  hasTime = true;
+                }
+
                 const itemWithMetadata = {
                   ...item,
                   sourceTable: tableName,
@@ -1228,7 +1320,10 @@ const Dashboard = () => {
                   categoryName: tableInfo.categoryName,
                   department: tableInfo.department,
                   departmentName: tableInfo.department,
-                  date: item[dateField] || item.created_at,
+                  date: baseDate,
+                  start: startDateTime,
+                  end: endDateTime,
+                  hasTime: hasTime,
                   title: getActivityTitle(item)
                 };
 
@@ -1273,8 +1368,7 @@ const Dashboard = () => {
 
       const thisWeekMeetings = meetingsData.filter(meeting => {
         try {
-          const dateField = getDateFieldName(meeting.sourceTable);
-          const meetingDate = new Date(meeting[dateField] || meeting.created_at);
+          const meetingDate = new Date(meeting.start || meeting.date || meeting.created_at);
           return meetingDate >= startOfWeek && meetingDate <= endOfWeek;
         } catch (error) {
           console.warn('Error processing meeting date:', error);
@@ -1285,6 +1379,7 @@ const Dashboard = () => {
       const highPriorityMeetings = meetingsData.filter(meeting => meeting.priority >= 4);
       const completedMeetings = meetingsData.filter(meeting => meeting.status === 'completed');
       const pendingTasks = tasksData.filter(task => task.status === 'pending');
+      const timedEvents = [...meetingsData, ...tasksData].filter(activity => activity.hasTime);
 
       safeSetState(setStats, {
         totalMeetings: meetingsData.length,
@@ -1292,7 +1387,8 @@ const Dashboard = () => {
         thisWeekMeetings: thisWeekMeetings.length,
         highPriorityMeetings: highPriorityMeetings.length,
         completedMeetings: completedMeetings.length,
-        pendingTasks: pendingTasks.length
+        pendingTasks: pendingTasks.length,
+        timedEvents: timedEvents.length
       });
     } catch (error) {
       handleError(error, 'calculating statistics');
@@ -1310,18 +1406,15 @@ const Dashboard = () => {
     return allActivities.filter(activity => activity.department === selectedDepartment);
   };
 
-  // Convert activities to FullCalendar events
+  // Convert activities to FullCalendar events with proper time handling
   const getCalendarEvents = () => {
     const activities = getFilteredActivities();
     
     return activities.map(activity => {
-      const dateField = getDateFieldName(activity.sourceTable);
-      const startDate = activity[dateField] || activity.created_at;
-      
-      return {
+      const event = {
         id: `${activity.sourceTable}-${activity.id}`,
         title: getActivityTitle(activity),
-        start: startDate,
+        start: activity.start || activity.date || activity.created_at,
         extendedProps: {
           ...activity,
           priority: activity.priority || 1,
@@ -1329,14 +1422,25 @@ const Dashboard = () => {
           department: activity.department
         }
       };
+
+      // If it has an end time, add it to the event
+      if (activity.end) {
+        event.end = activity.end;
+      }
+
+      // If it doesn't have time, mark it as all day
+      if (!activity.hasTime) {
+        event.allDay = true;
+      }
+
+      return event;
     });
   };
 
   // Handle date click on calendar
   const handleDateClick = (date, arg) => {
     const activities = getFilteredActivities().filter(activity => {
-      const dateField = getDateFieldName(activity.sourceTable);
-      const activityDate = new Date(activity[dateField] || activity.created_at);
+      const activityDate = new Date(activity.start || activity.date || activity.created_at);
       return activityDate.toDateString() === date.toDateString();
     });
 
@@ -1361,7 +1465,7 @@ const Dashboard = () => {
     } else {
       // For department view, show only activities from user's department
       if (!currentUser) return [];
-      const userDept = currentUser.department_id; // You might need to adjust this based on your user structure
+      const userDept = currentUser.department_id;
       return getFilteredActivities().filter(activity => 
         activity.department_id === userDept || activity.department === departments[userDept]?.name
       );
@@ -1550,10 +1654,10 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Completed"
-                value={stats.completedMeetings}
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+                title="Timed Events"
+                value={stats.timedEvents}
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#722ed1', fontSize: '20px' }}
               />
             </Card>
           </Col>
@@ -1627,7 +1731,7 @@ const Dashboard = () => {
                           borderRadius: '6px',
                           border: '1px solid #e8e8e8'
                         }}>
-                          <Text strong style={{ fontSize: '16px' }}>Calendar Legend (Activity Count):</Text>
+                          <Text strong style={{ fontSize: '16px' }}>Calendar Legend:</Text>
                           <Row gutter={16} style={{ marginTop: '12px' }}>
                             <Col xs={12} sm={6}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -1675,6 +1779,31 @@ const Dashboard = () => {
                                   border: '1px solid #d9d9d9'
                                 }}></div>
                                 <Text style={{ fontSize: '14px' }}>No Activities</Text>
+                              </div>
+                            </Col>
+                          </Row>
+                          <Divider style={{ margin: '12px 0' }} />
+                          <Row gutter={16}>
+                            <Col xs={12} sm={6}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <div style={{
+                                  width: '4px',
+                                  height: '20px',
+                                  backgroundColor: '#1890ff',
+                                  borderRadius: '2px'
+                                }}></div>
+                                <Text style={{ fontSize: '14px' }}>Timed Events</Text>
+                              </div>
+                            </Col>
+                            <Col xs={12} sm={6}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <div style={{
+                                  width: '20px',
+                                  height: '20px',
+                                  backgroundColor: '#1890ff',
+                                  borderRadius: '4px'
+                                }}></div>
+                                <Text style={{ fontSize: '14px' }}>All Day Events</Text>
                               </div>
                             </Col>
                           </Row>
