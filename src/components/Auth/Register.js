@@ -435,7 +435,6 @@ const Register = () => {
                 
                 <Option value="operational_manager">Operational Manager</Option>
                 <Option value="user">User</Option>
-                <Option value="admin">Admin</Option>
               </Select>
             </Form.Item>
           </div>

@@ -68,7 +68,7 @@ const Login = () => {
       }
 
     } catch (error) {
-      console.error('Login error:', error);
+      throw new Error('Login error:', error);
 
       // User-friendly error messages
       let errorMessage = 'An unexpected error occurred. Please try again.';
@@ -86,7 +86,7 @@ const Login = () => {
   };
 
   const onFinishFailed = (errorInfo) => {
-    console.log('Failed:', errorInfo);
+    throw new Error('Failed:', errorInfo);
     message.warning('Please fill in all required fields correctly.');
   };
 

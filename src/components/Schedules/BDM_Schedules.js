@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card, Button, Row, Col, Typography, Table, DatePicker,
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
-    Tooltip, Badge, Timeline, Empty, Result, Descriptions
+    Tooltip, Badge, Timeline, Empty, Result, Descriptions,
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -11,12 +12,17 @@ import {
     EditOutlined, DeleteOutlined, ScheduleOutlined,
     ExclamationCircleOutlined, ReloadOutlined, WarningOutlined,
     MessageOutlined, WechatOutlined, SendOutlined,
-    CloseOutlined, EyeOutlined
+    CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
+    InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
+    StarOutlined, FlagOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -26,6 +32,7 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 const { Option } = Select;
+const { TabPane } = Tabs;
 
 // Error boundary component
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
@@ -34,7 +41,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => (
         title="Something went wrong in BDM Module"
         subTitle={error?.message || "An unexpected error occurred"}
         extra={
-            <Button type="primary" onClick={resetErrorBoundary}>
+            <Button type="primary" onClick={resetErrorBoundary} size="large">
                 Try Again
             </Button>
         }
@@ -46,6 +53,124 @@ const LoadingSpinner = ({ tip = "Loading BDM data..." }) => (
     <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" tip={tip} />
     </div>
+);
+
+// Priority Badge Component
+const PriorityBadge = ({ priority }) => {
+    const getPriorityConfig = (priority) => {
+        switch (priority) {
+            case 1:
+                return { color: 'green', text: 'Low', icon: <FlagOutlined /> };
+            case 2:
+                return { color: 'blue', text: 'Normal', icon: <FlagOutlined /> };
+            case 3:
+                return { color: 'orange', text: 'Medium', icon: <FlagOutlined /> };
+            case 4:
+                return { color: 'red', text: 'High', icon: <FlagOutlined /> };
+            case 5:
+                return { color: 'purple', text: 'Critical', icon: <FlagOutlined /> };
+            default:
+                return { color: 'default', text: 'Normal', icon: <FlagOutlined /> };
+        }
+    };
+
+    const config = getPriorityConfig(priority);
+
+    return (
+        <Badge
+            count={
+                <Tag color={config.color} icon={config.icon} style={{ fontSize: '10px', padding: '2px 6px' }}>
+                    {config.text}
+                </Tag>
+            }
+        />
+    );
+};
+
+// Statistics Cards Component
+const BDMStatistics = ({ stats, loading = false }) => (
+    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
+                <Statistic
+                    title="Total Records"
+                    value={stats?.totalRecords || 0}
+                    prefix={<TeamOutlined />}
+                    valueStyle={{ color: '#1890ff', fontSize: '20px' }}
+                />
+            </Card>
+        </Col>
+        <Col xs={24} sm={8} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
+                <Statistic
+                    title="Upcoming"
+                    value={stats?.upcomingRecords || 0}
+                    prefix={<CalendarOutlined />}
+                    valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
+                />
+            </Card>
+        </Col>
+        <Col xs={24} sm={8} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
+                <Statistic
+                    title="Completed"
+                    value={stats?.completedRecords || 0}
+                    prefix={<CheckCircleOutlined />}
+                    valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+                />
+            </Card>
+        </Col>
+        <Col xs={24} sm={8} md={6}>
+            <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
+                <Statistic
+                    title="Completion Rate"
+                    value={stats?.completionRate || 0}
+                    suffix="%"
+                    prefix={<BarChartOutlined />}
+                    valueStyle={{ color: '#722ed1', fontSize: '20px' }}
+                />
+            </Card>
+        </Col>
+    </Row>
+);
+
+// Category Card Component
+const CategoryCard = ({ category, isSelected, onClick, loading = false }) => (
+    <Card
+        hoverable
+        loading={loading}
+        style={{
+            height: '120px',
+            border: `2px solid ${isSelected ? '#1890ff' : '#f0f0f0'}`,
+            borderRadius: '8px',
+            transition: 'all 0.3s ease',
+            backgroundColor: isSelected ? '#e6f7ff' : '#fff'
+        }}
+        bodyStyle={{
+            padding: '16px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100%'
+        }}
+        onClick={onClick}
+    >
+        <div style={{
+            fontSize: '32px',
+            color: isSelected ? '#1890ff' : '#666',
+            marginBottom: '8px'
+        }}>
+            {category.icon}
+        </div>
+        <Title level={5} style={{ margin: 0, color: isSelected ? '#1890ff' : '#000' }}>
+            {category.name}
+        </Title>
+        <Text type="secondary" style={{ fontSize: '12px' }}>
+            {category.type}
+        </Text>
+    </Card>
 );
 
 // Chat Message Component
@@ -84,7 +209,7 @@ const ChatMessage = ({ message, currentUser, profiles }) => {
 };
 
 // Discussion Modal Component
-const DiscussionModal = ({
+const DiscussionModal = React.memo(({
     visible,
     onCancel,
     record,
@@ -99,24 +224,23 @@ const DiscussionModal = ({
     const [subscription, setSubscription] = useState(null);
 
     // Get the correct feedback table name
-    const getFeedbackTable = () => {
+    const getFeedbackTable = useCallback(() => {
         if (!category) return null;
-        
-        // Map categories to their correct feedback tables
+
         const tableMap = {
             'customer_visit': 'bdm_customer_visit_fb',
-            'principle_visit': 'bdm_principle_visit_fb', 
+            'principle_visit': 'bdm_principle_visit_fb',
             'weekly_meetings': 'bdm_weekly_meetings_fb',
             'college_sessions': 'bdm_college_session_fb',
             'promotional_activities': 'bdm_promotional_activities_fb'
         };
-        
+
         return tableMap[category.id] || null;
-    };
+    }, [category]);
 
     const feedbackTable = getFeedbackTable();
 
-    const fetchMessages = async () => {
+    const fetchMessages = useCallback(async () => {
         if (!record?.id || !category || !feedbackTable) {
             console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
             return;
@@ -134,37 +258,41 @@ const DiscussionModal = ({
             setMessages(data || []);
         } catch (error) {
             console.error('Error fetching messages:', error);
-            message.error('Failed to load messages');
+            toast.error('Failed to load messages');
         } finally {
             setLoading(false);
         }
-    };
+    }, [record, category, feedbackTable]);
 
-    const setupRealtimeSubscription = () => {
+    const setupRealtimeSubscription = useCallback(() => {
         if (!record?.id || !feedbackTable) return;
 
-        const subscription = supabase
-            .channel(`discussion_${record.id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: feedbackTable,
-                    filter: `meeting_id=eq.${record.id}`
-                },
-                (payload) => {
-                    setMessages(prev => [...prev, payload.new]);
-                }
-            )
-            .subscribe();
+        try {
+            const subscription = supabase
+                .channel(`discussion_${record.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: feedbackTable,
+                        filter: `meeting_id=eq.${record.id}`
+                    },
+                    (payload) => {
+                        setMessages(prev => [...prev, payload.new]);
+                    }
+                )
+                .subscribe();
 
-        setSubscription(subscription);
-    };
+            setSubscription(subscription);
+        } catch (error) {
+            console.error('Error setting up realtime subscription:', error);
+        }
+    }, [record, feedbackTable]);
 
     const sendMessage = async () => {
         if (!newMessage.trim() || !currentUser || !record?.id || !feedbackTable) {
-            message.warning('Cannot send message: Missing required data');
+            toast.warning('Cannot send message: Missing required data');
             return;
         }
 
@@ -181,16 +309,28 @@ const DiscussionModal = ({
 
             if (error) throw error;
 
+            await notifyDepartmentOperation(
+                'bdm',
+                category.name,
+                NOTIFICATION_TYPES.DISCUSSION,
+                record,
+                {
+                    tableName: feedbackTable,
+                    userId: currentUser.id,
+                    message: 'New message in discussion'
+                }
+            );
+
             setNewMessage('');
         } catch (error) {
             console.error('Error sending message:', error);
-            message.error('Failed to send message');
+            toast.error('Failed to send message');
         } finally {
             setSending(false);
         }
     };
 
-    const markMessagesAsRead = async () => {
+    const markMessagesAsRead = useCallback(async () => {
         if (!currentUser || messages.length === 0 || !feedbackTable) return;
 
         try {
@@ -209,7 +349,7 @@ const DiscussionModal = ({
         } catch (error) {
             console.error('Error marking messages as read:', error);
         }
-    };
+    }, [currentUser, messages, feedbackTable]);
 
     useEffect(() => {
         if (visible && record && category) {
@@ -222,13 +362,13 @@ const DiscussionModal = ({
                 subscription.unsubscribe();
             }
         };
-    }, [visible, record, category]);
+    }, [visible, record, category, fetchMessages, setupRealtimeSubscription]);
 
     useEffect(() => {
         if (messages.length > 0) {
             markMessagesAsRead();
         }
-    }, [messages]);
+    }, [messages, markMessagesAsRead]);
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -266,6 +406,7 @@ const DiscussionModal = ({
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
                     {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
                     {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
+                    <PriorityBadge priority={record.priority} />
                 </Space>
             }
             open={visible}
@@ -273,6 +414,7 @@ const DiscussionModal = ({
             footer={null}
             width={700}
             style={{ top: 20 }}
+            destroyOnClose
         >
             <div style={{ display: 'flex', flexDirection: 'column', height: '60vh' }}>
                 {/* Messages Area */}
@@ -323,10 +465,10 @@ const DiscussionModal = ({
             </div>
         </Modal>
     );
-};
+});
 
 // User Schedule Modal Component
-const UserScheduleModal = ({
+const UserScheduleModal = React.memo(({
     visible,
     onCancel,
     user,
@@ -365,9 +507,55 @@ const UserScheduleModal = ({
     };
 
     const getActivityType = (item) => {
-        if (item.type === 'personal_meeting') return 'Personal Meeting';
-        if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
-        return 'Unknown Activity';
+        try {
+            if (item.type === 'personal_meeting') return 'Personal Meeting';
+            if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
+            return 'Unknown Activity';
+        } catch (error) {
+            return 'Unknown Activity';
+        }
+    };
+
+    const getActivityDescription = (item) => {
+        try {
+            if (item.type === 'personal_meeting') {
+                return item.description || 'No description available';
+            }
+            if (item.type === 'bdm_activity') {
+                return item.remarks || item.objectives || item.purpose || 'No description available';
+            }
+            return 'No description available';
+        } catch (error) {
+            return 'Description not available';
+        }
+    };
+
+    // Safe time display function
+    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+        if (!time) return '-';
+
+        try {
+            // Handle both string time and dayjs object
+            let timeObj;
+            if (typeof time === 'string') {
+                // Try different time formats
+                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+                for (const fmt of formats) {
+                    timeObj = dayjs(time, fmt);
+                    if (timeObj.isValid()) break;
+                }
+                // If no format works, try creating from string directly
+                if (!timeObj || !timeObj.isValid()) {
+                    timeObj = dayjs(`1970-01-01T${time}`);
+                }
+            } else {
+                timeObj = time;
+            }
+
+            return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
+        } catch (error) {
+            return '-';
+        }
     };
 
     const safeDayjs = (date) => {
@@ -399,6 +587,7 @@ const UserScheduleModal = ({
             ]}
             width={800}
             style={{ top: 20 }}
+            destroyOnClose
         >
             {loading ? (
                 <LoadingSpinner tip="Loading user schedule..." />
@@ -412,31 +601,45 @@ const UserScheduleModal = ({
                                 dot={getScheduleItemIcon(item)}
                             >
                                 <div style={{ padding: '8px 0' }}>
-                                    <Descriptions 
-                                        size="small" 
-                                        column={1} 
+                                    <Descriptions
+                                        size="small"
+                                        column={1}
                                         bordered
                                         style={{ marginBottom: 16 }}
                                     >
                                         <Descriptions.Item label="Activity Type">
-                                            <Tag color={getScheduleItemColor(item)}>
-                                                {getActivityType(item)}
-                                            </Tag>
+                                            <Space>
+                                                <Tag color={getScheduleItemColor(item)}>
+                                                    {getActivityType(item)}
+                                                </Tag>
+                                                <PriorityBadge priority={item.priority} />
+                                            </Space>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.topic || item.meeting || item.promotional_activity || 
-                                                 item.session || item.customer_name || item.principle_name || 
-                                                 item.activity_type || 'Unknown Activity'}
+                                                {item.topic || item.meeting || item.promotional_activity ||
+                                                    item.session || item.customer_name || item.principle_name ||
+                                                    item.activity_type || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Date">
+                                        <Descriptions.Item label="Date & Time">
                                             <Space>
                                                 <CalendarOutlined />
                                                 {safeDayjs(item.start_date || item.date || item.schedule_date || item.visit_duration_start).format('DD/MM/YYYY')}
-                                                {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
+                                                {(item.start_time || item.end_time) && (
+                                                    <Tag color="purple">
+                                                        <TimeDisplay time={item.start_time} /> - <TimeDisplay time={item.end_time} />
+                                                    </Tag>
+                                                )}
                                             </Space>
                                         </Descriptions.Item>
+
+                                        <Descriptions.Item label="Description">
+                                            <Text type="secondary">
+                                                {getActivityDescription(item)}
+                                            </Text>
+                                        </Descriptions.Item>
+
                                         {item.company && (
                                             <Descriptions.Item label="Company">
                                                 {item.company}
@@ -445,11 +648,6 @@ const UserScheduleModal = ({
                                         {item.venue && (
                                             <Descriptions.Item label="Venue">
                                                 <Tag color="blue">{item.venue}</Tag>
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.description && (
-                                            <Descriptions.Item label="Description">
-                                                {item.description}
                                             </Descriptions.Item>
                                         )}
                                         {item.remarks && (
@@ -472,7 +670,7 @@ const UserScheduleModal = ({
                             </Timeline.Item>
                         ))}
                     </Timeline>
-                    
+
                     <Alert
                         message={`Total ${schedule.length} scheduled items found`}
                         type="info"
@@ -493,13 +691,18 @@ const UserScheduleModal = ({
             )}
         </Modal>
     );
-};
+});
 
 const BDM = () => {
     // Error handling states
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
+
+    // Auto-refresh states
+    const [autoRefresh, setAutoRefresh] = useState(false);
+    const [lastRefresh, setLastRefresh] = useState(new Date());
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [dateRange, setDateRange] = useState([null, null]);
@@ -526,12 +729,12 @@ const BDM = () => {
     // User Schedule Modal State
     const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
-    // Get default date range: yesterday to 9 days from today (total 10 days)
-    const getDefaultDateRange = () => {
-        const yesterday = dayjs().subtract(1, 'day');
-        const nineDaysFromToday = dayjs().add(9, 'day');
-        return [yesterday, nineDaysFromToday];
-    };
+    // Priority filter state
+    const [priorityFilter, setPriorityFilter] = useState(null);
+
+    // Default time values
+    const defaultStartTime = dayjs('06:00', 'HH:mm');
+    const defaultEndTime = dayjs('21:00', 'HH:mm');
 
     // BDM Categories configuration
     const bdmCategories = [
@@ -541,7 +744,9 @@ const BDM = () => {
             table: 'bdm_customer_visit',
             type: 'Task',
             icon: <CheckCircleOutlined />,
-            dateField: 'schedule_date'
+            dateField: 'schedule_date',
+            color: '#1890ff',
+            hasTimeFields: true
         },
         {
             id: 'principle_visit',
@@ -549,7 +754,9 @@ const BDM = () => {
             table: 'bdm_principle_visit',
             type: 'Task',
             icon: <CheckCircleOutlined />,
-            dateField: 'visit_duration_start'
+            dateField: 'visit_duration_start',
+            color: '#52c41a',
+            hasTimeFields: false
         },
         {
             id: 'weekly_meetings',
@@ -557,7 +764,9 @@ const BDM = () => {
             table: 'bdm_weekly_meetings',
             type: 'Meeting',
             icon: <CalendarOutlined />,
-            dateField: 'date'
+            dateField: 'date',
+            color: '#fa8c16',
+            hasTimeFields: true
         },
         {
             id: 'college_sessions',
@@ -565,7 +774,9 @@ const BDM = () => {
             table: 'bdm_college_session',
             type: 'Meeting',
             icon: <CalendarOutlined />,
-            dateField: 'start_date'
+            dateField: 'start_date',
+            color: '#722ed1',
+            hasTimeFields: true
         },
         {
             id: 'promotional_activities',
@@ -573,21 +784,40 @@ const BDM = () => {
             table: 'bdm_promotional_activities',
             type: 'Task',
             icon: <CheckCircleOutlined />,
-            dateField: 'date'
+            dateField: 'date',
+            color: '#eb2f96',
+            hasTimeFields: false
         }
     ];
 
+    // Priority options
+    const priorityOptions = [
+        { value: 1, label: 'Low', color: 'green' },
+        { value: 2, label: 'Normal', color: 'blue' },
+        { value: 3, label: 'Medium', color: 'orange' },
+        { value: 4, label: 'High', color: 'red' },
+        { value: 5, label: 'Critical', color: 'purple' }
+    ];
+
+    // Get default date range: yesterday to 9 days from today (total 10 days)
+    const getDefaultDateRange = useCallback(() => {
+        try {
+            const yesterday = dayjs().subtract(1, 'day');
+            const nineDaysFromToday = dayjs().add(9, 'day');
+            return [yesterday, nineDaysFromToday];
+        } catch (error) {
+            console.error('Error getting default date range:', error);
+            return [dayjs(), dayjs().add(10, 'day')];
+        }
+    }, []);
+
     // Error handler
-    const handleError = (error, context = 'Unknown operation') => {
+    const handleError = useCallback((error, context = 'Unknown operation') => {
         console.error(`Error in ${context}:`, error);
 
         const errorMessage = error?.message || 'An unexpected error occurred';
 
-        message.error({
-            content: `Error in ${context}: ${errorMessage}`,
-            duration: 5,
-            key: `bdm-error-${context}`
-        });
+        toast.error(`Error in ${context}: ${errorMessage}`);
 
         setError({
             message: errorMessage,
@@ -596,22 +826,55 @@ const BDM = () => {
         });
 
         return error;
-    };
+    }, []);
 
     // Safe state update wrapper
-    const safeSetState = (setter, value) => {
+    const safeSetState = useCallback((setter, value) => {
         try {
             setter(value);
         } catch (err) {
             handleError(err, 'state update');
         }
-    };
+    }, [handleError]);
 
-    // Safe date parsing function with enhanced error handling
-    const safeDayjs = (date, format = null) => {
+    // Safe time parsing function
+    const safeTimeParse = useCallback((time) => {
+        try {
+            if (!time) return defaultStartTime;
+
+            if (dayjs.isDayjs(time)) {
+                return time;
+            }
+
+            if (typeof time === 'string') {
+                // Try different time formats
+                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
+                for (const format of formats) {
+                    const parsed = dayjs(time, format);
+                    if (parsed.isValid()) {
+                        return parsed;
+                    }
+                }
+
+                // If no format works, try creating from string directly
+                const directParse = dayjs(`1970-01-01T${time}`);
+                if (directParse.isValid()) {
+                    return directParse;
+                }
+            }
+
+            console.warn('Invalid time provided, using default:', time);
+            return defaultStartTime;
+        } catch (error) {
+            console.error('Error parsing time:', time, error);
+            return defaultStartTime;
+        }
+    }, [defaultStartTime]);
+
+    // Safe date parsing function
+    const safeDayjs = useCallback((date, format = null) => {
         try {
             if (!date) {
-                console.warn('No date provided to safeDayjs');
                 return dayjs();
             }
 
@@ -620,6 +883,12 @@ const BDM = () => {
             }
 
             if (typeof date === 'string' || typeof date === 'number') {
+                // Skip time-only strings
+                if (typeof date === 'string' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(date)) {
+                    console.warn('Time string provided to date parser:', date);
+                    return dayjs(); // Return current date for time strings
+                }
+
                 const parsedDate = format ? dayjs(date, format) : dayjs(date);
 
                 if (!parsedDate.isValid()) {
@@ -636,51 +905,97 @@ const BDM = () => {
             console.error('Error parsing date:', date, error);
             return dayjs();
         }
+    }, []);
+
+    // Time Display Component
+    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
+        if (!time) return '-';
+
+        try {
+            // Handle both string time and dayjs object
+            const timeObj = safeTimeParse(time);
+            return timeObj.isValid() ? timeObj.format(format) : '-';
+        } catch (error) {
+            return '-';
+        }
     };
 
     // Reset error boundary
-    const resetErrorBoundary = () => {
+    const resetErrorBoundary = useCallback(() => {
         setError(null);
         setRetryCount(prev => prev + 1);
         initializeBDM();
+    }, []);
+
+    // Auto-refresh setup
+    const setupAutoRefresh = useCallback(() => {
+        try {
+            if (autoRefresh) {
+                const interval = setInterval(() => {
+                    refreshBDMData();
+                }, 2 * 60 * 1000); // 2 minutes
+
+                return () => clearInterval(interval);
+            }
+        } catch (error) {
+            handleError(error, 'setting up auto-refresh');
+        }
+    }, [autoRefresh, handleError]);
+
+    const refreshBDMData = async () => {
+        if (isRefreshing) return;
+
+        setIsRefreshing(true);
+        try {
+            await fetchTableData();
+            safeSetState(setLastRefresh, new Date());
+            toast.info('BDM data updated automatically');
+        } catch (error) {
+            handleError(error, 'auto-refresh');
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
-    // Fetch unread message counts for records
-    const fetchUnreadCounts = async (records, category) => {
-        if (!currentUser || !records.length || !category) return;
-
+    const manualRefresh = async () => {
+        setIsRefreshing(true);
         try {
-            // Get correct feedback table
-            const tableMap = {
-                'customer_visit': 'bdm_customer_visit_fb',
-                'principle_visit': 'bdm_principle_visit_fb', 
-                'weekly_meetings': 'bdm_weekly_meetings_fb',
-                'college_sessions': 'bdm_college_session_fb',
-                'promotional_activities': 'bdm_promotional_activities_fb'
-            };
-            
-            const feedbackTable = tableMap[category.id];
-            if (!feedbackTable) return;
-
-            const counts = {};
-
-            // Fetch unread counts for each record
-            for (const record of records) {
-                const { data, error } = await supabase
-                    .from(feedbackTable)
-                    .select('id')
-                    .eq('meeting_id', record.id)
-                    .neq('sender_id', currentUser.id)
-                    .is('read_at', null);
-
-                if (!error) {
-                    counts[record.id] = data?.length || 0;
-                }
-            }
-
-            safeSetState(setUnreadCounts, counts);
+            await fetchTableData();
+            safeSetState(setLastRefresh, new Date());
+            toast.success('BDM data refreshed successfully');
         } catch (error) {
-            console.error('Error fetching unread counts:', error);
+            handleError(error, 'manual refresh');
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    const handleAutoRefreshToggle = (checked) => {
+        try {
+            safeSetState(setAutoRefresh, checked);
+            if (checked) {
+                toast.info('Auto-refresh enabled (every 2 minutes)');
+            } else {
+                toast.info('Auto-refresh disabled');
+            }
+        } catch (error) {
+            handleError(error, 'toggle auto-refresh');
+        }
+    };
+
+    const formatTimeSinceLastRefresh = () => {
+        try {
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - lastRefresh) / 1000);
+
+            if (diffInSeconds < 60) {
+                return `${diffInSeconds} seconds ago`;
+            } else {
+                const minutes = Math.floor(diffInSeconds / 60);
+                return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            }
+        } catch (error) {
+            return 'Unknown';
         }
     };
 
@@ -693,7 +1008,7 @@ const BDM = () => {
                 fetchProfiles(),
                 fetchBDMUsers()
             ]);
-            
+
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -709,10 +1024,15 @@ const BDM = () => {
     }, [retryCount]);
 
     useEffect(() => {
+        const cleanup = setupAutoRefresh();
+        return cleanup;
+    }, [setupAutoRefresh]);
+
+    useEffect(() => {
         if (selectedCategory && dateRange[0] && dateRange[1]) {
             fetchTableData();
         }
-    }, [selectedCategory, dateRange]);
+    }, [selectedCategory, dateRange, priorityFilter]);
 
     const fetchCurrentUser = async () => {
         try {
@@ -760,7 +1080,7 @@ const BDM = () => {
 
                 if (deptErrorAlt) throw deptErrorAlt;
                 if (!deptDataAlt) {
-                    message.warning('BDM department not found. Using all users as fallback.');
+                    toast.warning('BDM department not found. Using all users as fallback.');
                     // Fallback to all users
                     const { data: allUsers, error: usersError } = await supabase
                         .from('profiles')
@@ -777,7 +1097,7 @@ const BDM = () => {
             }
 
             if (!deptData) {
-                message.warning('BDM department not found');
+                toast.warning('BDM department not found');
                 safeSetState(setBdmUsers, []);
                 return;
             }
@@ -814,7 +1134,13 @@ const BDM = () => {
                 .select('*')
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
+                .order('priority', { ascending: false }) // Sort by priority (high to low)
                 .order(selectedCategory.dateField, { ascending: true });
+
+            // Apply priority filter if selected
+            if (priorityFilter) {
+                query = query.eq('priority', priorityFilter);
+            }
 
             const { data, error } = await query;
 
@@ -833,95 +1159,169 @@ const BDM = () => {
         }
     };
 
-    const fetchUserSchedule = async (userId, startDate, endDate) => {
-        if (!userId || !startDate || !endDate) {
-            message.warning('Please provide user ID and date range');
-            return;
-        }
+    const fetchUnreadCounts = async (records, category) => {
+        if (!currentUser || !records.length || !category) return;
 
+        try {
+            const tableMap = {
+                'customer_visit': 'bdm_customer_visit_fb',
+                'principle_visit': 'bdm_principle_visit_fb',
+                'weekly_meetings': 'bdm_weekly_meetings_fb',
+                'college_sessions': 'bdm_college_session_fb',
+                'promotional_activities': 'bdm_promotional_activities_fb'
+            };
+
+            const feedbackTable = tableMap[category.id];
+            if (!feedbackTable) return;
+
+            const counts = {};
+
+            for (const record of records) {
+                const { data, error } = await supabase
+                    .from(feedbackTable)
+                    .select('id')
+                    .eq('meeting_id', record.id)
+                    .neq('sender_id', currentUser.id)
+                    .is('read_at', null);
+
+                if (!error) {
+                    counts[record.id] = data?.length || 0;
+                }
+            }
+
+            safeSetState(setUnreadCounts, counts);
+        } catch (error) {
+            console.error('Error fetching unread counts:', error);
+        }
+    };
+
+    const fetchUserSchedule = async (userId, startDate, endDate) => {
         setAvailabilityLoading(true);
         try {
             const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
             const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-            if (!formattedStart || !formattedEnd) {
-                throw new Error('Invalid date range for schedule fetch');
+            let allActivities = [];
+
+            // Get user details
+            const user = bdmUsers.find(u => u.id === userId);
+            if (!user) {
+                console.warn('User not found in BDM users list');
+                safeSetState(setUserSchedule, []);
+                return;
             }
 
-            // Fetch personal meetings for the user
+            const userName = user.full_name || user.email;
+            console.log(`Fetching schedule for user: ${userName} (${userId})`);
+
+            // 1. Personal meetings for the specific user
             const { data: personalMeetings, error: personalError } = await supabase
                 .from('personal_meetings')
                 .select('*')
                 .eq('user_id', userId)
                 .gte('start_date', formattedStart)
                 .lte('end_date', formattedEnd)
+                .order('priority', { ascending: false })
                 .order('start_date', { ascending: true });
 
-            if (personalError) throw personalError;
+            if (personalError) console.error('Personal meetings error:', personalError);
+            console.log('Personal meetings:', personalMeetings?.length || 0);
 
-            // Fetch BDM activities for the user with Promise.allSettled for resilience
-            let bdmActivities = [];
-            const bdmPromises = bdmCategories.map(async (category) => {
+            // 2. BDM activities - CORRECTED FILTERING
+            for (const category of bdmCategories) {
+                console.log(`Checking category: ${category.name}`);
+
+                let query = supabase
+                    .from(category.table)
+                    .select('*')
+                    .gte(category.dateField, formattedStart)
+                    .lte(category.dateField, formattedEnd)
+                    .order('priority', { ascending: false })
+                    .order(category.dateField, { ascending: true });
+
+                let categoryActivities = [];
+
                 try {
-                    let query = supabase
-                        .from(category.table)
-                        .select('*')
-                        .gte(category.dateField, formattedStart)
-                        .lte(category.dateField, formattedEnd);
+                    // Different filtering strategies for each category
+                    switch (category.id) {
+                        case 'customer_visit':
+                        case 'college_sessions':
+                        case 'promotional_activities':
+                            // These use responsible_bdm_2 field (text array)
+                            // First, get all records and filter client-side for better accuracy
+                            const { data: textArrayData } = await query;
+                            if (textArrayData) {
+                                categoryActivities = textArrayData.filter(item => {
+                                    const responsibleUsers = item.responsible_bdm_2;
+                                    if (!responsibleUsers) return false;
 
-                    // Try different user matching strategies
-                    query = query.or(`responsible_bdm.eq.${userId},responsible_bdm_2.ilike.%${selectedUser?.full_name}%,responsible_bdm_2.ilike.%${selectedUser?.email}%`);
+                                    // Handle both string arrays and comma-separated strings
+                                    if (Array.isArray(responsibleUsers)) {
+                                        return responsibleUsers.some(name =>
+                                            name && name.toLowerCase().includes(userName.toLowerCase())
+                                        );
+                                    } else if (typeof responsibleUsers === 'string') {
+                                        return responsibleUsers.toLowerCase().includes(userName.toLowerCase());
+                                    }
+                                    return false;
+                                });
+                            }
+                            break;
 
-                    const { data: activities, error: activityError } = await query;
+                        case 'principle_visit':
+                            // This uses responsible_bdm field (uuid array)
+                            // Use contains filter for array fields
+                            const { data: uuidArrayData } = await query.contains('responsible_bdm', [userId]);
+                            categoryActivities = uuidArrayData || [];
+                            break;
 
-                    if (!activityError && activities) {
-                        return activities.map(activity => ({
+                        case 'weekly_meetings':
+                            // This uses conducted_by field (text)
+                            const { data: conductedData } = await query.ilike('conducted_by', `%${userName}%`);
+                            categoryActivities = conductedData || [];
+                            break;
+
+                        default:
+                            const { data: defaultData } = await query;
+                            categoryActivities = defaultData || [];
+                            break;
+                    }
+
+                    console.log(`Category ${category.name} activities:`, categoryActivities.length);
+
+                    // Add category info to activities
+                    if (categoryActivities.length > 0) {
+                        allActivities.push(...categoryActivities.map(activity => ({
                             ...activity,
                             type: 'bdm_activity',
                             activity_type: category.name,
-                            source_table: category.table
-                        }));
+                            source_table: category.table,
+                            category_id: category.id
+                        })));
                     }
-                    return [];
-                } catch (tableError) {
-                    console.warn(`Error fetching from ${category.table}:`, tableError);
-                    return [];
+
+                } catch (categoryError) {
+                    console.error(`Error fetching ${category.name}:`, categoryError);
                 }
-            });
+            }
 
-            const bdmResults = await Promise.allSettled(bdmPromises);
-            bdmActivities = bdmResults
-                .filter(result => result.status === 'fulfilled')
-                .flatMap(result => result.value);
-
-            const allSchedule = [
+            // Combine all activities
+            const userSchedule = [
                 ...(personalMeetings || []).map(meeting => ({
                     ...meeting,
-                    type: 'personal_meeting'
+                    type: 'personal_meeting',
+                    category_id: 'personal_meeting'
                 })),
-                ...bdmActivities
-            ].sort((a, b) => {
-                try {
-                    const getDate = (item) => {
-                        return item.start_date || item[selectedCategory?.dateField] || item.date || item.created_at;
-                    };
+                ...allActivities
+            ];
 
-                    const dateA = safeDayjs(getDate(a));
-                    const dateB = safeDayjs(getDate(b));
+            console.log('Total schedule items:', userSchedule.length);
+            console.log('Schedule details:', userSchedule);
 
-                    if (!dateA.isValid() || !dateB.isValid()) {
-                        return 0;
-                    }
+            safeSetState(setUserSchedule, userSchedule);
 
-                    return dateA - dateB;
-                } catch (sortError) {
-                    console.warn('Error sorting schedule items:', sortError);
-                    return 0;
-                }
-            });
-
-            safeSetState(setUserSchedule, allSchedule);
         } catch (error) {
+            console.error('Error in fetchUserSchedule:', error);
             handleError(error, 'fetching user schedule');
             safeSetState(setUserSchedule, []);
         } finally {
@@ -934,8 +1334,9 @@ const BDM = () => {
             safeSetState(setSelectedCategory, category);
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
+            safeSetState(setPriorityFilter, null);
             form.resetFields();
-            
+
             // Set default date range when category is selected
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
@@ -949,6 +1350,14 @@ const BDM = () => {
             safeSetState(setDateRange, dates || [null, null]);
         } catch (error) {
             handleError(error, 'changing date range');
+        }
+    };
+
+    const handlePriorityFilterChange = (value) => {
+        try {
+            safeSetState(setPriorityFilter, value);
+        } catch (error) {
+            handleError(error, 'changing priority filter');
         }
     };
 
@@ -995,9 +1404,18 @@ const BDM = () => {
                         formattedRecord.end_date = safeDayjs(record.end_date);
                     }
                 }
+
+                // Format time fields using the dedicated time parser
+                if (selectedCategory.hasTimeFields) {
+                    if (record.start_time) {
+                        formattedRecord.start_time = safeTimeParse(record.start_time);
+                    }
+                    if (record.end_time) {
+                        formattedRecord.end_time = safeTimeParse(record.end_time);
+                    }
+                }
             } catch (dateError) {
-                console.warn('Error formatting dates for editing:', dateError);
-                // Continue without date formatting
+                console.warn('Error formatting dates/times for editing:', dateError);
             }
 
             form.setFieldsValue(formattedRecord);
@@ -1019,103 +1437,21 @@ const BDM = () => {
 
             if (error) throw error;
 
-            message.success('Record deleted successfully');
+            await notifyDepartmentOperation(
+                'bdm',
+                selectedCategory.name,
+                NOTIFICATION_TYPES.DELETE,
+                record,
+                {
+                    tableName: selectedCategory.table,
+                    userId: currentUser?.id
+                }
+            );
+
+            toast.success('Record deleted successfully');
             fetchTableData();
         } catch (error) {
             handleError(error, 'deleting record');
-        }
-    };
-
-    const checkUserAvailability = async (userId, startDate, endDate) => {
-        try {
-            if (!userId || !startDate || !endDate) {
-                return { available: true, conflicts: [] };
-            }
-
-            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
-
-            const { data: conflicts, error } = await supabase
-                .from('personal_meetings')
-                .select('*')
-                .eq('user_id', userId)
-                .or(`and(start_date.lte.${formattedEnd},end_date.gte.${formattedStart})`);
-
-            if (error) throw error;
-
-            return {
-                available: (conflicts?.length || 0) === 0,
-                conflicts: conflicts || []
-            };
-        } catch (error) {
-            console.error('Error checking availability:', error);
-            return { available: true, conflicts: [] };
-        }
-    };
-
-    const handleFormSubmit = async (values) => {
-        try {
-            if (!selectedCategory?.table) {
-                throw new Error('No category selected');
-            }
-
-            // Prepare data for submission
-            const submitData = { ...values };
-
-            // Convert dayjs objects to ISO strings with error handling
-            Object.keys(submitData).forEach(key => {
-                try {
-                    if (dayjs.isDayjs(submitData[key])) {
-                        submitData[key] = safeDayjs(submitData[key]).format('YYYY-MM-DD');
-                    }
-                } catch (dateError) {
-                    console.warn(`Error converting date field ${key}:`, dateError);
-                    // Keep original value if conversion fails
-                }
-            });
-
-            // Check availability for responsible BDMs if dates are involved
-            if (submitData.responsible_bdm_2 && (submitData.schedule_date || submitData.date || submitData.start_date)) {
-                const eventDate = submitData.schedule_date || submitData.date || submitData.start_date;
-                const bdmNames = Array.isArray(submitData.responsible_bdm_2)
-                    ? submitData.responsible_bdm_2
-                    : [submitData.responsible_bdm_2];
-
-                for (const bdmName of bdmNames) {
-                    const bdmUser = bdmUsers.find(user =>
-                        user.full_name === bdmName || user.email === bdmName
-                    );
-
-                    if (bdmUser) {
-                        const availability = await checkUserAvailability(bdmUser.id, eventDate, eventDate);
-                        if (!availability.available) {
-                            message.warning(`${bdmName} has scheduling conflicts on ${eventDate}. Please check availability.`);
-                        }
-                    }
-                }
-            }
-
-            if (editingRecord) {
-                const { error } = await supabase
-                    .from(selectedCategory.table)
-                    .update(submitData)
-                    .eq('id', editingRecord.id);
-
-                if (error) throw error;
-                message.success('Record updated successfully');
-            } else {
-                const { error } = await supabase
-                    .from(selectedCategory.table)
-                    .insert([submitData]);
-
-                if (error) throw error;
-                message.success('Record created successfully');
-            }
-
-            safeSetState(setModalVisible, false);
-            fetchTableData();
-        } catch (error) {
-            handleError(error, 'saving record');
         }
     };
 
@@ -1123,7 +1459,7 @@ const BDM = () => {
         try {
             // Set default date range for availability modal
             const defaultRange = getDefaultDateRange();
-            
+
             safeSetState(setAvailabilityModalVisible, true);
             safeSetState(setSelectedUser, null);
             safeSetState(setUserSchedule, []);
@@ -1136,13 +1472,13 @@ const BDM = () => {
     const handleUserSelect = async (user) => {
         try {
             safeSetState(setSelectedUser, user);
-            
+
             if (availabilityDateRange[0] && availabilityDateRange[1]) {
                 await fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
                 // Open the schedule modal after fetching data
                 safeSetState(setScheduleModalVisible, true);
             } else {
-                message.warning('Please select a date range first');
+                toast.warning('Please select a date range first');
             }
         } catch (error) {
             handleError(error, 'selecting user');
@@ -1152,7 +1488,6 @@ const BDM = () => {
     const handleAvailabilityDateChange = (dates) => {
         try {
             safeSetState(setAvailabilityDateRange, dates || [null, null]);
-            // Don't auto-fetch schedule when date changes, wait for user to click "View Schedule"
         } catch (error) {
             handleError(error, 'changing availability date range');
         }
@@ -1161,13 +1496,264 @@ const BDM = () => {
     const handleDiscussionClick = (record) => {
         try {
             if (!selectedCategory) {
-                message.warning('Please select a category first');
+                toast.warning('Please select a category first');
                 return;
             }
             safeSetState(setSelectedRecord, record);
             safeSetState(setDiscussionModalVisible, true);
         } catch (error) {
             handleError(error, 'opening discussion');
+        }
+    };
+
+    // Helper function to ensure time fields have defaults
+    const ensureTimeDefaults = (values) => {
+        if (!selectedCategory?.hasTimeFields) return values;
+
+        return {
+            ...values,
+            start_time: values.start_time || defaultStartTime,
+            end_time: values.end_time || defaultEndTime
+        };
+    };
+
+    // FIXED: Create personal meetings function - moved before handleFormSubmit
+    const createPersonalMeetingsForBDMs = async (record, category, formData) => {
+        try {
+            let responsibleUsers = [];
+            let meetingDate = '';
+            let meetingTitle = '';
+            let startTime = defaultStartTime;
+            let endTime = defaultEndTime;
+
+            // Extract responsible users and meeting details based on category
+            switch (category.id) {
+                case 'customer_visit':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.schedule_date;
+                    meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
+                    startTime = formData.start_time || defaultStartTime;
+                    endTime = formData.end_time || defaultEndTime;
+                    break;
+
+                case 'principle_visit':
+                    responsibleUsers = formData.responsible_bdm || [];
+                    meetingDate = formData.visit_duration_start;
+                    meetingTitle = `Principle Visit: ${formData.principle_name}`;
+                    break;
+
+                case 'weekly_meetings':
+                    responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Weekly Meeting: ${formData.meeting}`;
+                    startTime = formData.start_time || defaultStartTime;
+                    endTime = formData.end_time || defaultEndTime;
+                    break;
+
+                case 'college_sessions':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.start_date;
+                    meetingTitle = `College Session: ${formData.college_name}`;
+                    startTime = formData.start_time || defaultStartTime;
+                    endTime = formData.end_time || defaultEndTime;
+                    break;
+
+                case 'promotional_activities':
+                    responsibleUsers = formData.responsible_bdm_2 || [];
+                    meetingDate = formData.date;
+                    meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
+                    break;
+            }
+
+            console.log('Creating personal meetings for:', {
+                category: category.name,
+                responsibleUsers,
+                meetingDate,
+                meetingTitle,
+                startTime,
+                endTime
+            });
+
+            // If no responsible users, return
+            if (!responsibleUsers.length || !meetingDate) {
+                console.log('No responsible users or meeting date found');
+                return;
+            }
+
+            // Convert string array to array if needed
+            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
+            console.log('Users array:', usersArray);
+
+            let createdCount = 0;
+
+            // Create personal meetings for each responsible BDM
+            for (const userRef of usersArray) {
+                let user = null;
+
+                // Find user by different identifier types
+                if (typeof userRef === 'string') {
+                    // Try to find by full name (exact match first, then partial)
+                    user = bdmUsers.find(u => u.full_name === userRef);
+                    if (!user) {
+                        user = bdmUsers.find(u => u.full_name && u.full_name.toLowerCase().includes(userRef.toLowerCase()));
+                    }
+                    if (!user) {
+                        // Try to find by email
+                        user = bdmUsers.find(u => u.email === userRef);
+                    }
+                    if (!user) {
+                        // Try to find by ID
+                        user = bdmUsers.find(u => u.id === userRef);
+                    }
+                } else if (typeof userRef === 'object' && userRef.id) {
+                    user = bdmUsers.find(u => u.id === userRef.id);
+                }
+
+                if (user) {
+                    console.log(`Creating personal meeting for user: ${user.full_name}`);
+
+                    // Format the date properly
+                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
+                    const formattedStartTime = startTime ? safeDayjs(startTime).format('HH:mm:ss') : null;
+                    const formattedEndTime = endTime ? safeDayjs(endTime).format('HH:mm:ss') : null;
+
+                    // Create personal meeting
+                    const personalMeetingData = {
+                        topic: meetingTitle,
+                        start_date: formattedDate,
+                        end_date: formattedDate, // Same day for now
+                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
+                        venue: formData.company || 'TBD',
+                        user_id: user.id,
+                        priority: formData.priority || 2, // Use same priority as main record
+                        ...(formattedStartTime && { start_time: formattedStartTime }),
+                        ...(formattedEndTime && { end_time: formattedEndTime })
+                    };
+
+                    const { data, error } = await supabase
+                        .from('personal_meetings')
+                        .insert([personalMeetingData])
+                        .select();
+
+                    if (error) {
+                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
+                    } else {
+                        console.log(`Personal meeting created for ${user.full_name}:`, data);
+                        createdCount++;
+                    }
+                } else {
+                    console.warn(`User not found for reference:`, userRef);
+                }
+            }
+
+            if (createdCount > 0) {
+                toast.info(`Created personal meetings for ${createdCount} team member(s)`);
+            }
+
+        } catch (error) {
+            console.error('Error creating personal meetings:', error);
+            // Don't throw error here to avoid affecting main form submission
+        }
+    };
+
+    // CORRECTED handleFormSubmit to fix time handling and use the properly defined createPersonalMeetingsForBDMs
+    const handleFormSubmit = async (values) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            // Ensure time defaults
+            const valuesWithDefaults = ensureTimeDefaults(values);
+
+            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
+            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
+            const submitData = { ...cleanData };
+
+            // Convert dayjs objects to proper formats with error handling
+            Object.keys(submitData).forEach(key => {
+                try {
+                    const value = submitData[key];
+                    if (dayjs.isDayjs(value)) {
+                        if (key.includes('time')) {
+                            // Convert time to HH:mm:ss format
+                            submitData[key] = value.format('HH:mm:ss');
+                        } else {
+                            // Convert date to YYYY-MM-DD format
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
+                    }
+                } catch (dateError) {
+                    console.warn(`Error converting date/time field ${key}:`, dateError);
+                }
+            });
+
+            // Handle time fields specifically
+            if (selectedCategory.hasTimeFields) {
+                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
+                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
+                }
+                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
+                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
+                }
+            }
+
+            let result;
+
+            if (editingRecord) {
+                // Update existing record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .update(submitData)
+                    .eq('id', editingRecord.id)
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+
+                await notifyDepartmentOperation(
+                    'bdm',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.UPDATE,
+                    result,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+
+                toast.success('Record updated successfully');
+            } else {
+                // Create new record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .insert([submitData])
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+
+                await notifyDepartmentOperation(
+                    'bdm',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    result,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+
+                toast.success('Record created successfully');
+            }
+
+            // Auto-create personal meetings for responsible BDMs - FIXED: Now properly defined
+            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
+
+            safeSetState(setModalVisible, false);
+            fetchTableData();
+        } catch (error) {
+            handleError(error, 'saving record');
         }
     };
 
@@ -1223,6 +1809,32 @@ const BDM = () => {
                 ),
             };
 
+            const priorityColumn = {
+                title: 'Priority',
+                dataIndex: 'priority',
+                key: 'priority',
+                width: 100,
+                render: (priority) => <PriorityBadge priority={priority} />,
+                sorter: (a, b) => a.priority - b.priority,
+            };
+
+            const timeColumn = selectedCategory.hasTimeFields ? [
+                {
+                    title: 'Start Time',
+                    dataIndex: 'start_time',
+                    key: 'start_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                },
+                {
+                    title: 'End Time',
+                    dataIndex: 'end_time',
+                    key: 'end_time',
+                    width: 100,
+                    render: (time) => <TimeDisplay time={time} />
+                }
+            ] : [];
+
             const baseColumns = [
                 {
                     title: 'Created',
@@ -1237,7 +1849,9 @@ const BDM = () => {
                         }
                     },
                     width: 100
-                }
+                },
+                priorityColumn,
+                ...timeColumn
             ];
 
             switch (selectedCategory.id) {
@@ -1332,8 +1946,53 @@ const BDM = () => {
                     >
                         <TextArea rows={3} placeholder="Enter any remarks or notes" />
                     </Form.Item>
+
+                    <Form.Item
+                        name="priority"
+                        label="Priority"
+                        initialValue={2}
+                        rules={[{ required: true, message: 'Please select priority' }]}
+                    >
+                        <Select placeholder="Select priority">
+                            {priorityOptions.map(option => (
+                                <Option key={option.value} value={option.value}>
+                                    <Space>
+                                        <Badge color={option.color} />
+                                        {option.label}
+                                    </Space>
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
                 </>
             );
+
+            const timeFields = selectedCategory.hasTimeFields ? (
+                <>
+                    <Form.Item
+                        name="start_time"
+                        label="Start Time"
+                        initialValue={defaultStartTime}
+                    >
+                        <TimePicker
+                            format="HH:mm"
+                            style={{ width: '100%' }}
+                            placeholder="Select start time"
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="end_time"
+                        label="End Time"
+                        initialValue={defaultEndTime}
+                    >
+                        <TimePicker
+                            format="HH:mm"
+                            style={{ width: '100%' }}
+                            placeholder="Select end time"
+                        />
+                    </Form.Item>
+                </>
+            ) : null;
 
             switch (selectedCategory.id) {
                 case 'customer_visit':
@@ -1350,6 +2009,7 @@ const BDM = () => {
                                     placeholder="Select schedule date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             {commonFields}
                             <Form.Item
                                 name="customer_name"
@@ -1485,6 +2145,7 @@ const BDM = () => {
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             {commonFields}
                             <Form.Item
                                 name="meeting"
@@ -1538,9 +2199,10 @@ const BDM = () => {
                                 <DatePicker
                                     style={{ width: '100%' }}
                                     format="DD/MM/YYYY"
-                                    placeholder="Select session end date"
+                                    placeholder="Select session start date"
                                 />
                             </Form.Item>
+                            {timeFields}
                             <Form.Item
                                 name="responsible_bdm_2"
                                 label="Responsible BDM"
@@ -1625,7 +2287,7 @@ const BDM = () => {
     const getStats = () => {
         try {
             if (!selectedCategory || !tableData.length) {
-                return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0 };
+                return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0, completionRate: 0 };
             }
 
             const totalRecords = tableData.length;
@@ -1651,10 +2313,12 @@ const BDM = () => {
                 }
             }).length;
 
-            return { totalRecords, upcomingRecords, completedRecords };
+            const completionRate = totalRecords > 0 ? Math.round((completedRecords / totalRecords) * 100) : 0;
+
+            return { totalRecords, upcomingRecords, completedRecords, completionRate };
         } catch (error) {
             console.error('Error calculating stats:', error);
-            return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0 };
+            return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0, completionRate: 0 };
         }
     };
 
@@ -1671,7 +2335,9 @@ const BDM = () => {
     const stats = getStats();
 
     return (
-        <div>
+        <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto' }}>
+            <ToastContainer position="top-right" autoClose={5000} />
+
             {/* Error Alert */}
             {error && (
                 <Alert
@@ -1690,58 +2356,86 @@ const BDM = () => {
                 />
             )}
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Title level={2}>
-                    <TeamOutlined /> BDM Department
-                </Title>
-                <Space>
-                    <Button
-                        icon={<ReloadOutlined />}
-                        onClick={resetErrorBoundary}
-                        loading={loading}
-                    >
-                        Refresh
-                    </Button>
-                    <Button
-                        type="primary"
-                        icon={<UserOutlined />}
-                        onClick={handleUserAvailabilityClick}
-                    >
-                        Check Users Availability
-                    </Button>
-                </Space>
-            </div>
+            {/* Header with Controls */}
+            <Card
+                size="small"
+                style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
+                bodyStyle={{ padding: '12px 16px' }}
+            >
+                <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                    <Col xs={24} sm={12} md={8}>
+                        <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
+                            <TeamOutlined /> BDM Department
+                        </Title>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                            <Text type="secondary" style={{ fontSize: '14px', display: 'block' }}>
+                                <ClockCircleOutlined /> Last updated: {formatTimeSinceLastRefresh()}
+                            </Text>
+                            <Space style={{ flexWrap: 'wrap' }}>
+                                <Button
+                                    icon={<SyncOutlined spin={isRefreshing} />}
+                                    onClick={manualRefresh}
+                                    loading={isRefreshing}
+                                    size="medium"
+                                >
+                                    Refresh
+                                </Button>
+                                <Switch
+                                    checkedChildren="Auto On"
+                                    unCheckedChildren="Auto Off"
+                                    checked={autoRefresh}
+                                    onChange={handleAutoRefreshToggle}
+                                />
+                            </Space>
+                        </Space>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                        <Space style={{ float: 'right' }}>
+                            <Button
+                                type="primary"
+                                icon={<UserOutlined />}
+                                onClick={handleUserAvailabilityClick}
+                                size="large"
+                            >
+                                Check Team Availability
+                            </Button>
+                        </Space>
+                    </Col>
+                </Row>
+            </Card>
 
-            {/* Category Buttons */}
-            <Card title="BDM Categories" style={{ marginBottom: 24 }}>
-                <Row gutter={[16, 16]} justify="center">
+            {autoRefresh && (
+                <Alert
+                    message="Auto-refresh Enabled"
+                    description="BDM data will automatically update every 2 minutes."
+                    type="info"
+                    showIcon
+                    closable
+                    style={{ marginBottom: 16 }}
+                />
+            )}
+
+            {/* Category Cards */}
+            <Card
+                title="BDM Categories"
+                style={{ marginBottom: 24 }}
+                extra={
+                    <Tag color="blue">
+                        {bdmCategories.length} Categories Available
+                    </Tag>
+                }
+            >
+                <Row gutter={[16, 16]}>
                     {bdmCategories.map((category) => (
                         <Col xs={24} sm={12} md={8} lg={6} key={category.id}>
-                            <Button
-                                type={selectedCategory?.id === category.id ? 'primary' : 'default'}
-                                size="large"
-                                block
-                                style={{
-                                    height: '100px',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}
+                            <CategoryCard
+                                category={category}
+                                isSelected={selectedCategory?.id === category.id}
                                 onClick={() => handleCategoryClick(category)}
-                                disabled={loading}
-                            >
-                                <div style={{ fontSize: '24px', marginBottom: '8px' }}>
-                                    {category.icon}
-                                </div>
-                                <div>{category.name}</div>
-                                <Text type="secondary" style={{ fontSize: '12px', marginTop: '4px' }}>
-                                    {category.type}
-                                </Text>
-                            </Button>
+                                loading={loading}
+                            />
                         </Col>
                     ))}
                 </Row>
@@ -1753,7 +2447,7 @@ const BDM = () => {
                     title={
                         <Space>
                             <FilterOutlined />
-                            Filter Data by Date Range
+                            Filter Data
                             <Tag color="blue">
                                 Default: {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
@@ -1766,23 +2460,48 @@ const BDM = () => {
                             icon={<PlusOutlined />}
                             onClick={handleCreate}
                             loading={loading}
+                            size="large"
                         >
                             Add New Record
                         </Button>
                     }
                 >
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Text>Select date range to view {selectedCategory.name} data:</Text>
-                        <RangePicker
-                            onChange={handleDateRangeChange}
-                            value={dateRange}
-                            style={{ width: '300px' }}
-                            format="DD/MM/YYYY"
-                            disabled={loading}
-                        />
+                        <Row gutter={[16, 16]}>
+                            <Col xs={24} md={12}>
+                                <Text>Select date range to view {selectedCategory.name} data:</Text>
+                                <RangePicker
+                                    onChange={handleDateRangeChange}
+                                    value={dateRange}
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    disabled={loading}
+                                />
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Text>Filter by priority:</Text>
+                                <Select
+                                    placeholder="All Priorities"
+                                    value={priorityFilter}
+                                    onChange={handlePriorityFilterChange}
+                                    style={{ width: '100%' }}
+                                    allowClear
+                                >
+                                    {priorityOptions.map(option => (
+                                        <Option key={option.value} value={option.value}>
+                                            <Space>
+                                                <Badge color={option.color} />
+                                                {option.label}
+                                            </Space>
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Col>
+                        </Row>
                         {dateRange[0] && dateRange[1] && (
                             <Text type="secondary">
                                 Showing data from {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} to {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
+                                {priorityFilter && ` • Priority: ${priorityOptions.find(opt => opt.value === priorityFilter)?.label}`}
                                 <Text style={{ marginLeft: 8, color: '#1890ff' }}>
                                     (Default range: Yesterday to 9 days from today)
                                 </Text>
@@ -1794,47 +2513,58 @@ const BDM = () => {
 
             {/* Statistics */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
-                <Row gutter={16} style={{ marginBottom: 24 }}>
-                    <Col span={8}>
-                        <Card>
-                            <Statistic
-                                title="Total Records"
-                                value={stats.totalRecords}
-                                prefix={<TeamOutlined />}
+                <>
+                    <BDMStatistics stats={stats} loading={loading} />
+
+                    {/* Progress Bar for Completion Rate */}
+                    <Card style={{ marginBottom: 24 }}>
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                            <Text strong>Overall Completion Progress</Text>
+                            <Progress
+                                percent={stats.completionRate}
+                                status={stats.completionRate >= 80 ? "success" : "active"}
+                                strokeColor={{
+                                    '0%': '#108ee9',
+                                    '100%': '#87d068',
+                                }}
                             />
-                        </Card>
-                    </Col>
-                    <Col span={8}>
-                        <Card>
-                            <Statistic
-                                title="Upcoming"
-                                value={stats.upcomingRecords}
-                                valueStyle={{ color: '#cf1322' }}
-                                prefix={<CalendarOutlined />}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={8}>
-                        <Card>
-                            <Statistic
-                                title="Completed"
-                                value={stats.completedRecords}
-                                valueStyle={{ color: '#3f8600' }}
-                                prefix={<CheckCircleOutlined />}
-                            />
-                        </Card>
-                    </Col>
-                </Row>
+                            <Text type="secondary">
+                                {stats.completedRecords} of {stats.totalRecords} records completed ({stats.completionRate}%)
+                            </Text>
+                        </Space>
+                    </Card>
+                </>
             )}
 
             {/* Data Table */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <Card
-                    title={`${selectedCategory.name} Data (${tableData.length} records)`}
+                    title={
+                        <Space>
+                            {selectedCategory.icon}
+                            {selectedCategory.name} Data
+                            <Badge count={tableData.length} showZero color="#1890ff" />
+                        </Space>
+                    }
                     extra={
-                        <Tag color="blue">
-                            {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
-                        </Tag>
+                        <Space>
+                            <Tag color="blue">
+                                {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
+                            </Tag>
+                            {priorityFilter && (
+                                <Tag color={priorityOptions.find(opt => opt.value === priorityFilter)?.color}>
+                                    Priority: {priorityOptions.find(opt => opt.value === priorityFilter)?.label}
+                                </Tag>
+                            )}
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={manualRefresh}
+                                loading={loading}
+                                size="small"
+                            >
+                                Refresh Data
+                            </Button>
+                        </Space>
                     }
                 >
                     {loading ? (
@@ -1844,8 +2574,11 @@ const BDM = () => {
                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                             description={
                                 <Space direction="vertical">
-                                    <Text>No records found for selected date range</Text>
-                                    <Text type="secondary">Try selecting a different date range or create new records</Text>
+                                    <Text>No records found for selected criteria</Text>
+                                    <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
+                                    <Button type="primary" onClick={handleCreate}>
+                                        <PlusOutlined /> Create First Record
+                                    </Button>
                                 </Space>
                             }
                         />
@@ -1895,7 +2628,7 @@ const BDM = () => {
                             <Button onClick={() => setModalVisible(false)}>
                                 Cancel
                             </Button>
-                            <Button type="primary" htmlType="submit">
+                            <Button type="primary" htmlType="submit" size="large">
                                 {editingRecord ? 'Update' : 'Create'} Record
                             </Button>
                         </Space>
@@ -1947,8 +2680,8 @@ const BDM = () => {
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
-                                            <Tooltip 
-                                                key="view" 
+                                            <Tooltip
+                                                key="view"
                                                 title={!availabilityDateRange[0] || !availabilityDateRange[1] ? "Please select date range first" : "View detailed schedule"}
                                             >
                                                 <Button
@@ -1967,9 +2700,9 @@ const BDM = () => {
                                         <List.Item.Meta
                                             title={user.full_name || user.email}
                                             description={
-                                                <Badge 
-                                                    status="success" 
-                                                    text="BDM Team Member" 
+                                                <Badge
+                                                    status="success"
+                                                    text="BDM Team Member"
                                                 />
                                             }
                                         />
@@ -2019,26 +2752,29 @@ const BDM = () => {
 
             {/* Instructions */}
             {!selectedCategory && (
-                <Card title="How to Use">
+                <Card title="How to Use BDM Module">
                     <Alert
                         message="Manage BDM Department Data"
                         description={
                             <div>
                                 <Text strong>Follow these steps:</Text>
                                 <ol>
-                                    <li>Click on any category button above to select a data type</li>
+                                    <li>Click on any category card above to select a data type</li>
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
-                                    <li>View the filtered data in the table below</li>
+                                    <li>Use priority filter to view high-priority items first</li>
+                                    <li>View the filtered data in the table below (sorted by priority)</li>
                                     <li>Use the "Add New Record" button to create new entries</li>
                                     <li>Use Edit/Delete actions in the table to manage records</li>
                                     <li>Use "Discuss" button to participate in group discussions for each record</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
-                                    <li>Use "Check Users Availability" to view team schedules in popup windows</li>
+                                    <li>Use "Check Team Availability" to view team schedules in popup windows</li>
+                                    <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different BDM activities and tasks recorded in the system.
                                     Default date range shows data from yesterday to 9 days in the future (10 days total).
-                                    Schedule details now open in convenient popup windows for better visibility.
+                                    Priority levels help you focus on critical tasks first.
+                                    Schedule details open in convenient popup windows for better visibility.
                                 </Text>
                             </div>
                         }
