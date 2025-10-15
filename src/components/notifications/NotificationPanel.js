@@ -16,7 +16,7 @@ const NotificationPanel = () => {
       setNotifications(newNotifications)
       setUnreadCount(count)
     })
-    
+
     return unsubscribe
   }, [])
 
@@ -35,26 +35,26 @@ const NotificationPanel = () => {
 
   const getOperationColor = (operation) => {
     const colors = {
-      [DB_OPERATIONS.INSERT]: 'green',
-      [DB_OPERATIONS.UPDATE]: 'blue',
-      [DB_OPERATIONS.DELETE]: 'red',
-      [DB_OPERATIONS.FEEDBACK]: 'purple'
-    }
-    return colors[operation] || 'default'
-  }
+      'create': 'green',
+      'update': 'blue',
+      'delete': 'red',
+      'discussion': 'purple'
+    };
+    return colors[operation] || 'default';
+  };
 
   const getNotificationIcon = (notification) => {
     if (notification.source === 'database') {
       return <DatabaseOutlined style={{ color: '#1890ff' }} />
     }
-    
+
     const icons = {
       success: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
       error: <CloseOutlined style={{ color: '#ff4d4f' }} />,
       warning: <CloseOutlined style={{ color: '#faad14' }} />,
       info: <MessageOutlined style={{ color: '#1890ff' }} />
     }
-    
+
     return icons[notification.type] || <MessageOutlined />
   }
 
@@ -75,35 +75,42 @@ const NotificationPanel = () => {
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
             {getNotificationIcon(notification)}
             <span style={{ marginLeft: 8, fontWeight: notification.read ? 'normal' : '600' }}>
-              {notification.title}
+              {notification.topic}
             </span>
           </div>
-          
-          {notification.description && (
-            <p style={{ margin: '4px 0', color: '#666', fontSize: '12px' }}>
-              {notification.description}
-            </p>
-          )}
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-            <small style={{ color: '#999' }}>
-              {new Date(notification.createdAt).toLocaleTimeString()}
-            </small>
-            
-            {notification.meta?.operation && (
-              <Tag color={getOperationColor(notification.meta.operation)} size="small">
-                {notification.meta.operation}
+
+          {/* New fields display */}
+          <div style={{ margin: '4px 0' }}>
+            {notification.department_name && (
+              <Tag color="blue" size="small" style={{ marginRight: 4 }}>
+                {notification.department_name}
               </Tag>
             )}
-            
-            {notification.meta?.table && (
+            {notification.category_name && (
+              <Tag color="green" size="small" style={{ marginRight: 4 }}>
+                {notification.category_name}
+              </Tag>
+            )}
+            {notification.operation_type && (
+              <Tag color={getOperationColor(notification.operation_type)} size="small">
+                {notification.operation_type.toUpperCase()}
+              </Tag>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <small style={{ color: '#999' }}>
+              {new Date(notification.created_at).toLocaleString()}
+            </small>
+
+            {notification.table_name && (
               <Tag size="small" style={{ marginLeft: 4 }}>
-                {notification.meta.table}
+                Table: {notification.table_name}
               </Tag>
             )}
           </div>
         </div>
-        
+
         <Button
           type="text"
           icon={<CloseOutlined />}
@@ -113,15 +120,15 @@ const NotificationPanel = () => {
         />
       </div>
     </List.Item>
-  )
+  );
 
   const databaseChanges = notifications.filter(n => n.source === 'database')
   const systemNotifications = notifications.filter(n => n.source === 'system')
 
   const content = (
     <div style={{ width: 400 }}>
-      <div style={{ 
-        padding: '12px 16px', 
+      <div style={{
+        padding: '12px 16px',
         borderBottom: '1px solid #f0f0f0',
         display: 'flex',
         justifyContent: 'space-between',
@@ -134,7 +141,7 @@ const NotificationPanel = () => {
           </Button>
         )}
       </div>
-      
+
       <Tabs defaultActiveKey="all" size="small">
         <TabPane tab={`All (${notifications.length})`} key="all">
           <List
@@ -144,7 +151,7 @@ const NotificationPanel = () => {
             style={{ maxHeight: 400, overflow: 'auto' }}
           />
         </TabPane>
-        
+
         <TabPane tab={`Database (${databaseChanges.length})`} key="database">
           <List
             dataSource={databaseChanges}
@@ -153,7 +160,7 @@ const NotificationPanel = () => {
             style={{ maxHeight: 400, overflow: 'auto' }}
           />
         </TabPane>
-        
+
         <TabPane tab={`System (${systemNotifications.length})`} key="system">
           <List
             dataSource={systemNotifications}
@@ -177,9 +184,9 @@ const NotificationPanel = () => {
       overlayStyle={{ width: 400 }}
     >
       <Badge count={unreadCount} size="small">
-        <Button 
-          type="text" 
-          icon={<BellOutlined />} 
+        <Button
+          type="text"
+          icon={<BellOutlined />}
           style={{ fontSize: '16px' }}
         />
       </Badge>

@@ -22,6 +22,7 @@ import isBetween from 'dayjs/plugin/isBetween';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -85,7 +86,7 @@ const PriorityBadge = ({ priority }) => {
 // Time Display Component
 const TimeDisplay = ({ time, format = 'HH:mm' }) => {
     if (!time) return '-';
-    
+
     try {
         // Handle both string time and dayjs object
         let timeObj;
@@ -103,7 +104,7 @@ const TimeDisplay = ({ time, format = 'HH:mm' }) => {
         } else {
             timeObj = time;
         }
-        
+
         return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
     } catch (error) {
         return '-';
@@ -815,7 +816,7 @@ const SalesOperations = () => {
     const safeTimeParse = useCallback((time) => {
         try {
             if (!time) return defaultStartTime;
-            
+
             if (dayjs.isDayjs(time)) {
                 return time;
             }
@@ -829,7 +830,7 @@ const SalesOperations = () => {
                         return parsed;
                     }
                 }
-                
+
                 // If no format works, try creating from string directly
                 const directParse = dayjs(`1970-01-01T${time}`);
                 if (directParse.isValid()) {
@@ -848,7 +849,7 @@ const SalesOperations = () => {
     // Time Display Component
     const TimeDisplay = ({ time, format = 'HH:mm' }) => {
         if (!time) return '-';
-        
+
         try {
             // Handle both string time and dayjs object
             const timeObj = safeTimeParse(time);
@@ -1180,7 +1181,7 @@ const SalesOperations = () => {
                 for (const category of salesOpsCategories) {
                     try {
                         console.log(`Checking category: ${category.name}`);
-                        
+
                         let categoryActivities = [];
 
                         // Different filtering strategies for each category
@@ -1266,7 +1267,7 @@ const SalesOperations = () => {
 
                 // Handle different data types
                 if (Array.isArray(conductedBy)) {
-                    return conductedBy.some(name => 
+                    return conductedBy.some(name =>
                         name && String(name).toLowerCase().includes(userName.toLowerCase())
                     );
                 } else if (typeof conductedBy === 'string') {
@@ -1309,7 +1310,7 @@ const SalesOperations = () => {
                     if (!field) return false;
 
                     if (Array.isArray(field)) {
-                        return field.some(item => 
+                        return field.some(item =>
                             item && String(item).toLowerCase().includes(userName.toLowerCase())
                         );
                     } else if (typeof field === 'string') {
@@ -1485,7 +1486,7 @@ const SalesOperations = () => {
     // Helper function to ensure time fields have defaults
     const ensureTimeDefaults = (values) => {
         if (!selectedCategory?.hasTimeFields) return values;
-        
+
         return {
             ...values,
             start_time: values.start_time || defaultStartTime,
@@ -1502,7 +1503,7 @@ const SalesOperations = () => {
 
             // Ensure time defaults
             const valuesWithDefaults = ensureTimeDefaults(values);
-            
+
             // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
             const { department_id, category_id, ...cleanData } = valuesWithDefaults;
             const submitData = { ...cleanData };
@@ -1547,6 +1548,17 @@ const SalesOperations = () => {
 
                 if (error) throw error;
                 result = data[0];
+
+                await notifyDepartmentOperation(
+                    'sales_operations',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.UPDATE,
+                    result,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
                 toast.success('Record updated successfully');
             } else {
                 // Create new record
@@ -1557,6 +1569,17 @@ const SalesOperations = () => {
 
                 if (error) throw error;
                 result = data[0];
+
+                await notifyDepartmentOperation(
+                    'sales_operations',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    result,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
                 toast.success('Record created successfully');
             }
 
@@ -1908,8 +1931,8 @@ const SalesOperations = () => {
                         label="Start Time"
                         initialValue={defaultStartTime}
                     >
-                        <TimePicker 
-                            format="HH:mm" 
+                        <TimePicker
+                            format="HH:mm"
                             style={{ width: '100%' }}
                             placeholder="Select start time"
                         />
@@ -1919,8 +1942,8 @@ const SalesOperations = () => {
                         label="End Time"
                         initialValue={defaultEndTime}
                     >
-                        <TimePicker 
-                            format="HH:mm" 
+                        <TimePicker
+                            format="HH:mm"
                             style={{ width: '100%' }}
                             placeholder="Select end time"
                         />

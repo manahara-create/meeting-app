@@ -22,6 +22,7 @@ import isBetween from 'dayjs/plugin/isBetween';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -308,6 +309,18 @@ const DiscussionModal = React.memo(({
 
             if (error) throw error;
 
+            await notifyDepartmentOperation(
+                'bdm',
+                category.name,
+                NOTIFICATION_TYPES.DISCUSSION,
+                record,
+                {
+                    tableName: feedbackTable,
+                    userId: currentUser.id,
+                    message: 'New message in discussion'
+                }
+            );
+
             setNewMessage('');
         } catch (error) {
             console.error('Error sending message:', error);
@@ -520,7 +533,7 @@ const UserScheduleModal = React.memo(({
     // Safe time display function
     const TimeDisplay = ({ time, format = 'HH:mm' }) => {
         if (!time) return '-';
-        
+
         try {
             // Handle both string time and dayjs object
             let timeObj;
@@ -538,7 +551,7 @@ const UserScheduleModal = React.memo(({
             } else {
                 timeObj = time;
             }
-            
+
             return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
         } catch (error) {
             return '-';
@@ -828,7 +841,7 @@ const BDM = () => {
     const safeTimeParse = useCallback((time) => {
         try {
             if (!time) return defaultStartTime;
-            
+
             if (dayjs.isDayjs(time)) {
                 return time;
             }
@@ -842,7 +855,7 @@ const BDM = () => {
                         return parsed;
                     }
                 }
-                
+
                 // If no format works, try creating from string directly
                 const directParse = dayjs(`1970-01-01T${time}`);
                 if (directParse.isValid()) {
@@ -897,7 +910,7 @@ const BDM = () => {
     // Time Display Component
     const TimeDisplay = ({ time, format = 'HH:mm' }) => {
         if (!time) return '-';
-        
+
         try {
             // Handle both string time and dayjs object
             const timeObj = safeTimeParse(time);
@@ -1217,7 +1230,7 @@ const BDM = () => {
             // 2. BDM activities - CORRECTED FILTERING
             for (const category of bdmCategories) {
                 console.log(`Checking category: ${category.name}`);
-                
+
                 let query = supabase
                     .from(category.table)
                     .select('*')
@@ -1241,10 +1254,10 @@ const BDM = () => {
                                 categoryActivities = textArrayData.filter(item => {
                                     const responsibleUsers = item.responsible_bdm_2;
                                     if (!responsibleUsers) return false;
-                                    
+
                                     // Handle both string arrays and comma-separated strings
                                     if (Array.isArray(responsibleUsers)) {
-                                        return responsibleUsers.some(name => 
+                                        return responsibleUsers.some(name =>
                                             name && name.toLowerCase().includes(userName.toLowerCase())
                                         );
                                     } else if (typeof responsibleUsers === 'string') {
@@ -1424,6 +1437,17 @@ const BDM = () => {
 
             if (error) throw error;
 
+            await notifyDepartmentOperation(
+                'bdm',
+                selectedCategory.name,
+                NOTIFICATION_TYPES.DELETE,
+                record,
+                {
+                    tableName: selectedCategory.table,
+                    userId: currentUser?.id
+                }
+            );
+
             toast.success('Record deleted successfully');
             fetchTableData();
         } catch (error) {
@@ -1485,7 +1509,7 @@ const BDM = () => {
     // Helper function to ensure time fields have defaults
     const ensureTimeDefaults = (values) => {
         if (!selectedCategory?.hasTimeFields) return values;
-        
+
         return {
             ...values,
             start_time: values.start_time || defaultStartTime,
@@ -1493,83 +1517,7 @@ const BDM = () => {
         };
     };
 
-    // CORRECTED handleFormSubmit to fix time handling
-    const handleFormSubmit = async (values) => {
-        try {
-            if (!selectedCategory?.table) {
-                throw new Error('No category selected');
-            }
-
-            // Ensure time defaults
-            const valuesWithDefaults = ensureTimeDefaults(values);
-            
-            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
-            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
-            const submitData = { ...cleanData };
-
-            // Convert dayjs objects to proper formats with error handling
-            Object.keys(submitData).forEach(key => {
-                try {
-                    const value = submitData[key];
-                    if (dayjs.isDayjs(value)) {
-                        if (key.includes('time')) {
-                            // Convert time to HH:mm:ss format
-                            submitData[key] = value.format('HH:mm:ss');
-                        } else {
-                            // Convert date to YYYY-MM-DD format
-                            submitData[key] = value.format('YYYY-MM-DD');
-                        }
-                    }
-                } catch (dateError) {
-                    console.warn(`Error converting date/time field ${key}:`, dateError);
-                }
-            });
-
-            // Handle time fields specifically
-            if (selectedCategory.hasTimeFields) {
-                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
-                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
-                }
-                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
-                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
-                }
-            }
-
-            let result;
-
-            if (editingRecord) {
-                // Update existing record
-                const { data, error } = await supabase
-                    .from(selectedCategory.table)
-                    .update(submitData)
-                    .eq('id', editingRecord.id)
-                    .select();
-
-                if (error) throw error;
-                result = data[0];
-                toast.success('Record updated successfully');
-            } else {
-                // Create new record
-                const { data, error } = await supabase
-                    .from(selectedCategory.table)
-                    .insert([submitData])
-                    .select();
-
-                if (error) throw error;
-                result = data[0];
-                toast.success('Record created successfully');
-            }
-
-            // Auto-create personal meetings for responsible BDMs
-            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
-
-            safeSetState(setModalVisible, false);
-            fetchTableData();
-        } catch (error) {
-            handleError(error, 'saving record');
-        }
-    };
-
+    // FIXED: Create personal meetings function - moved before handleFormSubmit
     const createPersonalMeetingsForBDMs = async (record, category, formData) => {
         try {
             let responsibleUsers = [];
@@ -1705,6 +1653,107 @@ const BDM = () => {
         } catch (error) {
             console.error('Error creating personal meetings:', error);
             // Don't throw error here to avoid affecting main form submission
+        }
+    };
+
+    // CORRECTED handleFormSubmit to fix time handling and use the properly defined createPersonalMeetingsForBDMs
+    const handleFormSubmit = async (values) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            // Ensure time defaults
+            const valuesWithDefaults = ensureTimeDefaults(values);
+
+            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
+            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
+            const submitData = { ...cleanData };
+
+            // Convert dayjs objects to proper formats with error handling
+            Object.keys(submitData).forEach(key => {
+                try {
+                    const value = submitData[key];
+                    if (dayjs.isDayjs(value)) {
+                        if (key.includes('time')) {
+                            // Convert time to HH:mm:ss format
+                            submitData[key] = value.format('HH:mm:ss');
+                        } else {
+                            // Convert date to YYYY-MM-DD format
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
+                    }
+                } catch (dateError) {
+                    console.warn(`Error converting date/time field ${key}:`, dateError);
+                }
+            });
+
+            // Handle time fields specifically
+            if (selectedCategory.hasTimeFields) {
+                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
+                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
+                }
+                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
+                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
+                }
+            }
+
+            let result;
+
+            if (editingRecord) {
+                // Update existing record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .update(submitData)
+                    .eq('id', editingRecord.id)
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+
+                await notifyDepartmentOperation(
+                    'bdm',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.UPDATE,
+                    result,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+
+                toast.success('Record updated successfully');
+            } else {
+                // Create new record
+                const { data, error } = await supabase
+                    .from(selectedCategory.table)
+                    .insert([submitData])
+                    .select();
+
+                if (error) throw error;
+                result = data[0];
+
+                await notifyDepartmentOperation(
+                    'bdm',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    result,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+
+                toast.success('Record created successfully');
+            }
+
+            // Auto-create personal meetings for responsible BDMs - FIXED: Now properly defined
+            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
+
+            safeSetState(setModalVisible, false);
+            fetchTableData();
+        } catch (error) {
+            handleError(error, 'saving record');
         }
     };
 
@@ -1925,8 +1974,8 @@ const BDM = () => {
                         label="Start Time"
                         initialValue={defaultStartTime}
                     >
-                        <TimePicker 
-                            format="HH:mm" 
+                        <TimePicker
+                            format="HH:mm"
                             style={{ width: '100%' }}
                             placeholder="Select start time"
                         />
@@ -1936,8 +1985,8 @@ const BDM = () => {
                         label="End Time"
                         initialValue={defaultEndTime}
                     >
-                        <TimePicker 
-                            format="HH:mm" 
+                        <TimePicker
+                            format="HH:mm"
                             style={{ width: '100%' }}
                             placeholder="Select end time"
                         />
