@@ -20,45 +20,50 @@ import {
   Empty,
   Result,
   Table,
-  Segmented,
   Divider,
   DatePicker,
   Tooltip,
-  ConfigProvider
+  ConfigProvider,
+  Select,
+  Dropdown
 } from 'antd';
 import {
   CalendarOutlined,
   TeamOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  UserOutlined,
   SearchOutlined,
   SyncOutlined,
   ClockCircleOutlined,
-  WarningOutlined,
   ReloadOutlined,
   FrownOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
   FilterOutlined,
   EyeOutlined,
   LeftOutlined,
   RightOutlined,
-  IdcardOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  UserOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import timeGridPlugin from '@fullcalendar/timegrid';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+
+dayjs.extend(weekOfYear);
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 // Priority and status configurations
 const priorityColors = {
@@ -85,213 +90,676 @@ const statusColors = {
   in_progress: '#3498db'
 };
 
-// Department configuration
+// Departments configuration
 const departments = {
   BDM: { name: 'BDM', color: '#3498db' },
-  SCMT: { name: 'SCMT', color: '#27ae60' },
-  SALES_OPERATIONS: { name: 'Sales Operations', color: '#f39c12' }
+  CLUSTER_1: { name: 'Cluster 1', color: '#e74c3c' },
+  CLUSTER_2: { name: 'Cluster 2', color: '#9b59b6' },
+  CLUSTER_3: { name: 'Cluster 3', color: '#34495e' },
+  CLUSTER_4: { name: 'Cluster 4', color: '#e67e22' },
+  CLUSTER_5: { name: 'Cluster 5', color: '#1abc9c' },
+  CLUSTER_6: { name: 'Cluster 6', color: '#d35400' },
+  CUSTOMER_CARE: { name: 'Customer Care', color: '#27ae60' },
+  E_HEALTHCARE: { name: 'E-Healthcare', color: '#8e44ad' },
+  HI_TECH: { name: 'Hi-Tech', color: '#f39c12' },
+  HR: { name: 'HR', color: '#16a085' },
+  IMPORTS: { name: 'Imports', color: '#c0392b' },
+  REGULATORY: { name: 'Regulatory', color: '#7f8c8d' },
+  SALES_OPERATIONS: { name: 'Sales Operations', color: '#2c3e50' },
+  SOMT: { name: 'SOMT', color: '#d35400' },
+  STORES: { name: 'Stores', color: '#27ae60' },
+  SURGE_SURGECARE: { name: 'Surge-Surgecare', color: '#2980b9' },
+  SURGE_SURGECARE_IMAGE: { name: 'Surge-Surgecare-Image', color: '#8e44ad' }
 };
 
-// Table to category mapping
+// Complete table to category mapping
 const tableCategoryMapping = {
-  // BDM Department Tables
-  'bdm_customer_visit': { type: 'task', categoryName: 'Customer Visit', department: 'BDM' },
-  'bdm_principle_visit': { type: 'task', categoryName: 'Principle Visit', department: 'BDM' },
-  'bdm_weekly_meetings': { type: 'meeting', categoryName: 'Weekly Meetings', department: 'BDM' },
-  'bdm_college_session': { type: 'meeting', categoryName: 'College Session', department: 'BDM' },
-  'bdm_promotional_activities': { type: 'task', categoryName: 'Promotional Activities', department: 'BDM' },
+  // BDM Department
+  'bdm_college_session': { type: 'meeting', categoryName: 'BDM - College Session', department: 'BDM', shortName: 'College' },
+  'bdm_weekly_meetings': { type: 'meeting', categoryName: 'BDM - Meeting Schedule', department: 'BDM', shortName: 'Meeting' },
+  'bdm_principle_visit': { type: 'task', categoryName: 'BDM - Principle Visit', department: 'BDM', shortName: 'Principle' },
+  'bdm_promotional_activities': { type: 'task', categoryName: 'BDM - Promotional Activities', department: 'BDM', shortName: 'Promo' },
+  'bdm_customer_visit': { type: 'task', categoryName: 'BDM - Visit Plan', department: 'BDM', shortName: 'Visit' },
   
-  // Sales Operations Department Tables
-  'sales_operations_meetings': { type: 'meeting', categoryName: 'Meetings', department: 'SALES_OPERATIONS' },
-  'sales_operations_tasks': { type: 'task', categoryName: 'Special Tasks', department: 'SALES_OPERATIONS' },
+  // Cluster 1
+  'cluster_1_meetings': { type: 'meeting', categoryName: 'Cluster 1 - Meetings', department: 'CLUSTER_1', shortName: 'C1 Meet' },
+  'cluster_1_special_task': { type: 'task', categoryName: 'Cluster 1 - Special Tasks', department: 'CLUSTER_1', shortName: 'C1 Task' },
+  'cluster_1_visit_plan': { type: 'task', categoryName: 'Cluster 1 - Visit Plan', department: 'CLUSTER_1', shortName: 'C1 Visit' },
   
-  // SCMT Department Tables
-  'scmt_d_n_d': { type: 'task', categoryName: 'Delivery and Distributions', department: 'SCMT' },
-  'scmt_meetings_and_sessions': { type: 'meeting', categoryName: 'Meetings and Sessions', department: 'SCMT' },
-  'scmt_others': { type: 'task', categoryName: 'Other Operation Activities', department: 'SCMT' },
-  'scmt_weekly_meetings': { type: 'task', categoryName: 'Upcoming Shipments', department: 'SCMT' }
+  // Cluster 2
+  'cluster_2_meetings': { type: 'meeting', categoryName: 'Cluster 2 - Meetings', department: 'CLUSTER_2', shortName: 'C2 Meet' },
+  'cluster_2_special_task': { type: 'task', categoryName: 'Cluster 2 - Special Tasks', department: 'CLUSTER_2', shortName: 'C2 Task' },
+  'cluster_2_visit_plan': { type: 'task', categoryName: 'Cluster 2 - Visit Plan', department: 'CLUSTER_2', shortName: 'C2 Visit' },
+  
+  // Cluster 3
+  'cluster_3_meetings': { type: 'meeting', categoryName: 'Cluster 3 - Meetings', department: 'CLUSTER_3', shortName: 'C3 Meet' },
+  'cluster_3_special_task': { type: 'task', categoryName: 'Cluster 3 - Special Tasks', department: 'CLUSTER_3', shortName: 'C3 Task' },
+  'cluster_3_visit_plan': { type: 'task', categoryName: 'Cluster 3 - Visit Plan', department: 'CLUSTER_3', shortName: 'C3 Visit' },
+  
+  // Cluster 4
+  'cluster_4_meetings': { type: 'meeting', categoryName: 'Cluster 4 - Meetings', department: 'CLUSTER_4', shortName: 'C4 Meet' },
+  'cluster_4_special_task': { type: 'task', categoryName: 'Cluster 4 - Special Tasks', department: 'CLUSTER_4', shortName: 'C4 Task' },
+  'cluster_4_visit_plan': { type: 'task', categoryName: 'Cluster 4 - Visit Plan', department: 'CLUSTER_4', shortName: 'C4 Visit' },
+  
+  // Cluster 5
+  'cluster_5_meetings': { type: 'meeting', categoryName: 'Cluster 5 - Meetings', department: 'CLUSTER_5', shortName: 'C5 Meet' },
+  'cluster_5_special_task': { type: 'task', categoryName: 'Cluster 5 - Special Tasks', department: 'CLUSTER_5', shortName: 'C5 Task' },
+  'cluster_5_visit_plan': { type: 'task', categoryName: 'Cluster 5 - Visit Plan', department: 'CLUSTER_5', shortName: 'C5 Visit' },
+  
+  // Cluster 6
+  'cluster_6_meetings': { type: 'meeting', categoryName: 'Cluster 6 - Meetings', department: 'CLUSTER_6', shortName: 'C6 Meet' },
+  'cluster_6_special_task': { type: 'task', categoryName: 'Cluster 6 - Special Tasks', department: 'CLUSTER_6', shortName: 'C6 Task' },
+  'cluster_6_visit_plan': { type: 'task', categoryName: 'Cluster 6 - Visit Plan', department: 'CLUSTER_6', shortName: 'C6 Visit' },
+  
+  // Customer Care
+  'customer_care_meetings': { type: 'meeting', categoryName: 'Customer Care - Meetings', department: 'CUSTOMER_CARE', shortName: 'CC Meet' },
+  'customer_care_special_tasks': { type: 'task', categoryName: 'Customer Care - Special Tasks', department: 'CUSTOMER_CARE', shortName: 'CC Task' },
+  'customer_care_delivery_schedule': { type: 'task', categoryName: 'Customer Care - Delivery Schedule', department: 'CUSTOMER_CARE', shortName: 'CC Delivery' },
+  
+  // E-Healthcare
+  'ehealthcare_meetings': { type: 'meeting', categoryName: 'E-Healthcare Meetings', department: 'E_HEALTHCARE', shortName: 'E-Health Meet' },
+  'ehealthcare_visit_plan': { type: 'task', categoryName: 'E-Healthcare Visit Plan', department: 'E_HEALTHCARE', shortName: 'E-Health Visit' },
+  
+  // Hi-Tech
+  'hitech_page_generation': { type: 'task', categoryName: 'Hi-Tech Page Generation', department: 'HI_TECH', shortName: 'Hi-Tech Page' },
+  'hitech_technical_discussions': { type: 'meeting', categoryName: 'Hi-Tech Technical Discussion', department: 'HI_TECH', shortName: 'Hi-Tech Tech' },
+  'hitech_tender_validation': { type: 'task', categoryName: 'Hi-Tech Tender Validation', department: 'HI_TECH', shortName: 'Hi-Tech Tender' },
+  
+  // HR
+  'hr_meetings': { type: 'meeting', categoryName: 'HR - Meetings', department: 'HR', shortName: 'HR Meet' },
+  'hr_special_events_n_tasks': { type: 'task', categoryName: 'HR - Special Events', department: 'HR', shortName: 'HR Event' },
+  'hr_training': { type: 'task', categoryName: 'HR - Trainings', department: 'HR', shortName: 'HR Training' },
+  
+  // Imports
+  'imports_meetings': { type: 'meeting', categoryName: 'Imports - Meeting Schedules', department: 'IMPORTS', shortName: 'Imports Meet' },
+  'imports_upcoming_shipments': { type: 'task', categoryName: 'Imports - Upcoming Shipments', department: 'IMPORTS', shortName: 'Imports Ship' },
+  
+  // Regulatory
+  'regulatory_meetings': { type: 'meeting', categoryName: 'Regulatory - Meetings', department: 'REGULATORY', shortName: 'Regulatory Meet' },
+  'regulatory_submissions': { type: 'task', categoryName: 'Regulatory - Submissions', department: 'REGULATORY', shortName: 'Regulatory Sub' },
+  
+  // Sales Operations
+  'sales_operations_meetings': { type: 'meeting', categoryName: 'Sales Operations Meetings', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Meet' },
+  'sales_operations_special_tasks': { type: 'task', categoryName: 'Sales Operations Special Tasks', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Task' },
+  
+  // SOMT
+  'somt_meetings': { type: 'meeting', categoryName: 'SOMT -Meetings', department: 'SOMT', shortName: 'SOMT Meet' },
+  'somt_tender': { type: 'task', categoryName: 'SOMT -Tender', department: 'SOMT', shortName: 'SOMT Tender' },
+  
+  // Stores
+  'stores_plan_loading': { type: 'task', categoryName: 'Stores - Plan Loading', department: 'STORES', shortName: 'Stores Load' },
+  'stores_vst': { type: 'task', categoryName: 'Stores - VST', department: 'STORES', shortName: 'Stores VST' },
+  
+  // Surge-Surgecare
+  'surge_surgecare_imagine_college_session': { type: 'meeting', categoryName: 'SSI - College Session', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI College' },
+  'surge_surgecare_imagine_principal_visit': { type: 'task', categoryName: 'SSI - Principle Visit', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Principle' },
+  'surge_surgecare_imagine_promotional_activities': { type: 'task', categoryName: 'SSI - Promotional Activities', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Promo' },
+  'surge_surgecare_imagine_visit_plan': { type: 'task', categoryName: 'SSI - Visit Plan', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Visit' },
+  'surge_surgecare_principal_visit': { type: 'task', categoryName: 'SS - Principle Visit', department: 'SURGE_SURGECARE', shortName: 'SS Principle' }
 };
 
-// Enhanced FullCalendar Component with proper time support
-const EnhancedFullCalendar = React.memo(({ 
-  events, 
+// Simplified Calendar Component (Excel-like view) with Week and Day views
+const SimplifiedCalendar = ({ 
+  activities, 
   onDateClick, 
+  selectedDate,
+  currentMonth,
+  onMonthChange,
   onEventClick,
-  view = 'dayGridMonth',
-  height = '600px',
-  dateRange = null
+  viewMode,
+  onViewModeChange
 }) => {
-  const calendarRef = useRef(null);
-
-  // Calculate activity count per day for coloring
-  const getActivityCountColor = (date) => {
-    const dayEvents = events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate.toDateString() === date.toDateString();
-    });
-    
-    const count = dayEvents.length;
-    
-    if (count === 0) return 'transparent';
-    if (count <= 3) return '#27ae60'; // Green
-    if (count <= 6) return '#f39c12'; // Orange
-    return '#e74c3c'; // Red
+  // Get days in month
+  const getDaysInMonth = (date) => {
+    const year = date.year();
+    const month = date.month();
+    return new Date(year, month + 1, 0).getDate();
   };
 
-  // Get event color based on activity count (overriding priority-based colors)
-  const getEventColor = (event) => {
-    const eventDate = new Date(event.start);
-    return getActivityCountColor(eventDate);
-  };
-
-  // Get event text color based on background
-  const getEventTextColor = (backgroundColor) => {
-    if (backgroundColor === 'transparent') return '#000';
-    return '#ffffff'; // White text for colored backgrounds
-  };
-
-  const handleDateClick = (arg) => {
-    if (onDateClick) {
-      onDateClick(arg.date, arg);
-    }
-  };
-
-  const handleEventClick = (arg) => {
-    if (onEventClick) {
-      onEventClick(arg.event);
-    }
-  };
-
-  // Filter events based on date range
-  const getFilteredEvents = () => {
-    if (!dateRange || !dateRange[0] || !dateRange[1]) {
-      return events;
-    }
-    
-    const startDate = new Date(dateRange[0]);
-    const endDate = new Date(dateRange[1]);
-    endDate.setHours(23, 59, 59, 999);
-    
-    return events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate >= startDate && eventDate <= endDate;
+  // Get activities for a specific date
+  const getActivitiesForDate = (date) => {
+    return activities.filter(activity => {
+      const activityDate = new Date(activity.start || activity.date || activity.created_at);
+      return activityDate.toDateString() === date.toDateString();
     });
   };
 
-  const filteredEvents = getFilteredEvents();
+  // Group activities by category for a date
+  const getGroupedActivities = (date) => {
+    const dateActivities = getActivitiesForDate(date);
+    const grouped = {};
+    
+    dateActivities.forEach(activity => {
+      const category = activity.categoryName;
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(activity);
+    });
+    
+    return grouped;
+  };
+
+  // Render month view
+  const renderMonthView = () => {
+    const daysInMonth = getDaysInMonth(currentMonth);
+    const firstDay = currentMonth.startOf('month').day();
+    const weeks = [];
+    let currentWeek = [];
+    
+    // Add empty cells for days before the first day of month
+    for (let i = 0; i < firstDay; i++) {
+      currentWeek.push(<td key={`empty-${i}`} className="calendar-empty-cell"></td>);
+    }
+    
+    // Add cells for each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = currentMonth.date(day);
+      const dateActivities = getActivitiesForDate(date.toDate());
+      const groupedActivities = getGroupedActivities(date.toDate());
+      const isToday = date.isSame(dayjs(), 'day');
+      const isSelected = selectedDate && date.isSame(selectedDate, 'day');
+      
+      const cellClassNames = [
+        'calendar-cell',
+        isToday ? 'calendar-cell-today' : '',
+        isSelected ? 'calendar-cell-selected' : '',
+        dateActivities.length > 0 ? 'calendar-cell-has-events' : ''
+      ].filter(Boolean).join(' ');
+      
+      currentWeek.push(
+        <td key={day} className={cellClassNames}>
+          <div 
+            className="calendar-date"
+            onClick={() => onDateClick(date, dateActivities)}
+            style={{ cursor: 'pointer', height: '100%' }}
+          >
+            <div className="calendar-date-number">{day}</div>
+            <div className="calendar-events">
+              {Object.entries(groupedActivities).slice(0, 3).map(([category, activities]) => (
+                <Tooltip 
+                  key={category} 
+                  title={`${category} (${activities.length} activities)`}
+                >
+                  <div 
+                    className="calendar-event-category"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (activities.length === 1) {
+                        onEventClick(activities[0]);
+                      }
+                    }}
+                  >
+                    <Tag 
+                      color={departments[activities[0].department]?.color || 'blue'}
+                      style={{ 
+                        fontSize: '10px', 
+                        padding: '1px 4px', 
+                        margin: '1px',
+                        lineHeight: '1.2',
+                        height: 'auto',
+                        cursor: activities.length === 1 ? 'pointer' : 'default'
+                      }}
+                    >
+                      {tableCategoryMapping[activities[0].sourceTable]?.shortName || category.substring(0, 8)}
+                    </Tag>
+                    {activities.length > 1 && (
+                      <span style={{ fontSize: '9px', marginLeft: '2px' }}>
+                        +{activities.length - 1}
+                      </span>
+                    )}
+                  </div>
+                </Tooltip>
+              ))}
+              {Object.keys(groupedActivities).length > 3 && (
+                <div className="calendar-more-events">
+                  <Tag style={{ fontSize: '9px', padding: '0 3px' }}>
+                    +{Object.keys(groupedActivities).length - 3} more
+                  </Tag>
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      );
+      
+      // Start new week when we reach Sunday
+      if ((firstDay + day) % 7 === 0) {
+        weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
+        currentWeek = [];
+      }
+    }
+    
+    // Add empty cells for remaining days in the last week
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(<td key={`empty-end-${currentWeek.length}`} className="calendar-empty-cell"></td>);
+      }
+      weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
+    }
+    
+    return weeks;
+  };
+
+  // Render week view
+  const renderWeekView = () => {
+    const startOfWeek = currentMonth.startOf('week');
+    const days = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = startOfWeek.add(i, 'day');
+      const dateActivities = getActivitiesForDate(date.toDate());
+      const isToday = date.isSame(dayjs(), 'day');
+      const isSelected = selectedDate && date.isSame(selectedDate, 'day');
+      
+      const cellClassNames = [
+        'calendar-cell',
+        'calendar-cell-week',
+        isToday ? 'calendar-cell-today' : '',
+        isSelected ? 'calendar-cell-selected' : '',
+        dateActivities.length > 0 ? 'calendar-cell-has-events' : ''
+      ].filter(Boolean).join(' ');
+      
+      days.push(
+        <td key={i} className={cellClassNames} style={{ width: '14.28%' }}>
+          <div 
+            className="calendar-date"
+            onClick={() => onDateClick(date, dateActivities)}
+            style={{ cursor: 'pointer', height: '100%' }}
+          >
+            <div className="calendar-date-header">
+              <div className="calendar-week-day">{date.format('ddd')}</div>
+              <div className="calendar-date-number">{date.date()}</div>
+            </div>
+            <div className="calendar-events-week">
+              {dateActivities.slice(0, 10).map((activity, index) => (
+                <Tooltip key={index} title={activity.title}>
+                  <div 
+                    className="calendar-event-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(activity);
+                    }}
+                  >
+                    <Tag 
+                      color={departments[activity.department]?.color || 'blue'}
+                      style={{ 
+                        fontSize: '11px', 
+                        padding: '2px 6px', 
+                        margin: '2px 0',
+                        lineHeight: '1.3',
+                        height: 'auto',
+                        cursor: 'pointer',
+                        width: '100%',
+                        textAlign: 'left',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {activity.title.substring(0, 20)}
+                      {activity.title.length > 20 ? '...' : ''}
+                    </Tag>
+                  </div>
+                </Tooltip>
+              ))}
+              {dateActivities.length > 10 && (
+                <div className="calendar-more-events">
+                  <Tag style={{ fontSize: '10px', padding: '1px 4px' }}>
+                    +{dateActivities.length - 10} more
+                  </Tag>
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      );
+    }
+    
+    return [<tr key="week">{days}</tr>];
+  };
+
+  // Render day view
+  const renderDayView = () => {
+    const date = selectedDate || currentMonth;
+    const dateActivities = getActivitiesForDate(date.toDate());
+    const isToday = date.isSame(dayjs(), 'day');
+    
+    const cellClassNames = [
+      'calendar-cell',
+      'calendar-cell-day',
+      isToday ? 'calendar-cell-today' : '',
+      'calendar-cell-selected'
+    ].filter(Boolean).join(' ');
+    
+    return [
+      <tr key="day">
+        <td className={cellClassNames} style={{ height: '500px' }}>
+          <div className="calendar-date-day">
+            <div className="calendar-date-header-day">
+              <div className="calendar-week-day">{date.format('dddd')}</div>
+              <div className="calendar-date-number-large">{date.format('MMMM D, YYYY')}</div>
+            </div>
+            <div className="calendar-events-day">
+              {dateActivities.length === 0 ? (
+                <Empty 
+                  image={Empty.PRESENTED_IMAGE_SIMPLE} 
+                  description="No activities for this day"
+                  style={{ margin: '40px 0' }}
+                />
+              ) : (
+                dateActivities.map((activity, index) => (
+                  <div 
+                    key={index}
+                    className="calendar-event-item-day"
+                    onClick={() => onEventClick(activity)}
+                  >
+                    <Card 
+                      size="small" 
+                      style={{ 
+                        marginBottom: '8px',
+                        cursor: 'pointer',
+                        borderLeft: `4px solid ${departments[activity.department]?.color || '#1890ff'}`
+                      }}
+                    >
+                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Text strong style={{ fontSize: '14px', flex: 1 }}>
+                            {activity.title}
+                          </Text>
+                          <Tag color={departments[activity.department]?.color}>
+                            {departments[activity.department]?.name}
+                          </Tag>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {activity.categoryName}
+                        </Text>
+                        {activity.hasTime && (
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            <ClockCircleOutlined /> {new Date(activity.start).toLocaleTimeString()}
+                          </Text>
+                        )}
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          <Tag color={activity.type === 'meeting' ? 'blue' : 'green'}>
+                            {activity.type === 'meeting' ? 'Meeting' : 'Task'}
+                          </Tag>
+                          <Tag color={priorityColors[activity.priority]}>
+                            {priorityLabels[activity.priority]}
+                          </Tag>
+                        </div>
+                      </Space>
+                    </Card>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </td>
+      </tr>
+    ];
+  };
+
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const renderView = () => {
+    switch (viewMode) {
+      case 'week':
+        return renderWeekView();
+      case 'day':
+        return renderDayView();
+      default:
+        return renderMonthView();
+    }
+  };
+
+  const getHeaderText = () => {
+    switch (viewMode) {
+      case 'week':
+        return `Week of ${currentMonth.startOf('week').format('MMM D')} - ${currentMonth.endOf('week').format('MMM D, YYYY')}`;
+      case 'day':
+        const date = selectedDate || currentMonth;
+        return date.format('dddd, MMMM D, YYYY');
+      default:
+        return currentMonth.format('MMMM YYYY');
+    }
+  };
+
+  const navigateView = (direction) => {
+    switch (viewMode) {
+      case 'week':
+        onMonthChange(currentMonth.add(direction, 'week'));
+        break;
+      case 'day':
+        onMonthChange(currentMonth.add(direction, 'day'));
+        break;
+      default:
+        onMonthChange(currentMonth.add(direction, 'month'));
+    }
+  };
 
   return (
-    <div style={{ 
-      border: '1px solid #e8e8e8', 
-      borderRadius: '8px', 
-      padding: '16px',
-      backgroundColor: '#fff'
-    }}>
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
-        initialView={view}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        }}
-        height={height}
-        events={filteredEvents}
-        dateClick={handleDateClick}
-        eventClick={handleEventClick}
-        eventColor={(event) => getEventColor(event)}
-        eventTextColor={(event) => getEventTextColor(getEventColor(event))}
-        eventDisplay="block"
-        eventTimeFormat={{
-          hour: '2-digit',
-          minute: '2-digit',
-          meridiem: 'short'
-        }}
-        dayMaxEvents={3}
-        moreLinkText={`more`}
-        views={{
-          dayGridMonth: {
-            dayMaxEventRows: 3,
-          },
-          timeGridWeek: {
-            dayMaxEventRows: 3,
-          },
-          timeGridDay: {
-            dayMaxEventRows: 6,
-          }
-        }}
-        eventContent={(eventInfo) => {
-          const eventDate = new Date(eventInfo.event.start);
-          const dayEvents = events.filter(event => {
-            const currentEventDate = new Date(event.start);
-            return currentEventDate.toDateString() === eventDate.toDateString();
-          });
-          const activityCount = dayEvents.length;
-
-          return (
-            <div style={{
-              padding: '2px 4px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
-              <div>{eventInfo.event.title}</div>
-              <div style={{ 
-                fontSize: '10px', 
-                opacity: 0.9,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>{eventInfo.timeText}</span>
-                <Tooltip title={`${activityCount} activities on this day`}>
-                  <span style={{ 
-                    marginLeft: '4px',
-                    backgroundColor: 'rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    padding: '1px 4px',
-                    fontSize: '8px',
+    <Card 
+      title={
+        <Space>
+          <CalendarOutlined />
+          <Text strong>Organizational Calendar</Text>
+          <Select 
+            value={viewMode} 
+            onChange={onViewModeChange}
+            size="small"
+            style={{ width: 120 }}
+          >
+            <Option value="month">Month View</Option>
+            <Option value="week">Week View</Option>
+            <Option value="day">Day View</Option>
+          </Select>
+        </Space>
+      }
+      extra={
+        <Space>
+          <Button 
+            icon={<LeftOutlined />} 
+            onClick={() => navigateView(-1)}
+            size="small"
+          />
+          <Text strong>{getHeaderText()}</Text>
+          <Button 
+            icon={<RightOutlined />} 
+            onClick={() => navigateView(1)}
+            size="small"
+          />
+          <Button 
+            onClick={() => {
+              const now = dayjs();
+              onMonthChange(now);
+              if (viewMode === 'day') {
+                onDateClick(now, getActivitiesForDate(now.toDate()));
+              }
+            }}
+            size="small"
+          >
+            Today
+          </Button>
+        </Space>
+      }
+      bordered={false}
+    >
+      <div className="simplified-calendar">
+        {viewMode !== 'day' && (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {weekDays.map(day => (
+                  <th key={day} style={{ 
+                    padding: '12px', 
+                    textAlign: 'center', 
+                    backgroundColor: '#fafafa',
+                    border: '1px solid #e8e8e8',
                     fontWeight: 'bold'
                   }}>
-                    {activityCount}
-                  </span>
-                </Tooltip>
-              </div>
-            </div>
-          );
-        }}
-        dayCellContent={(cellInfo) => {
-          const date = cellInfo.date;
-          const today = new Date();
-          const tenDaysFromYesterday = new Date();
-          tenDaysFromYesterday.setDate(today.getDate() - 1 + 10);
-          
-          const isDefaultRange = date >= today && date <= tenDaysFromYesterday;
-          const activityCountColor = getActivityCountColor(date);
-          const hasActivities = activityCountColor !== 'transparent';
-
-          return (
-            <div style={{
-              textAlign: 'center',
-              fontWeight: isDefaultRange ? 'bold' : 'normal',
-              color: isDefaultRange ? '#1890ff' : 'inherit',
-              backgroundColor: hasActivities ? activityCountColor : (isDefaultRange ? '#e6f7ff' : 'transparent'),
-              borderRadius: '4px',
-              padding: '4px',
-              border: hasActivities ? '2px solid #fff' : 'none',
-              boxShadow: hasActivities ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
-            }}>
-              {date.getDate()}
-            </div>
-          );
-        }}
-      />
-    </div>
+                    {viewMode === 'week' ? day : day.substring(0, 1)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {renderView()}
+            </tbody>
+          </table>
+        )}
+        
+        {viewMode === 'day' && (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {renderView()}
+            </tbody>
+          </table>
+        )}
+        
+        {/* Calendar Legend */}
+        <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+          <Text strong>Legend: </Text>
+          <Space wrap size={[8, 8]} style={{ marginTop: '8px' }}>
+            {Object.entries(departments).slice(0, 6).map(([key, dept]) => (
+              <Space key={key} size={4}>
+                <div 
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: dept.color,
+                    borderRadius: '2px'
+                  }}
+                />
+                <Text style={{ fontSize: '12px' }}>{dept.name}</Text>
+              </Space>
+            ))}
+            {Object.entries(departments).length > 6 && (
+              <Text style={{ fontSize: '12px' }}>+{Object.entries(departments).length - 6} more departments</Text>
+            )}
+          </Space>
+        </div>
+      </div>
+      
+      <style jsx>{`
+        .calendar-cell {
+          border: 1px solid #e8e8e8;
+          vertical-align: top;
+          height: 120px;
+          padding: 4px;
+          background-color: white;
+          transition: all 0.2s;
+        }
+        
+        .calendar-cell-week {
+          height: 400px;
+        }
+        
+        .calendar-cell-day {
+          height: auto;
+          min-height: 500px;
+        }
+        
+        .calendar-cell:hover {
+          background-color: #f5f5f5;
+        }
+        
+        .calendar-cell-today {
+          background-color: #e6f7ff;
+          border: 2px solid #1890ff;
+        }
+        
+        .calendar-cell-selected {
+          background-color: #f6ffed;
+          border: 2px solid #52c41a;
+        }
+        
+        .calendar-cell-has-events {
+          background-color: #fff7e6;
+        }
+        
+        .calendar-empty-cell {
+          border: 1px solid #f0f0f0;
+          background-color: #fafafa;
+        }
+        
+        .calendar-date-number {
+          font-weight: bold;
+          margin-bottom: 4px;
+          text-align: center;
+          font-size: 14px;
+        }
+        
+        .calendar-date-number-large {
+          font-weight: bold;
+          font-size: 18px;
+          color: #1890ff;
+        }
+        
+        .calendar-date-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        
+        .calendar-date-header-day {
+          text-align: center;
+          margin-bottom: 16px;
+          padding: 16px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border-radius: 8px;
+        }
+        
+        .calendar-week-day {
+          font-size: 12px;
+          color: #666;
+          font-weight: normal;
+        }
+        
+        .calendar-date-header-day .calendar-week-day {
+          font-size: 16px;
+          color: white;
+          font-weight: bold;
+        }
+        
+        .calendar-events {
+          max-height: 80px;
+          overflow-y: auto;
+        }
+        
+        .calendar-events-week {
+          max-height: 340px;
+          overflow-y: auto;
+        }
+        
+        .calendar-events-day {
+          max-height: 400px;
+          overflow-y: auto;
+        }
+        
+        .calendar-event-category {
+          margin-bottom: 2px;
+          display: flex;
+          align-items: center;
+        }
+        
+        .calendar-event-item {
+          margin-bottom: 4px;
+        }
+        
+        .calendar-event-item-day {
+          margin-bottom: 8px;
+        }
+        
+        .calendar-more-events {
+          text-align: center;
+          margin-top: 4px;
+        }
+      `}</style>
+    </Card>
   );
-});
+};
 
 // Enhanced Recent Activities Component with Arrow Pagination
 const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
@@ -387,7 +855,7 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                     description={
                       <Space direction="vertical" size={0}>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.departmentName} • {activity.categoryName}
+                          {departments[activity.department]?.name} • {activity.categoryName}
                         </Text>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
                           {activity.hasTime ? 
@@ -442,6 +910,177 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
   );
 };
 
+// Department Filter Component
+const DepartmentFilter = ({ selectedDepartment, onDepartmentChange }) => {
+  return (
+    <Card size="small" style={{ marginBottom: 16 }}>
+      <Space wrap>
+        <Text strong style={{ fontSize: '16px' }}>Filter by Department:</Text>
+        <Select
+          value={selectedDepartment}
+          onChange={onDepartmentChange}
+          style={{ width: 250 }}
+          placeholder="Select Department"
+          allowClear
+          size="large"
+        >
+          {Object.entries(departments).map(([key, dept]) => (
+            <Option key={key} value={key}>
+              <Space>
+                <div 
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: dept.color,
+                    borderRadius: '2px'
+                  }}
+                />
+                {dept.name}
+              </Space>
+            </Option>
+          ))}
+        </Select>
+        <Button
+          onClick={() => onDepartmentChange(null)}
+          size="large"
+        >
+          Show All Departments
+        </Button>
+      </Space>
+    </Card>
+  );
+};
+
+// Export functionality
+const ExportButton = ({ activities, currentView, currentDate, selectedDepartment }) => {
+  const exportToExcel = () => {
+    try {
+      const dataForExport = activities.map(activity => ({
+        'Title': activity.title || 'Untitled Activity',
+        'Department': departments[activity.department]?.name || activity.department,
+        'Category': activity.categoryName,
+        'Type': activity.type === 'meeting' ? 'Meeting' : 'Task',
+        'Date': new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
+        'Time': activity.hasTime ? new Date(activity.start).toLocaleTimeString() : 'All Day',
+        'Priority': priorityLabels[activity.priority],
+        'Status': activity.status || 'scheduled',
+        'Remarks': activity.remarks || '',
+        'Responsible Person': activity.responsible_bdm || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Activities');
+      
+      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
+      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      toast.success('Excel file exported successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export Excel file');
+    }
+  };
+
+ const exportToPDF = () => {
+    try {
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(16);
+      doc.text('Organizational Calendar Export', 14, 15);
+      doc.setFontSize(10);
+      const departmentText = selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : '';
+      doc.text(`View: ${currentView}${departmentText} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`, 14, 22);
+      
+      // Prepare table data manually without autoTable
+      const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
+      const tableData = activities.map(activity => [
+        activity.title?.substring(0, 25) || 'Untitled Activity',
+        departments[activity.department]?.name || activity.department,
+        activity.categoryName.substring(0, 20),
+        activity.type === 'meeting' ? 'Meeting' : 'Task',
+        new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
+        priorityLabels[activity.priority]
+      ]);
+
+      // Simple table implementation
+      let yPosition = 35;
+      const lineHeight = 7;
+      const colWidths = [40, 25, 30, 20, 20, 20];
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Draw headers
+      doc.setFillColor(52, 152, 219);
+      doc.setTextColor(255, 255, 255);
+      let xPosition = 14;
+      
+      headers.forEach((header, index) => {
+        doc.rect(xPosition, yPosition - 5, colWidths[index], 8, 'F');
+        doc.text(header, xPosition + 2, yPosition);
+        xPosition += colWidths[index];
+      });
+
+      yPosition += 10;
+      doc.setTextColor(0, 0, 0);
+
+      // Draw rows
+      tableData.forEach((row, rowIndex) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        xPosition = 14;
+        row.forEach((cell, cellIndex) => {
+          doc.text(cell.toString(), xPosition + 2, yPosition);
+          xPosition += colWidths[cellIndex];
+        });
+
+        // Draw line separator
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, yPosition + 2, 14 + colWidths.reduce((a, b) => a + b, 0), yPosition + 2);
+
+        yPosition += lineHeight;
+      });
+
+      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
+      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+      doc.save(fileName);
+      
+      toast.success('PDF file exported successfully!');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast.error('Failed to export PDF file');
+    }
+  };
+
+  const exportItems = [
+    {
+      key: 'excel',
+      icon: <FileExcelOutlined />,
+      label: 'Export to Excel',
+      onClick: exportToExcel
+    },
+    {
+      key: 'pdf',
+      icon: <FilePdfOutlined />,
+      label: 'Export to PDF',
+      onClick: exportToPDF
+    }
+  ];
+
+  return (
+    <Dropdown menu={{ items: exportItems }} placement="bottomRight">
+      <Button type="primary" icon={<DownloadOutlined />} size="large">
+        Export
+      </Button>
+    </Dropdown>
+  );
+};
+
 // Date Activities Modal Component
 const DateActivitiesModal = ({ 
   visible, 
@@ -477,20 +1116,6 @@ const DateActivitiesModal = ({
       )
     },
     {
-      title: 'Time',
-      dataIndex: 'start',
-      key: 'time',
-      width: 100,
-      render: (start, record) => (
-        <Text>
-          {record.hasTime ? 
-            new Date(start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-            'All Day'
-          }
-        </Text>
-      )
-    },
-    {
       title: 'Department',
       dataIndex: 'department',
       key: 'department',
@@ -500,6 +1125,12 @@ const DateActivitiesModal = ({
           {departments[department]?.name || department}
         </Tag>
       )
+    },
+    {
+      title: 'Category',
+      dataIndex: 'categoryName',
+      key: 'categoryName',
+      width: 150
     },
     {
       title: 'Priority',
@@ -530,8 +1161,6 @@ const DateActivitiesModal = ({
           Close
         </Button>
       ]}
-      style={{ top: 20 }}
-      zIndex={1002}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         <Row gutter={16}>
@@ -565,9 +1194,9 @@ const DateActivitiesModal = ({
           <Col span={6}>
             <Card size="small">
               <Statistic
-                title="Timed Events"
-                value={activities.filter(a => a.hasTime).length}
-                valueStyle={{ color: '#722ed1' }}
+                title="High Priority"
+                value={activities.filter(a => a.priority >= 4).length}
+                valueStyle={{ color: '#e74c3c' }}
               />
             </Card>
           </Col>
@@ -588,49 +1217,6 @@ const DateActivitiesModal = ({
         />
       </Space>
     </Modal>
-  );
-};
-
-// Department Filter Buttons
-const DepartmentFilter = ({ selectedDepartment, onDepartmentChange }) => {
-  return (
-    <Card size="small" style={{ marginBottom: 16 }}>
-      <Space wrap>
-        <Text strong style={{ fontSize: '16px' }}>Filter by Department:</Text>
-        {Object.entries(departments).map(([key, dept]) => (
-          <Button
-            key={key}
-            type={selectedDepartment === key ? 'primary' : 'default'}
-            size="large"
-            style={{
-              backgroundColor: selectedDepartment === key ? dept.color : '#f5f5f5',
-              borderColor: dept.color,
-              color: selectedDepartment === key ? '#fff' : dept.color,
-              fontSize: '14px',
-              fontWeight: 'bold',
-              padding: '8px 16px',
-              height: 'auto'
-            }}
-            onClick={() => onDepartmentChange(key)}
-          >
-            {dept.name}
-          </Button>
-        ))}
-        <Button
-          type={!selectedDepartment ? 'primary' : 'default'}
-          size="large"
-          style={{
-            fontSize: '14px',
-            fontWeight: 'bold',
-            padding: '8px 16px',
-            height: 'auto'
-          }}
-          onClick={() => onDepartmentChange(null)}
-        >
-          All Departments
-        </Button>
-      </Space>
-    </Card>
   );
 };
 
@@ -668,7 +1254,7 @@ const AllActivitiesModal = ({
       )
     },
     {
-      title: 'Time',
+      title: 'Date',
       dataIndex: 'start',
       key: 'time',
       width: 120,
@@ -727,8 +1313,6 @@ const AllActivitiesModal = ({
           Close
         </Button>
       ]}
-      style={{ top: 20 }}
-      zIndex={1001}
     >
       <Table
         columns={columns}
@@ -752,33 +1336,18 @@ const AllActivitiesModal = ({
 const ActivityDetailModal = ({ 
   visible, 
   onClose, 
-  selectedActivity,
-  getDateFieldName,
-  getActivityTitle
+  selectedActivity 
 }) => {
-  const formatDateTime = (activity) => {
-    if (!activity) return 'N/A';
-    
-    const dateField = getDateFieldName(activity.sourceTable);
-    const baseDate = activity[dateField] || activity.created_at;
-    
-    if (activity.hasTime && activity.start) {
-      return new Date(activity.start).toLocaleString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } else {
-      return new Date(baseDate).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    }
+  if (!selectedActivity) return null;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   return (
@@ -789,173 +1358,86 @@ const ActivityDetailModal = ({
       footer={[
         <Button key="close" onClick={onClose} size="large">
           Close
-        </Button>,
+        </Button>
       ]}
       width={700}
-      style={{ top: 20 }}
-      zIndex={1003}
     >
-      {selectedActivity ? (
-        <div style={{ fontSize: '16px' }}>
-          <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-                {getActivityTitle(selectedActivity)}
-              </Title>
-            </Col>
-          </Row>
-          
-          <Divider />
-          
-          <Row gutter={[16, 16]}>
+      <div style={{ fontSize: '16px' }}>
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+              {selectedActivity.title || selectedActivity.categoryName}
+            </Title>
+          </Col>
+        </Row>
+        
+        <Divider />
+        
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12}>
+            <Text strong>Type: </Text>
+            <Tag color={selectedActivity.type === 'meeting' ? 'blue' : 'green'} style={{ fontSize: '14px' }}>
+              {selectedActivity.type === 'meeting' ? 'Meeting' : 'Task'}
+            </Tag>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Department: </Text>
+            <Tag color={departments[selectedActivity.department]?.color} style={{ fontSize: '14px' }}>
+              {departments[selectedActivity.department]?.name}
+            </Tag>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Category: </Text>
+            <Text>{selectedActivity.categoryName}</Text>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Priority: </Text>
+            <Tag color={priorityColors[selectedActivity.priority]} style={{ fontSize: '14px' }}>
+              {priorityLabels[selectedActivity.priority]}
+            </Tag>
+          </Col>
+          <Col xs={24}>
+            <Text strong>Date: </Text>
+            <Text>{formatDate(selectedActivity.date || selectedActivity.start || selectedActivity.created_at)}</Text>
+          </Col>
+          {selectedActivity.status && (
             <Col xs={24} sm={12}>
-              <Text strong>Type: </Text>
-              <Tag color={selectedActivity.type === 'meeting' ? 'blue' : 'green'} style={{ fontSize: '14px' }}>
-                {selectedActivity.type === 'meeting' ? 'Meeting' : 'Task'}
+              <Text strong>Status: </Text>
+              <Tag color={statusColors[selectedActivity.status]} style={{ fontSize: '14px' }}>
+                {selectedActivity.status}
               </Tag>
             </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Department: </Text>
-              <Tag color={departments[selectedActivity.department]?.color} style={{ fontSize: '14px' }}>
-                {selectedActivity.departmentName || selectedActivity.department}
-              </Tag>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Category: </Text>
-              <Text>{selectedActivity.categoryName}</Text>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Priority: </Text>
-              <Tag color={priorityColors[selectedActivity.priority]} style={{ fontSize: '14px' }}>
-                {priorityLabels[selectedActivity.priority]}
-              </Tag>
-            </Col>
-            <Col xs={24}>
-              <Text strong>Date & Time: </Text>
-              <Text>{formatDateTime(selectedActivity)}</Text>
-              {selectedActivity.hasTime && (
-                <Tag color="blue" style={{ marginLeft: '8px' }}>
-                  Timed Event
-                </Tag>
-              )}
-            </Col>
-            {selectedActivity.status && (
-              <Col xs={24} sm={12}>
-                <Text strong>Status: </Text>
-                <Tag color={statusColors[selectedActivity.status]} style={{ fontSize: '14px' }}>
-                  {selectedActivity.status}
-                </Tag>
+          )}
+        </Row>
+
+        {selectedActivity.description && (
+          <>
+            <Divider />
+            <Row>
+              <Col span={24}>
+                <Text strong>Description: </Text>
+                <Text style={{ display: 'block', marginTop: '8px' }}>
+                  {selectedActivity.description}
+                </Text>
               </Col>
-            )}
-          </Row>
+            </Row>
+          </>
+        )}
 
-          {selectedActivity.description && (
-            <>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>Description: </Text>
-                  <Text style={{ display: 'block', marginTop: '8px' }}>
-                    {selectedActivity.description}
-                  </Text>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {selectedActivity.remarks && (
-            <>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>Remarks: </Text>
-                  <Text style={{ display: 'block', marginTop: '8px' }}>
-                    {selectedActivity.remarks}
-                  </Text>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {selectedActivity.objectives && (
-            <>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>Objectives: </Text>
-                  <Text style={{ display: 'block', marginTop: '8px' }}>
-                    {selectedActivity.objectives}
-                  </Text>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {/* Special handling for SCMT Weekly Meetings (Upcoming Shipments) */}
-          {selectedActivity.sourceTable === 'scmt_weekly_meetings' && (
-            <>
-              <Divider />
-              <Row gutter={[16, 16]}>
-                <Col span={24}>
-                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Shipment Details:</Text>
-                </Col>
-                {selectedActivity.supplier && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>Supplier: </Text>
-                    <Text>{selectedActivity.supplier}</Text>
-                  </Col>
-                )}
-                {selectedActivity.pord_no && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>PO Number: </Text>
-                    <Text>{selectedActivity.pord_no}</Text>
-                  </Col>
-                )}
-                {selectedActivity.date_of_arrival && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>Date of Arrival: </Text>
-                    <Text>
-                      {new Date(selectedActivity.date_of_arrival).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </Text>
-                  </Col>
-                )}
-                {selectedActivity.mode && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>Mode: </Text>
-                    <Text>{selectedActivity.mode}</Text>
-                  </Col>
-                )}
-                {(selectedActivity.reagent || selectedActivity.spare_part || selectedActivity.instruments) && (
-                  <Col span={24}>
-                    <Text strong>Item Types: </Text>
-                    <Space style={{ marginTop: '8px' }}>
-                      {selectedActivity.reagent && <Tag color="blue">Reagent</Tag>}
-                      {selectedActivity.spare_part && <Tag color="green">Spare Part</Tag>}
-                      {selectedActivity.instruments && <Tag color="orange">Instruments</Tag>}
-                    </Space>
-                  </Col>
-                )}
-                {selectedActivity.main_item_list && (
-                  <Col span={24}>
-                    <Text strong style={{ display: 'block', marginBottom: '8px' }}>Main Item List:</Text>
-                    <Text style={{ display: 'block' }}>{selectedActivity.main_item_list}</Text>
-                  </Col>
-                )}
-              </Row>
-            </>
-          )}
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <FrownOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }} />
-          <div style={{ fontSize: '16px' }}>Activity details not available</div>
-        </div>
-      )}
+        {selectedActivity.remarks && (
+          <>
+            <Divider />
+            <Row>
+              <Col span={24}>
+                <Text strong>Remarks: </Text>
+                <Text style={{ display: 'block', marginTop: '8px' }}>
+                  {selectedActivity.remarks}
+                </Text>
+              </Col>
+            </Row>
+          </>
+        )}
+      </div>
     </Modal>
   );
 };
@@ -967,198 +1449,70 @@ const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
   </div>
 );
 
-// Error boundary component
-const ErrorFallback = ({ error, resetErrorBoundary }) => (
-  <Result
-    status="error"
-    title="Something went wrong"
-    subTitle={error?.message || "An unexpected error occurred"}
-    extra={
-      <Button type="primary" onClick={resetErrorBoundary} size="large">
-        Try Again
-      </Button>
-    }
-  />
-);
-
+// Main Dashboard Component
 const Dashboard = () => {
-  // State for error handling
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
-
-  const [activeTab, setActiveTab] = useState('organizational');
-  const [allMeetings, setAllMeetings] = useState([]);
-  const [allTasks, setAllTasks] = useState([]);
+  const [allActivities, setAllActivities] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-
-  // Stats state
-  const [stats, setStats] = useState({
-    totalMeetings: 0,
-    totalTasks: 0,
-    thisWeekMeetings: 0,
-    highPriorityMeetings: 0,
-    completedMeetings: 0,
-    pendingTasks: 0,
-    timedEvents: 0
-  });
-
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [currentMonth, setCurrentMonth] = useState(dayjs());
+  const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
+  
   // Modal states
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isActivityModalVisible, setIsActivityModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [dateActivitiesModalVisible, setDateActivitiesModalVisible] = useState(false);
   const [dateActivities, setDateActivities] = useState([]);
   const [allActivitiesModalVisible, setAllActivitiesModalVisible] = useState(false);
+
+  // Stats state
+  const [stats, setStats] = useState({
+    totalActivities: 0,
+    totalMeetings: 0,
+    totalTasks: 0,
+    thisWeekActivities: 0,
+    highPriorityActivities: 0,
+    completedActivities: 0,
+    pendingActivities: 0
+  });
 
   // Auto-refresh states
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshIntervalRef = useRef(null);
-
-  // Calendar view state
-  const [calendarView, setCalendarView] = useState('dayGridMonth');
-
-  // Date range state
-  const [dateRange, setDateRange] = useState(null);
-
-  // Error boundary reset function
-  const resetErrorBoundary = () => {
-    setError(null);
-    setRetryCount(prev => prev + 1);
-    fetchDashboardData();
-  };
-
-  // Global error handler
-  const handleError = (error, context = 'Unknown operation') => {
-    console.error(`Error in ${context}:`, error);
-    
-    const errorMessage = error?.message || 'An unexpected error occurred';
-    
-    if (!context.includes('auto-refresh')) {
-      toast.error(`Error in ${context}: ${errorMessage}`);
-    }
-    
-    setError({
-      message: errorMessage,
-      context,
-      timestamp: new Date().toISOString()
-    });
-    
-    return error;
-  };
-
-  // Safe state update wrapper
-  const safeSetState = (setter, value) => {
-    try {
-      setter(value);
-    } catch (err) {
-      handleError(err, 'state update');
-    }
-  };
-
-  // Enhanced modal handlers
-  const showActivityModal = (activity) => {
-    setDateActivitiesModalVisible(false);
-    setAllActivitiesModalVisible(false);
-    
-    setTimeout(() => {
-      setSelectedActivity(activity);
-      setIsActivityModalVisible(true);
-    }, 10);
-  };
-
-  const showDateActivitiesModal = (date, activities) => {
-    setIsActivityModalVisible(false);
-    setAllActivitiesModalVisible(false);
-    
-    setTimeout(() => {
-      setSelectedDate(date);
-      setDateActivities(activities);
-      setDateActivitiesModalVisible(true);
-    }, 10);
-  };
-
-  const showAllActivitiesModal = () => {
-    setIsActivityModalVisible(false);
-    setDateActivitiesModalVisible(false);
-    
-    setTimeout(() => {
-      setAllActivitiesModalVisible(true);
-    }, 10);
-  };
 
   useEffect(() => {
     fetchCurrentUser();
     fetchDashboardData();
-    setupAutoRefresh();
-
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, [retryCount]);
+  }, []);
 
   const fetchCurrentUser = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        throw new Error(`Authentication failed: ${authError.message}`);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setCurrentUser({ ...user, ...profile });
       }
-
-      if (!user) {
-        safeSetState(setCurrentUser, null);
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        throw new Error(`Profile fetch failed: ${profileError.message}`);
-      }
-
-      safeSetState(setCurrentUser, { ...user, ...profile });
     } catch (error) {
-      handleError(error, 'fetching current user');
+      console.error('Error fetching current user:', error);
     }
   };
 
-  const setupAutoRefresh = () => {
+  const fetchDashboardData = async () => {
+    setLoading(true);
     try {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-
-      if (autoRefresh) {
-        refreshIntervalRef.current = setInterval(() => {
-          refreshDashboardData();
-        }, 1 * 60 * 1000);
-      }
+      await fetchAllActivities();
+      setLastRefresh(new Date());
     } catch (error) {
-      handleError(error, 'setting up auto-refresh');
-    }
-  };
-
-  const refreshDashboardData = async () => {
-    if (isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      await fetchDashboardData();
-      safeSetState(setLastRefresh, new Date());
-      toast.info('Dashboard data updated automatically');
-    } catch (error) {
-      handleError(error, 'auto-refresh');
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
-      setIsRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -1166,41 +1520,12 @@ const Dashboard = () => {
     setIsRefreshing(true);
     try {
       await fetchDashboardData();
-      safeSetState(setLastRefresh, new Date());
       toast.success('Dashboard refreshed successfully');
     } catch (error) {
-      handleError(error, 'manual refresh');
+      console.error('Error refreshing dashboard:', error);
+      toast.error('Failed to refresh dashboard');
     } finally {
       setIsRefreshing(false);
-    }
-  };
-
-  const handleAutoRefreshToggle = (checked) => {
-    try {
-      safeSetState(setAutoRefresh, checked);
-      if (checked) {
-        setupAutoRefresh();
-        toast.info('Auto-refresh enabled (every 1 minute)');
-      } else {
-        if (refreshIntervalRef.current) {
-          clearInterval(refreshIntervalRef.current);
-          refreshIntervalRef.current = null;
-        }
-        toast.info('Auto-refresh disabled');
-      }
-    } catch (error) {
-      handleError(error, 'toggle auto-refresh');
-    }
-  };
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      await fetchAllData();
-    } catch (error) {
-      handleError(error, 'fetching dashboard data');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1213,76 +1538,36 @@ const Dashboard = () => {
       'bdm_college_session': 'start_date',
       'bdm_promotional_activities': 'date',
       'sales_operations_meetings': 'date',
-      'sales_operations_tasks': 'start_date',
-      'scmt_d_n_d': 'start_date',
-      'scmt_meetings_and_sessions': 'date',
-      'scmt_others': 'date',
-      'scmt_weekly_meetings': 'date_of_arrival'
+      'sales_operations_special_tasks': 'date',
+      // Add other tables as needed...
     };
     return dateFields[tableName] || 'created_at';
-  };
-
-  // Helper function to get time fields based on table
-  const getTimeFields = (tableName) => {
-    const timeFields = {
-      'bdm_customer_visit': { start: 'start_time', end: 'end_time' },
-      'bdm_weekly_meetings': { start: 'start_time', end: 'end_time' },
-      'bdm_college_session': { start: 'start_time', end: 'end_time' },
-      'sales_operations_meetings': { start: 'start_time', end: 'end_time' },
-      'sales_operations_tasks': { start: 'start_time', end: 'end_time' },
-      'scmt_meetings_and_sessions': { start: 'start_time', end: 'end_time' },
-      'scmt_others': { start: 'start_time', end: 'end_time' }
-    };
-    return timeFields[tableName] || null;
   };
 
   // Helper function to get activity title
   const getActivityTitle = (item) => {
     if (!item) return 'Unknown Activity';
     
-    if (item.title) return item.title;
     if (item.meeting) return item.meeting;
-    if (item.college_name) return `${item.college_name} Session`;
+    if (item.subject) return item.subject;
     if (item.customer_name) return `Visit: ${item.customer_name}`;
     if (item.principle_name) return `Principle: ${item.principle_name}`;
     if (item.promotional_activity) return item.promotional_activity;
-    if (item.supplier) return `Shipment: ${item.supplier} - ${item.pord_no || ''}`;
-    if (item.type) return item.type;
+    if (item.task) return item.task;
+    
     return `${item.categoryName} Activity`;
   };
 
-  // Helper function to create datetime string from date and time
-  const createDateTime = (dateString, timeString) => {
-    if (!dateString || !timeString) return null;
-    
-    try {
-      const date = new Date(dateString);
-      const timeParts = timeString.split(':');
-      
-      if (timeParts.length >= 2) {
-        date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-        return date.toISOString();
-      }
-    } catch (error) {
-      console.warn('Error creating datetime:', error);
-    }
-    
-    return null;
-  };
-
-  const fetchAllData = async () => {
-    const allMeetingsData = [];
-    const allTasksData = [];
+  const fetchAllActivities = async () => {
+    const allActivitiesData = [];
 
     try {
       const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
         try {
-          let query = supabase
+          const { data, error } = await supabase
             .from(tableName)
             .select('*')
             .order('created_at', { ascending: false });
-
-          const { data, error } = await query;
 
           if (error) {
             console.warn(`Error fetching from ${tableName}:`, error);
@@ -1291,50 +1576,23 @@ const Dashboard = () => {
 
           if (data) {
             data.forEach(item => {
-              try {
-                const dateField = getDateFieldName(tableName);
-                const timeFields = getTimeFields(tableName);
-                
-                const baseDate = item[dateField] || item.created_at;
-                let startDateTime = baseDate;
-                let endDateTime = null;
-                let hasTime = false;
+              const dateField = getDateFieldName(tableName);
+              const baseDate = item[dateField] || item.created_at;
 
-                // If time fields exist and have values, create proper datetime
-                if (timeFields && item[timeFields.start]) {
-                  const startTime = item[timeFields.start];
-                  startDateTime = createDateTime(baseDate, startTime);
-                  
-                  if (timeFields.end && item[timeFields.end]) {
-                    const endTime = item[timeFields.end];
-                    endDateTime = createDateTime(baseDate, endTime);
-                  }
-                  
-                  hasTime = true;
-                }
+              const itemWithMetadata = {
+                ...item,
+                sourceTable: tableName,
+                type: tableInfo.type,
+                categoryName: tableInfo.categoryName,
+                department: tableInfo.department,
+                date: baseDate,
+                start: baseDate,
+                title: getActivityTitle(item),
+                priority: item.priority || 3, // Default priority
+                status: item.status || 'scheduled'
+              };
 
-                const itemWithMetadata = {
-                  ...item,
-                  sourceTable: tableName,
-                  type: tableInfo.type,
-                  categoryName: tableInfo.categoryName,
-                  department: tableInfo.department,
-                  departmentName: tableInfo.department,
-                  date: baseDate,
-                  start: startDateTime,
-                  end: endDateTime,
-                  hasTime: hasTime,
-                  title: getActivityTitle(item)
-                };
-
-                if (tableInfo.type === 'meeting') {
-                  allMeetingsData.push(itemWithMetadata);
-                } else {
-                  allTasksData.push(itemWithMetadata);
-                }
-              } catch (itemError) {
-                console.warn(`Error processing item from ${tableName}:`, itemError);
-              }
+              allActivitiesData.push(itemWithMetadata);
             });
           }
         } catch (tableError) {
@@ -1343,62 +1601,48 @@ const Dashboard = () => {
       });
 
       await Promise.allSettled(fetchPromises);
-
-      safeSetState(setAllMeetings, allMeetingsData);
-      safeSetState(setAllTasks, allTasksData);
-      calculateStats(allMeetingsData, allTasksData);
-
+      setAllActivities(allActivitiesData);
+      calculateStats(allActivitiesData);
     } catch (error) {
-      handleError(error, 'fetching all data');
-      safeSetState(setAllMeetings, []);
-      safeSetState(setAllTasks, []);
+      console.error('Error fetching all activities:', error);
+      throw error;
     }
   };
 
-  const calculateStats = (meetingsData, tasksData) => {
-    try {
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
+  const calculateStats = (activitiesData) => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
 
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
 
-      const thisWeekMeetings = meetingsData.filter(meeting => {
-        try {
-          const meetingDate = new Date(meeting.start || meeting.date || meeting.created_at);
-          return meetingDate >= startOfWeek && meetingDate <= endOfWeek;
-        } catch (error) {
-          console.warn('Error processing meeting date:', error);
-          return false;
-        }
-      });
+    const thisWeekActivities = activitiesData.filter(activity => {
+      const activityDate = new Date(activity.start || activity.date || activity.created_at);
+      return activityDate >= startOfWeek && activityDate <= endOfWeek;
+    });
 
-      const highPriorityMeetings = meetingsData.filter(meeting => meeting.priority >= 4);
-      const completedMeetings = meetingsData.filter(meeting => meeting.status === 'completed');
-      const pendingTasks = tasksData.filter(task => task.status === 'pending');
-      const timedEvents = [...meetingsData, ...tasksData].filter(activity => activity.hasTime);
+    const highPriorityActivities = activitiesData.filter(activity => activity.priority >= 4);
+    const completedActivities = activitiesData.filter(activity => activity.status === 'completed');
+    const pendingActivities = activitiesData.filter(activity => activity.status === 'pending');
+    const meetings = activitiesData.filter(activity => activity.type === 'meeting');
+    const tasks = activitiesData.filter(activity => activity.type === 'task');
 
-      safeSetState(setStats, {
-        totalMeetings: meetingsData.length,
-        totalTasks: tasksData.length,
-        thisWeekMeetings: thisWeekMeetings.length,
-        highPriorityMeetings: highPriorityMeetings.length,
-        completedMeetings: completedMeetings.length,
-        pendingTasks: pendingTasks.length,
-        timedEvents: timedEvents.length
-      });
-    } catch (error) {
-      handleError(error, 'calculating statistics');
-    }
+    setStats({
+      totalActivities: activitiesData.length,
+      totalMeetings: meetings.length,
+      totalTasks: tasks.length,
+      thisWeekActivities: thisWeekActivities.length,
+      highPriorityActivities: highPriorityActivities.length,
+      completedActivities: completedActivities.length,
+      pendingActivities: pendingActivities.length
+    });
   };
 
   // Get filtered activities based on department
   const getFilteredActivities = () => {
-    const allActivities = [...allMeetings, ...allTasks];
-    
     if (!selectedDepartment) {
       return allActivities;
     }
@@ -1406,171 +1650,71 @@ const Dashboard = () => {
     return allActivities.filter(activity => activity.department === selectedDepartment);
   };
 
-  // Convert activities to FullCalendar events with proper time handling
-  const getCalendarEvents = () => {
-    const activities = getFilteredActivities();
+  const handleDateClick = (date, activities = []) => {
+    setSelectedDate(date);
     
-    return activities.map(activity => {
-      const event = {
-        id: `${activity.sourceTable}-${activity.id}`,
-        title: getActivityTitle(activity),
-        start: activity.start || activity.date || activity.created_at,
-        extendedProps: {
-          ...activity,
-          priority: activity.priority || 1,
-          type: activity.type,
-          department: activity.department
-        }
-      };
-
-      // If it has an end time, add it to the event
-      if (activity.end) {
-        event.end = activity.end;
-      }
-
-      // If it doesn't have time, mark it as all day
-      if (!activity.hasTime) {
-        event.allDay = true;
-      }
-
-      return event;
-    });
+    if (activities.length > 0) {
+      setDateActivities(activities);
+      setDateActivitiesModalVisible(true);
+    }
   };
 
-  // Handle date click on calendar
-  const handleDateClick = (date, arg) => {
-    const activities = getFilteredActivities().filter(activity => {
-      const activityDate = new Date(activity.start || activity.date || activity.created_at);
-      return activityDate.toDateString() === date.toDateString();
-    });
-
-    showDateActivitiesModal(dayjs(date), activities);
+  const handleEventClick = (activity) => {
+    setSelectedActivity(activity);
+    setIsActivityModalVisible(true);
   };
 
-  // Handle event click on calendar
-  const handleEventClick = (event) => {
-    const activity = event.extendedProps;
-    showActivityModal(activity);
-  };
-
-  // Handle activity click in list
   const handleActivityClick = (activity) => {
-    showActivityModal(activity);
+    setSelectedActivity(activity);
+    setIsActivityModalVisible(true);
   };
 
-  // Get activities for current view (organizational or department)
-  const getActivitiesForView = () => {
-    if (activeTab === 'organizational') {
-      return getFilteredActivities();
-    } else {
-      // For department view, show only activities from user's department
-      if (!currentUser) return [];
-      const userDept = currentUser.department_id;
-      return getFilteredActivities().filter(activity => 
-        activity.department_id === userDept || activity.department === departments[userDept]?.name
-      );
+  const handleMonthChange = (newDate) => {
+    setCurrentMonth(newDate);
+    if (viewMode === 'day') {
+      setSelectedDate(newDate);
+    }
+  };
+
+  const handleViewModeChange = (newViewMode) => {
+    setViewMode(newViewMode);
+    if (newViewMode === 'day' && !selectedDate) {
+      setSelectedDate(currentMonth);
     }
   };
 
   const formatTimeSinceLastRefresh = () => {
-    try {
-      const now = new Date();
-      const diffInSeconds = Math.floor((now - lastRefresh) / 1000);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - lastRefresh) / 1000);
 
-      if (diffInSeconds < 60) {
-        return `${diffInSeconds} seconds ago`;
-      } else {
-        const minutes = Math.floor(diffInSeconds / 60);
-        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-      }
-    } catch (error) {
-      return 'Unknown';
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} seconds ago`;
+    } else {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
     }
   };
 
-  // Handle date range change
-  const handleDateRangeChange = (dates) => {
-    setDateRange(dates);
-  };
-
-  // Clear date range filter
-  const clearDateRange = () => {
-    setDateRange(null);
-  };
-
-  // Render error state
-  if (error && retryCount > 2) {
-    return <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />;
-  }
-
-  // Render loading state
-  if (loading && !isRefreshing) {
+  if (loading) {
     return <LoadingSpinner />;
   }
 
   return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Modal: {
-            zIndexBase: 1000,
-            zIndexPopupBase: 1000,
-          },
-        },
-      }}
-    >
+    <ConfigProvider>
       <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto' }}>
         <ToastContainer position="top-right" autoClose={5000} />
-
-        {/* Error Alert */}
-        {error && (
-          <Alert
-            message="Dashboard Error"
-            description={`${error.context}: ${error.message}`}
-            type="error"
-            showIcon
-            closable
-            onClose={() => setError(null)}
-            action={
-              <Button size="large" type="primary" onClick={resetErrorBoundary}>
-                Retry
-              </Button>
-            }
-            style={{ marginBottom: 16 }}
-          />
-        )}
 
         {/* Header with Controls */}
         <Card
           size="small"
           style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
-          bodyStyle={{ padding: '12px 16px' }}
         >
           <Row justify="space-between" align="middle" gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>
               <Title level={2} style={{ margin: 0, fontSize: '24px' }}>Dashboard</Title>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" style={{ width: '100%' }} size="small">
-                <Text strong style={{ fontSize: '14px' }}>Date Range:</Text>
-                <Space.Compact style={{ width: '100%' }}>
-                  <RangePicker
-                    value={dateRange}
-                    onChange={handleDateRangeChange}
-                    style={{ width: '100%' }}
-                    size="large"
-                  />
-                  {dateRange && (
-                    <Button 
-                      onClick={clearDateRange}
-                      size="large"
-                      danger
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </Space.Compact>
-              </Space>
+              {currentUser && (
+                <Text type="secondary">Welcome, {currentUser.full_name || currentUser.email}</Text>
+              )}
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Space direction="vertical" style={{ width: '100%' }} size="small">
@@ -1586,11 +1730,17 @@ const Dashboard = () => {
                   >
                     Refresh
                   </Button>
+                  <ExportButton 
+                    activities={getFilteredActivities()} 
+                    currentView={viewMode}
+                    currentDate={currentMonth}
+                    selectedDepartment={selectedDepartment}
+                  />
                   <Switch
                     checkedChildren="Auto On"
                     unCheckedChildren="Auto Off"
                     checked={autoRefresh}
-                    onChange={handleAutoRefreshToggle}
+                    onChange={setAutoRefresh}
                   />
                 </Space>
               </Space>
@@ -1601,7 +1751,7 @@ const Dashboard = () => {
         {autoRefresh && (
           <Alert
             message="Auto-refresh Enabled"
-            description="Dashboard data will automatically update every 1 minute."
+            description="Dashboard data will automatically update periodically."
             type="info"
             showIcon
             closable
@@ -1614,8 +1764,8 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Total Meetings"
-                value={stats.totalMeetings}
+                title="Total Activities"
+                value={stats.totalActivities}
                 prefix={<CalendarOutlined />}
                 valueStyle={{ color: '#1890ff', fontSize: '20px' }}
               />
@@ -1624,9 +1774,9 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Total Tasks"
-                value={stats.totalTasks}
-                prefix={<CheckCircleOutlined />}
+                title="Meetings"
+                value={stats.totalMeetings}
+                prefix={<TeamOutlined />}
                 valueStyle={{ color: '#52c41a', fontSize: '20px' }}
               />
             </Card>
@@ -1634,9 +1784,9 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="This Week"
-                value={stats.thisWeekMeetings}
-                prefix={<TeamOutlined />}
+                title="Tasks"
+                value={stats.totalTasks}
+                prefix={<CheckCircleOutlined />}
                 valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
               />
             </Card>
@@ -1644,18 +1794,8 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="High Priority"
-                value={stats.highPriorityMeetings}
-                prefix={<ExclamationCircleOutlined />}
-                valueStyle={{ color: '#f5222d', fontSize: '20px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ textAlign: 'center' }}>
-              <Statistic
-                title="Timed Events"
-                value={stats.timedEvents}
+                title="This Week"
+                value={stats.thisWeekActivities}
                 prefix={<ClockCircleOutlined />}
                 valueStyle={{ color: '#722ed1', fontSize: '20px' }}
               />
@@ -1664,8 +1804,18 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Pending Tasks"
-                value={stats.pendingTasks}
+                title="High Priority"
+                value={stats.highPriorityActivities}
+                prefix={<ExclamationCircleOutlined />}
+                valueStyle={{ color: '#f5222d', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Statistic
+                title="Pending"
+                value={stats.pendingActivities}
                 prefix={<ClockCircleOutlined />}
                 valueStyle={{ color: '#faad14', fontSize: '20px' }}
               />
@@ -1673,157 +1823,33 @@ const Dashboard = () => {
           </Col>
         </Row>
 
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={setActiveTab}
-          size="large"
-          items={[
-            {
-              key: 'organizational',
-              label: 'Organizational View',
-              children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="large">
-                  <DepartmentFilter
-                    selectedDepartment={selectedDepartment}
-                    onDepartmentChange={setSelectedDepartment}
-                  />
-                  
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} lg={16}>
-                      <Card
-                        title={
-                          <Space>
-                            <CalendarOutlined />
-                            Organizational Calendar - {selectedDepartment ? departments[selectedDepartment]?.name : 'All Departments'}
-                            {dateRange && (
-                              <Tag color="blue" style={{ marginLeft: '8px' }}>
-                                {dateRange[0].format('MMM D')} - {dateRange[1].format('MMM D, YYYY')}
-                              </Tag>
-                            )}
-                          </Space>
-                        }
-                        bordered={false}
-                        extra={
-                          <Button 
-                            icon={<SyncOutlined />} 
-                            onClick={manualRefresh}
-                            loading={isRefreshing}
-                            size="small"
-                          >
-                            Refresh Calendar
-                          </Button>
-                        }
-                      >
-                        <EnhancedFullCalendar
-                          events={getCalendarEvents()}
-                          onDateClick={handleDateClick}
-                          onEventClick={handleEventClick}
-                          view={calendarView}
-                          height="600px"
-                          dateRange={dateRange}
-                        />
-                        
-                        {/* Calendar Legend */}
-                        <div style={{ 
-                          marginTop: '16px', 
-                          padding: '12px', 
-                          backgroundColor: '#f9f9f9', 
-                          borderRadius: '6px',
-                          border: '1px solid #e8e8e8'
-                        }}>
-                          <Text strong style={{ fontSize: '16px' }}>Calendar Legend:</Text>
-                          <Row gutter={16} style={{ marginTop: '12px' }}>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#52c41a',
-                                  borderRadius: '4px',
-                                  border: '2px solid #fff'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>1-3 Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#fa8c16',
-                                  borderRadius: '4px',
-                                  border: '2px solid #fff'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>4-6 Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#f5222d',
-                                  borderRadius: '4px',
-                                  border: '2px solid #fff'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>7+ Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: 'transparent',
-                                  borderRadius: '4px',
-                                  border: '1px solid #d9d9d9'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>No Activities</Text>
-                              </div>
-                            </Col>
-                          </Row>
-                          <Divider style={{ margin: '12px 0' }} />
-                          <Row gutter={16}>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '4px',
-                                  height: '20px',
-                                  backgroundColor: '#1890ff',
-                                  borderRadius: '2px'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>Timed Events</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#1890ff',
-                                  borderRadius: '4px'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>All Day Events</Text>
-                              </div>
-                            </Col>
-                          </Row>
-                        </div>
-                      </Card>
-                    </Col>
-                    
-                    <Col xs={24} lg={8}>
-                      <RecentActivities
-                        activities={getActivitiesForView()}
-                        onActivityClick={handleActivityClick}
-                        onViewAll={showAllActivitiesModal}
-                      />
-                    </Col>
-                  </Row>
-                </Space>
-              )
-            },
-          ]}
+        <DepartmentFilter
+          selectedDepartment={selectedDepartment}
+          onDepartmentChange={setSelectedDepartment}
         />
+
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={16}>
+            <SimplifiedCalendar
+              activities={getFilteredActivities()}
+              onDateClick={handleDateClick}
+              selectedDate={selectedDate}
+              currentMonth={currentMonth}
+              onMonthChange={handleMonthChange}
+              onEventClick={handleEventClick}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+            />
+          </Col>
+          
+          <Col xs={24} lg={8}>
+            <RecentActivities
+              activities={getFilteredActivities()}
+              onActivityClick={handleActivityClick}
+              onViewAll={() => setAllActivitiesModalVisible(true)}
+            />
+          </Col>
+        </Row>
 
         {/* Date Activities Modal */}
         <DateActivitiesModal
@@ -1838,7 +1864,7 @@ const Dashboard = () => {
         <AllActivitiesModal
           visible={allActivitiesModalVisible}
           onClose={() => setAllActivitiesModalVisible(false)}
-          activities={getActivitiesForView()}
+          activities={getFilteredActivities()}
           onActivityClick={handleActivityClick}
         />
 
@@ -1847,8 +1873,6 @@ const Dashboard = () => {
           visible={isActivityModalVisible}
           onClose={() => setIsActivityModalVisible(false)}
           selectedActivity={selectedActivity}
-          getDateFieldName={getDateFieldName}
-          getActivityTitle={getActivityTitle}
         />
       </div>
     </ConfigProvider>

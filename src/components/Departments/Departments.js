@@ -3,7 +3,7 @@ import {
   Card, Button, Row, Col, Typography, Alert,
   Space, Tag, Statistic, Spin, Empty, Result,
   Modal, message, Divider, Tooltip, Badge,
-  Tabs, Switch, Pagination
+  Tabs, Switch, Pagination, Table
 } from 'antd';
 import { 
   TeamOutlined, UserOutlined, CrownOutlined,
@@ -11,7 +11,8 @@ import {
   ExclamationCircleOutlined, SyncOutlined, ClockCircleOutlined,
   EyeOutlined, InfoCircleOutlined, SafetyCertificateOutlined,
   WarningOutlined, FrownOutlined, ReloadOutlined,
-  AppstoreOutlined, BarsOutlined, FilterOutlined
+  AppstoreOutlined, BarsOutlined, FilterOutlined,
+  SearchOutlined, FileTextOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
@@ -22,28 +23,31 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
-// Department configuration with enhanced metadata
+// Department configuration with enhanced metadata and meeting tables
 const departmentConfig = {
   BDM: { 
     name: 'BDM', 
     color: '#3498db',
     description: 'Business Development Management',
     icon: <TeamOutlined />,
-    tables: ['bdm_customer_visit', 'bdm_principle_visit', 'bdm_weekly_meetings', 'bdm_college_session', 'bdm_promotional_activities']
+    tables: ['bdm_customer_visit', 'bdm_principle_visit', 'bdm_weekly_meetings', 'bdm_college_session', 'bdm_promotional_activities'],
+    meetingTables: ['bdm_customer_visit', 'bdm_principle_visit', 'bdm_weekly_meetings'] // Specific meeting tables
   },
   SALES_OPERATIONS: { 
     name: 'Sales Operations', 
     color: '#f39c12',
     description: 'Sales Operations and Management',
     icon: <UserOutlined />,
-    tables: ['sales_operations_meetings', 'sales_operations_tasks']
+    tables: ['sales_operations_meetings', 'sales_operations_tasks'],
+    meetingTables: ['sales_operations_meetings'] // Specific meeting tables
   },
   SCMT: { 
     name: 'SCMT', 
     color: '#27ae60',
     description: 'Supply Chain Management',
     icon: <SafetyCertificateOutlined />,
-    tables: ['scmt_d_n_d', 'scmt_meetings_and_sessions', 'scmt_others', 'scmt_weekly_meetings']
+    tables: ['scmt_d_n_d', 'scmt_meetings_and_sessions', 'scmt_others', 'scmt_weekly_meetings'],
+    meetingTables: ['scmt_meetings_and_sessions', 'scmt_weekly_meetings'] // Specific meeting tables
   }
 };
 
@@ -69,7 +73,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => (
 );
 
 // Department Card Component
-const DepartmentCard = ({ department, userCount, activityCount, onNavigate, loading = false }) => {
+const DepartmentCard = ({ department, userCount, activityCount, meetingCount, onNavigate, loading = false }) => {
   const config = departmentConfig[department.name] || {
     name: department.name,
     color: '#666',
@@ -112,20 +116,28 @@ const DepartmentCard = ({ department, userCount, activityCount, onNavigate, load
       <Divider style={{ margin: '16px 0' }} />
 
       <Row gutter={16} style={{ marginBottom: '16px' }}>
-        <Col span={12}>
+        <Col span={8}>
           <Statistic
             title="Team Members"
             value={userCount || 0}
             prefix={<UserOutlined />}
-            valueStyle={{ fontSize: '18px', color: config.color }}
+            valueStyle={{ fontSize: '16px', color: config.color }}
           />
         </Col>
-        <Col span={12}>
+        <Col span={8}>
           <Statistic
             title="Activities"
             value={activityCount || 0}
             prefix={<CalendarOutlined />}
-            valueStyle={{ fontSize: '18px', color: config.color }}
+            valueStyle={{ fontSize: '16px', color: config.color }}
+          />
+        </Col>
+        <Col span={8}>
+          <Statistic
+            title="Meetings"
+            value={meetingCount || 0}
+            prefix={<FileTextOutlined />}
+            valueStyle={{ fontSize: '16px', color: config.color }}
           />
         </Col>
       </Row>
@@ -185,15 +197,113 @@ const DepartmentStatistics = ({ stats, loading = false }) => (
     <Col xs={24} sm={8} md={6}>
       <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
         <Statistic
-          title="Total Activities"
-          value={stats?.totalActivities || 0}
-          prefix={<CalendarOutlined />}
+          title="Total Meetings"
+          value={stats?.totalMeetings || 0}
+          prefix={<FileTextOutlined />}
           valueStyle={{ color: '#722ed1', fontSize: '20px' }}
         />
       </Card>
     </Col>
   </Row>
 );
+
+// Recent Meetings Table Component
+const RecentMeetingsTable = ({ meetings, loading }) => {
+  const columns = [
+    {
+      title: 'Department',
+      dataIndex: 'department',
+      key: 'department',
+      width: 120,
+      render: (dept) => (
+        <Tag color={departmentConfig[dept]?.color || '#666'}>
+          {departmentConfig[dept]?.name || dept}
+        </Tag>
+      )
+    },
+    {
+      title: 'Meeting Type',
+      dataIndex: 'meeting_type',
+      key: 'meeting_type',
+      width: 150,
+      render: (type) => (
+        <Text strong>{type || 'Meeting'}</Text>
+      )
+    },
+    {
+      title: 'Title/Description',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      render: (title, record) => (
+        <Tooltip title={title || record.description || 'No title provided'}>
+          {title || record.description || 'Untitled Meeting'}
+        </Tooltip>
+      )
+    },
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      width: 120,
+      render: (date) => (
+        <Text type="secondary">
+          {date ? dayjs(date).format('MMM DD, YYYY') : 'Not specified'}
+        </Text>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status) => {
+        const statusConfig = {
+          completed: { color: 'green', text: 'Completed' },
+          scheduled: { color: 'blue', text: 'Scheduled' },
+          cancelled: { color: 'red', text: 'Cancelled' },
+          pending: { color: 'orange', text: 'Pending' }
+        };
+        const config = statusConfig[status] || { color: 'default', text: status };
+        return <Tag color={config.color}>{config.text}</Tag>;
+      }
+    }
+  ];
+
+  return (
+    <Card
+      title={
+        <Space>
+          <FileTextOutlined />
+          <Text strong>Recent Meetings & Visits</Text>
+          <Tag color="blue">{meetings.length} Total</Tag>
+        </Space>
+      }
+      loading={loading}
+    >
+      {meetings.length === 0 ? (
+        <Empty 
+          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+          description="No meetings found"
+        />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={meetings}
+          rowKey="id"
+          size="small"
+          pagination={{ 
+            pageSize: 5,
+            showSizeChanger: false,
+            showTotal: (total, range) => 
+              `${range[0]}-${range[1]} of ${total} meetings`
+          }}
+          scroll={{ x: 800 }}
+        />
+      )}
+    </Card>
+  );
+};
 
 // Enhanced Departments Component
 const Departments = () => {
@@ -205,6 +315,8 @@ const Departments = () => {
   const [departments, setDepartments] = useState([]);
   const [userCounts, setUserCounts] = useState({});
   const [activityCounts, setActivityCounts] = useState({});
+  const [meetingCounts, setMeetingCounts] = useState({});
+  const [recentMeetings, setRecentMeetings] = useState([]);
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   
@@ -213,7 +325,8 @@ const Departments = () => {
     totalDepartments: 0,
     totalUsers: 0,
     departmentsWithUsers: 0,
-    totalActivities: 0
+    totalActivities: 0,
+    totalMeetings: 0
   });
 
   // Auto-refresh states
@@ -339,7 +452,9 @@ const Departments = () => {
         fetchCurrentUser(),
         fetchDepartments(),
         fetchUserCounts(),
-        fetchActivityCounts()
+        fetchActivityCounts(),
+        fetchMeetingCounts(),
+        fetchRecentMeetings()
       ]);
     } catch (error) {
       handleError(error, 'fetching departments data');
@@ -457,30 +572,130 @@ const Departments = () => {
     }
   };
 
+  const fetchMeetingCounts = async () => {
+    try {
+      const counts = {};
+      
+      // Fetch meeting counts from specific meeting tables only
+      const tablePromises = Object.entries(departmentConfig).map(async ([deptKey, dept]) => {
+        try {
+          let totalMeetings = 0;
+          
+          for (const tableName of dept.meetingTables) {
+            const { data, error } = await supabase
+              .from(tableName)
+              .select('id', { count: 'exact' });
+
+            if (!error && data) {
+              totalMeetings += data.length;
+            }
+          }
+          
+          counts[deptKey] = totalMeetings;
+        } catch (tableError) {
+          console.warn(`Failed to count meetings for ${dept.name}:`, tableError);
+        }
+      });
+
+      await Promise.allSettled(tablePromises);
+      safeSetState(setMeetingCounts, counts);
+    } catch (error) {
+      handleError(error, 'fetching meeting counts');
+      safeSetState(setMeetingCounts, {});
+    }
+  };
+
+  const fetchRecentMeetings = async () => {
+    try {
+      const allMeetings = [];
+      
+      // Fetch recent meetings from all meeting tables
+      const tablePromises = Object.entries(departmentConfig).flatMap(([deptKey, dept]) => 
+        dept.meetingTables.map(async (tableName) => {
+          try {
+            const { data, error } = await supabase
+              .from(tableName)
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(10);
+
+            if (!error && data) {
+              // Add department and meeting type information to each record
+              const meetingsWithMetadata = data.map(meeting => ({
+                ...meeting,
+                department: deptKey,
+                meeting_type: getMeetingTypeDisplayName(tableName),
+                source_table: tableName
+              }));
+              
+              allMeetings.push(...meetingsWithMetadata);
+            }
+          } catch (tableError) {
+            console.warn(`Failed to fetch meetings from ${tableName}:`, tableError);
+          }
+        })
+      );
+
+      await Promise.allSettled(tablePromises);
+      
+      // Sort by date and take top 20 most recent
+      const sortedMeetings = allMeetings
+        .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
+        .slice(0, 20);
+      
+      safeSetState(setRecentMeetings, sortedMeetings);
+    } catch (error) {
+      handleError(error, 'fetching recent meetings');
+      safeSetState(setRecentMeetings, []);
+    }
+  };
+
+  // Helper function to get display name for meeting types
+  const getMeetingTypeDisplayName = (tableName) => {
+    const typeMap = {
+      'bdm_customer_visit': 'Customer Visit',
+      'bdm_principle_visit': 'Principle Visit',
+      'bdm_weekly_meetings': 'Weekly Meeting',
+      'sales_operations_meetings': 'Sales Operations Meeting',
+      'scmt_meetings_and_sessions': 'SCMT Meeting',
+      'scmt_weekly_meetings': 'SCMT Weekly Meeting'
+    };
+    
+    return typeMap[tableName] || tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   const calculateStats = () => {
     try {
       const totalDepartments = departments.length;
       const totalUsers = userCounts ? Object.values(userCounts).reduce((sum, count) => sum + count, 0) : 0;
       const departmentsWithUsers = userCounts ? Object.keys(userCounts).length : 0;
       const totalActivities = activityCounts ? Object.values(activityCounts).reduce((sum, count) => sum + count, 0) : 0;
+      const totalMeetings = meetingCounts ? Object.values(meetingCounts).reduce((sum, count) => sum + count, 0) : 0;
 
       safeSetState(setStats, {
         totalDepartments,
         totalUsers,
         departmentsWithUsers,
-        totalActivities
+        totalActivities,
+        totalMeetings
       });
 
-      return { totalDepartments, totalUsers, departmentsWithUsers, totalActivities };
+      return { totalDepartments, totalUsers, departmentsWithUsers, totalActivities, totalMeetings };
     } catch (error) {
       handleError(error, 'calculating statistics');
-      return { totalDepartments: 0, totalUsers: 0, departmentsWithUsers: 0, totalActivities: 0 };
+      return { 
+        totalDepartments: 0, 
+        totalUsers: 0, 
+        departmentsWithUsers: 0, 
+        totalActivities: 0,
+        totalMeetings: 0 
+      };
     }
   };
 
   useEffect(() => {
     calculateStats();
-  }, [departments, userCounts, activityCounts]);
+  }, [departments, userCounts, activityCounts, meetingCounts]);
 
   const handleDepartmentClick = (departmentName) => {
     try {
@@ -606,6 +821,9 @@ const Departments = () => {
       {/* Statistics Cards */}
       <DepartmentStatistics stats={stats} loading={isRefreshing} />
 
+      {/* Recent Meetings Table */}
+      <RecentMeetingsTable meetings={recentMeetings} loading={isRefreshing} />
+
       {/* Department Cards */}
       <Card 
         title={
@@ -626,6 +844,7 @@ const Departments = () => {
             Refresh Departments
           </Button>
         }
+        style={{ marginTop: 24 }}
       >
         {departments.length === 0 ? (
           <Empty 
@@ -645,6 +864,7 @@ const Departments = () => {
                     department={dept}
                     userCount={userCounts[dept.id]}
                     activityCount={activityCounts[deptKey]}
+                    meetingCount={meetingCounts[deptKey]}
                     onNavigate={handleDepartmentClick}
                     loading={isRefreshing}
                   />
@@ -662,34 +882,28 @@ const Departments = () => {
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Alert
-            message="Department Access"
-            description="Click on any department card above to navigate to its dedicated page where you can manage tasks, meetings, and other department-specific activities."
+            message="Meeting & Visit Tracking"
+            description="This dashboard specifically tracks meetings, customer visits, principle visits, and other departmental meetings. All meeting activities are consolidated here for easy monitoring."
             type="info"
             showIcon
           />
           
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
-              <Card size="small" title="Available Actions" type="inner">
+              <Card size="small" title="Tracked Meeting Types" type="inner">
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <div>
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                    <Text strong>View Department Details</Text>
-                  </div>
-                  <div>
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                    <Text strong>Access Department-specific Activities</Text>
-                  </div>
-                  <div>
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                    <Text strong>Monitor Team Performance</Text>
-                  </div>
-                  {isAdmin && (
-                    <div>
-                      <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                      <Text strong>Manage Department Settings</Text>
+                  {Object.entries(departmentConfig).map(([key, dept]) => (
+                    <div key={key}>
+                      <Text strong style={{ color: dept.color }}>
+                        {dept.name}:
+                      </Text>
+                      <Text style={{ marginLeft: 8 }}>
+                        {dept.meetingTables.map(table => 
+                          getMeetingTypeDisplayName(table)
+                        ).join(', ')}
+                      </Text>
                     </div>
-                  )}
+                  ))}
                 </Space>
               </Card>
             </Col>
@@ -709,6 +923,10 @@ const Departments = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text>Total Team Members:</Text>
                     <Text strong>{stats.totalUsers}</Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text>Total Meetings Tracked:</Text>
+                    <Text strong>{stats.totalMeetings}</Text>
                   </div>
                 </Space>
               </Card>
