@@ -31,6 +31,12 @@ import EHealthcare from './components/Schedules/eHealthcare.js';
 import HiTech from './components/Schedules/HiTech.js';
 import HR from './components/Schedules/Hr.js';
 import Import from './components/Schedules/Imports.js';
+import Regulatory from './components/Schedules/Regulatory.js';
+import SalesOperations from './components/Schedules/SalesOperations.js';
+import SOMT from './components/Schedules/SOMT.js';
+import StoresView from './components/Schedules/Stores.js';
+import SurgiSurgicare from './components/Schedules/Surge-Surgecare.js';
+import SurgeSurgeCareImageView from './components/Schedules/Surge-Surgecare-Image.js';
 
 
 import 'antd/dist/reset.css';
@@ -137,12 +143,12 @@ function AppContent() {
           <Route path="departments/finance" element={<OopsPage />} />
           <Route path="departments/it" element={<OopsPage />} />
           <Route path="departments/imports" element={<Import />} />
-          <Route path="departments/regulatory" element={<OopsPage />} />
-          <Route path="departments/sales-operations" element={<OopsPage />} />
-          <Route path="departments/somt" element={<OopsPage />} />
-          <Route path="departments/stores" element={<OopsPage />} />
-          <Route path="departments/surge-surgecare" element={<OopsPage />} />
-          <Route path="departments/surge-surgecare-image" element={<OopsPage />} />
+          <Route path="departments/regulatory" element={<Regulatory />} />
+          <Route path="departments/sales-operations" element={<SalesOperations />} />
+          <Route path="departments/somt" element={<SOMT />} />
+          <Route path="departments/stores" element={<StoresView />} />
+          <Route path="departments/surge-surgecare" element={<SurgiSurgicare />} />
+          <Route path="departments/surge-surgecare-image" element={<SurgeSurgeCareImageView />} />
           <Route path="/analytics" element={<OopsPage />} />
 
 
