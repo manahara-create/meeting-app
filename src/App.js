@@ -26,6 +26,7 @@ import Cluster3 from './components/Schedules/Cluster_3';
 import Cluster4 from './components/Schedules/Cluster_4';
 import Cluster5 from './components/Schedules/Cluster_5';
 import Cluster6 from './components/Schedules/Cluster_6';
+import CustomerCare from './components/Schedules/Customer_Care';
 
 
 import 'antd/dist/reset.css';
@@ -125,7 +126,7 @@ function AppContent() {
           <Route path="departments/cluster-4" element={<Cluster4 />} />
           <Route path="departments/cluster-5" element={<Cluster5 />} />
           <Route path="departments/cluster-6" element={<Cluster6 />} />
-          <Route path="departments/customer-care" element={<OopsPage />} />
+          <Route path="departments/customer-care" element={<CustomerCare />} />
           <Route path="departments/e-healthcare" element={<OopsPage />} />
           <Route path="departments/hi-tech" element={<OopsPage />} />
           <Route path="departments/hr" element={<OopsPage />} />
