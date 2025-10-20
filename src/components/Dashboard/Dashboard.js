@@ -120,76 +120,76 @@ const tableCategoryMapping = {
   'bdm_principle_visit': { type: 'task', categoryName: 'BDM - Principle Visit', department: 'BDM', shortName: 'Principle' },
   'bdm_promotional_activities': { type: 'task', categoryName: 'BDM - Promotional Activities', department: 'BDM', shortName: 'Promo' },
   'bdm_customer_visit': { type: 'task', categoryName: 'BDM - Visit Plan', department: 'BDM', shortName: 'Visit' },
-  
+
   // Cluster 1
   'cluster_1_meetings': { type: 'meeting', categoryName: 'Cluster 1 - Meetings', department: 'CLUSTER_1', shortName: 'C1 Meet' },
   'cluster_1_special_task': { type: 'task', categoryName: 'Cluster 1 - Special Tasks', department: 'CLUSTER_1', shortName: 'C1 Task' },
   'cluster_1_visit_plan': { type: 'task', categoryName: 'Cluster 1 - Visit Plan', department: 'CLUSTER_1', shortName: 'C1 Visit' },
-  
+
   // Cluster 2
   'cluster_2_meetings': { type: 'meeting', categoryName: 'Cluster 2 - Meetings', department: 'CLUSTER_2', shortName: 'C2 Meet' },
   'cluster_2_special_task': { type: 'task', categoryName: 'Cluster 2 - Special Tasks', department: 'CLUSTER_2', shortName: 'C2 Task' },
   'cluster_2_visit_plan': { type: 'task', categoryName: 'Cluster 2 - Visit Plan', department: 'CLUSTER_2', shortName: 'C2 Visit' },
-  
+
   // Cluster 3
   'cluster_3_meetings': { type: 'meeting', categoryName: 'Cluster 3 - Meetings', department: 'CLUSTER_3', shortName: 'C3 Meet' },
   'cluster_3_special_task': { type: 'task', categoryName: 'Cluster 3 - Special Tasks', department: 'CLUSTER_3', shortName: 'C3 Task' },
   'cluster_3_visit_plan': { type: 'task', categoryName: 'Cluster 3 - Visit Plan', department: 'CLUSTER_3', shortName: 'C3 Visit' },
-  
+
   // Cluster 4
   'cluster_4_meetings': { type: 'meeting', categoryName: 'Cluster 4 - Meetings', department: 'CLUSTER_4', shortName: 'C4 Meet' },
   'cluster_4_special_task': { type: 'task', categoryName: 'Cluster 4 - Special Tasks', department: 'CLUSTER_4', shortName: 'C4 Task' },
   'cluster_4_visit_plan': { type: 'task', categoryName: 'Cluster 4 - Visit Plan', department: 'CLUSTER_4', shortName: 'C4 Visit' },
-  
+
   // Cluster 5
   'cluster_5_meetings': { type: 'meeting', categoryName: 'Cluster 5 - Meetings', department: 'CLUSTER_5', shortName: 'C5 Meet' },
   'cluster_5_special_task': { type: 'task', categoryName: 'Cluster 5 - Special Tasks', department: 'CLUSTER_5', shortName: 'C5 Task' },
   'cluster_5_visit_plan': { type: 'task', categoryName: 'Cluster 5 - Visit Plan', department: 'CLUSTER_5', shortName: 'C5 Visit' },
-  
+
   // Cluster 6
   'cluster_6_meetings': { type: 'meeting', categoryName: 'Cluster 6 - Meetings', department: 'CLUSTER_6', shortName: 'C6 Meet' },
   'cluster_6_special_task': { type: 'task', categoryName: 'Cluster 6 - Special Tasks', department: 'CLUSTER_6', shortName: 'C6 Task' },
   'cluster_6_visit_plan': { type: 'task', categoryName: 'Cluster 6 - Visit Plan', department: 'CLUSTER_6', shortName: 'C6 Visit' },
-  
+
   // Customer Care
   'customer_care_meetings': { type: 'meeting', categoryName: 'Customer Care - Meetings', department: 'CUSTOMER_CARE', shortName: 'CC Meet' },
   'customer_care_special_tasks': { type: 'task', categoryName: 'Customer Care - Special Tasks', department: 'CUSTOMER_CARE', shortName: 'CC Task' },
   'customer_care_delivery_schedule': { type: 'task', categoryName: 'Customer Care - Delivery Schedule', department: 'CUSTOMER_CARE', shortName: 'CC Delivery' },
-  
+
   // E-Healthcare
   'ehealthcare_meetings': { type: 'meeting', categoryName: 'E-Healthcare Meetings', department: 'E_HEALTHCARE', shortName: 'E-Health Meet' },
   'ehealthcare_visit_plan': { type: 'task', categoryName: 'E-Healthcare Visit Plan', department: 'E_HEALTHCARE', shortName: 'E-Health Visit' },
-  
+
   // Hi-Tech
   'hitech_page_generation': { type: 'task', categoryName: 'Hi-Tech Page Generation', department: 'HI_TECH', shortName: 'Hi-Tech Page' },
   'hitech_technical_discussions': { type: 'meeting', categoryName: 'Hi-Tech Technical Discussion', department: 'HI_TECH', shortName: 'Hi-Tech Tech' },
   'hitech_tender_validation': { type: 'task', categoryName: 'Hi-Tech Tender Validation', department: 'HI_TECH', shortName: 'Hi-Tech Tender' },
-  
+
   // HR
   'hr_meetings': { type: 'meeting', categoryName: 'HR - Meetings', department: 'HR', shortName: 'HR Meet' },
   'hr_special_events_n_tasks': { type: 'task', categoryName: 'HR - Special Events', department: 'HR', shortName: 'HR Event' },
   'hr_training': { type: 'task', categoryName: 'HR - Trainings', department: 'HR', shortName: 'HR Training' },
-  
+
   // Imports
   'imports_meetings': { type: 'meeting', categoryName: 'Imports - Meeting Schedules', department: 'IMPORTS', shortName: 'Imports Meet' },
   'imports_upcoming_shipments': { type: 'task', categoryName: 'Imports - Upcoming Shipments', department: 'IMPORTS', shortName: 'Imports Ship' },
-  
+
   // Regulatory
   'regulatory_meetings': { type: 'meeting', categoryName: 'Regulatory - Meetings', department: 'REGULATORY', shortName: 'Regulatory Meet' },
   'regulatory_submissions': { type: 'task', categoryName: 'Regulatory - Submissions', department: 'REGULATORY', shortName: 'Regulatory Sub' },
-  
+
   // Sales Operations
   'sales_operations_meetings': { type: 'meeting', categoryName: 'Sales Operations Meetings', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Meet' },
   'sales_operations_special_tasks': { type: 'task', categoryName: 'Sales Operations Special Tasks', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Task' },
-  
+
   // SOMT
   'somt_meetings': { type: 'meeting', categoryName: 'SOMT -Meetings', department: 'SOMT', shortName: 'SOMT Meet' },
   'somt_tender': { type: 'task', categoryName: 'SOMT -Tender', department: 'SOMT', shortName: 'SOMT Tender' },
-  
+
   // Stores
   'stores_plan_loading': { type: 'task', categoryName: 'Stores - Plan Loading', department: 'STORES', shortName: 'Stores Load' },
   'stores_vst': { type: 'task', categoryName: 'Stores - VST', department: 'STORES', shortName: 'Stores VST' },
-  
+
   // Surge-Surgecare
   'surge_surgecare_imagine_college_session': { type: 'meeting', categoryName: 'SSI - College Session', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI College' },
   'surge_surgecare_imagine_principal_visit': { type: 'task', categoryName: 'SSI - Principle Visit', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Principle' },
@@ -198,16 +198,211 @@ const tableCategoryMapping = {
   'surge_surgecare_principal_visit': { type: 'task', categoryName: 'SS - Principle Visit', department: 'SURGE_SURGECARE', shortName: 'SS Principle' }
 };
 
-// Simplified Calendar Component (Excel-like view) with Week and Day views
-const SimplifiedCalendar = ({ 
-  activities, 
-  onDateClick, 
+// Category Overview Modal Component
+const CategoryOverviewModal = ({ 
+  visible, 
+  onClose, 
+  selectedDate, 
+  groupedActivities,
+  onCategorySelect 
+}) => {
+  const categories = Object.entries(groupedActivities).map(([category, activities]) => ({
+    category,
+    count: activities.length,
+    department: activities[0]?.department,
+    color: departments[activities[0]?.department]?.color || '#1890ff'
+  }));
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <CalendarOutlined />
+          Categories for {selectedDate?.format('MMMM D, YYYY')}
+        </Space>
+      }
+      open={visible}
+      onCancel={onClose}
+      width={600}
+      footer={[
+        <Button key="close" onClick={onClose} size="large">
+          Close
+        </Button>
+      ]}
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Row gutter={16}>
+          <Col span={8}>
+            <Card size="small">
+              <Statistic
+                title="Total Categories"
+                value={categories.length}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small">
+              <Statistic
+                title="Total Activities"
+                value={Object.values(groupedActivities).reduce((sum, activities) => sum + activities.length, 0)}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small">
+              <Statistic
+                title="Departments"
+                value={new Set(categories.map(cat => cat.department)).size}
+                valueStyle={{ color: '#fa8c16' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        <List
+          dataSource={categories}
+          renderItem={item => (
+            <List.Item
+              actions={[
+                <Button 
+                  type="link" 
+                  onClick={() => onCategorySelect(item.category, groupedActivities[item.category])}
+                >
+                  View Events ({item.count})
+                </Button>
+              ]}
+            >
+              <List.Item.Meta
+                avatar={
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      backgroundColor: item.color,
+                      borderRadius: '3px'
+                    }}
+                  />
+                }
+                title={item.category}
+                description={departments[item.department]?.name || item.department}
+              />
+              <Tag color="blue">{item.count} activities</Tag>
+            </List.Item>
+          )}
+          locale={{
+            emptyText: 'No categories found for this date'
+          }}
+        />
+      </Space>
+    </Modal>
+  );
+};
+
+// Category Events Modal Component
+const CategoryEventsModal = ({ 
+  visible, 
+  onClose, 
+  selectedCategory, 
+  categoryActivities,
+  onEventClick 
+}) => {
+  const columns = [
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (type) => (
+        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
+          {type === 'meeting' ? 'Meeting' : 'Task'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+      render: (title, record) => (
+        <Button
+          type="link"
+          onClick={() => onEventClick(record)}
+          style={{ padding: 0, height: 'auto', textAlign: 'left', fontSize: '14px' }}
+        >
+          {title}
+        </Button>
+      )
+    },
+    {
+      title: 'Department',
+      dataIndex: 'department',
+      key: 'department',
+      width: 120,
+      render: (department) => (
+        <Tag color={departments[department]?.color || 'default'}>
+          {departments[department]?.name || department}
+        </Tag>
+      )
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      key: 'priority',
+      width: 100,
+      render: (priority) => (
+        <Tag color={priorityColors[priority]}>
+          {priorityLabels[priority]}
+        </Tag>
+      )
+    }
+  ];
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <CalendarOutlined />
+          {selectedCategory} ({categoryActivities.length} events)
+        </Space>
+      }
+      open={visible}
+      onCancel={onClose}
+      width={800}
+      footer={[
+        <Button key="close" onClick={onClose} size="large">
+          Close
+        </Button>
+      ]}
+    >
+      <Table
+        columns={columns}
+        dataSource={categoryActivities}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: false
+        }}
+        scroll={{ y: 400 }}
+        size="middle"
+        locale={{
+          emptyText: 'No events found for this category'
+        }}
+      />
+    </Modal>
+  );
+};
+
+// Simplified Calendar Component
+const SimplifiedCalendar = ({
+  activities,
+  onDateClick,
   selectedDate,
   currentMonth,
   onMonthChange,
   onEventClick,
   viewMode,
-  onViewModeChange
+  onViewModeChange,
+  onShowAllCategories
 }) => {
   // Get days in month
   const getDaysInMonth = (date) => {
@@ -228,7 +423,7 @@ const SimplifiedCalendar = ({
   const getGroupedActivities = (date) => {
     const dateActivities = getActivitiesForDate(date);
     const grouped = {};
-    
+
     dateActivities.forEach(activity => {
       const category = activity.categoryName;
       if (!grouped[category]) {
@@ -236,7 +431,7 @@ const SimplifiedCalendar = ({
       }
       grouped[category].push(activity);
     });
-    
+
     return grouped;
   };
 
@@ -246,12 +441,12 @@ const SimplifiedCalendar = ({
     const firstDay = currentMonth.startOf('month').day();
     const weeks = [];
     let currentWeek = [];
-    
+
     // Add empty cells for days before the first day of month
     for (let i = 0; i < firstDay; i++) {
       currentWeek.push(<td key={`empty-${i}`} className="calendar-empty-cell"></td>);
     }
-    
+
     // Add cells for each day of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = currentMonth.date(day);
@@ -259,17 +454,17 @@ const SimplifiedCalendar = ({
       const groupedActivities = getGroupedActivities(date.toDate());
       const isToday = date.isSame(dayjs(), 'day');
       const isSelected = selectedDate && date.isSame(selectedDate, 'day');
-      
+
       const cellClassNames = [
         'calendar-cell',
         isToday ? 'calendar-cell-today' : '',
         isSelected ? 'calendar-cell-selected' : '',
         dateActivities.length > 0 ? 'calendar-cell-has-events' : ''
       ].filter(Boolean).join(' ');
-      
+
       currentWeek.push(
         <td key={day} className={cellClassNames}>
-          <div 
+          <div
             className="calendar-date"
             onClick={() => onDateClick(date, dateActivities)}
             style={{ cursor: 'pointer', height: '100%' }}
@@ -277,59 +472,86 @@ const SimplifiedCalendar = ({
             <div className="calendar-date-number">{day}</div>
             <div className="calendar-events">
               {Object.entries(groupedActivities).slice(0, 3).map(([category, activities]) => (
-                <Tooltip 
-                  key={category} 
-                  title={`${category} (${activities.length} activities)`}
+                <Tooltip
+                  key={category}
+                  title={
+                    <div>
+                      <div><strong>{category}</strong></div>
+                      <div>{activities.length} activities</div>
+                      <div>{departments[activities[0].department]?.name}</div>
+                    </div>
+                  }
                 >
-                  <div 
+                  <div
                     className="calendar-event-category"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (activities.length === 1) {
                         onEventClick(activities[0]);
+                      } else {
+                        onShowAllCategories(date, groupedActivities);
                       }
                     }}
                   >
-                    <Tag 
-                      color={departments[activities[0].department]?.color || 'blue'}
-                      style={{ 
-                        fontSize: '10px', 
-                        padding: '1px 4px', 
+                    <div
+                      style={{
+                        backgroundColor: departments[activities[0].department]?.color || 'blue',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
                         margin: '1px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
                         lineHeight: '1.2',
-                        height: 'auto',
-                        cursor: activities.length === 1 ? 'pointer' : 'default'
+                        height: 'auto'
                       }}
                     >
-                      {tableCategoryMapping[activities[0].sourceTable]?.shortName || category.substring(0, 8)}
-                    </Tag>
-                    {activities.length > 1 && (
-                      <span style={{ fontSize: '9px', marginLeft: '2px' }}>
-                        +{activities.length - 1}
-                      </span>
-                    )}
+                      <div style={{ fontWeight: 'bold', fontSize: '9px' }}>
+                        {tableCategoryMapping[activities[0].sourceTable]?.shortName || category.substring(0, 8)}
+                      </div>
+                      <div style={{ fontSize: '8px' }}>
+                        {activities.length}
+                      </div>
+                    </div>
                   </div>
                 </Tooltip>
               ))}
               {Object.keys(groupedActivities).length > 3 && (
-                <div className="calendar-more-events">
-                  <Tag style={{ fontSize: '9px', padding: '0 3px' }}>
-                    +{Object.keys(groupedActivities).length - 3} more
-                  </Tag>
+                <div 
+                  className="calendar-more-events"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowAllCategories(date, groupedActivities);
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '9px',
+                      padding: '1px 4px',
+                      backgroundColor: '#f0f0f0',
+                      borderRadius: '2px',
+                      textAlign: 'center',
+                      marginTop: '2px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    +{Object.keys(groupedActivities).length - 3} more categories
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </td>
       );
-      
+
       // Start new week when we reach Sunday
       if ((firstDay + day) % 7 === 0) {
         weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
         currentWeek = [];
       }
     }
-    
+
     // Add empty cells for remaining days in the last week
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
@@ -337,7 +559,7 @@ const SimplifiedCalendar = ({
       }
       weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
     }
-    
+
     return weeks;
   };
 
@@ -345,13 +567,14 @@ const SimplifiedCalendar = ({
   const renderWeekView = () => {
     const startOfWeek = currentMonth.startOf('week');
     const days = [];
-    
+
     for (let i = 0; i < 7; i++) {
       const date = startOfWeek.add(i, 'day');
       const dateActivities = getActivitiesForDate(date.toDate());
+      const groupedActivities = getGroupedActivities(date.toDate());
       const isToday = date.isSame(dayjs(), 'day');
       const isSelected = selectedDate && date.isSame(selectedDate, 'day');
-      
+
       const cellClassNames = [
         'calendar-cell',
         'calendar-cell-week',
@@ -359,10 +582,10 @@ const SimplifiedCalendar = ({
         isSelected ? 'calendar-cell-selected' : '',
         dateActivities.length > 0 ? 'calendar-cell-has-events' : ''
       ].filter(Boolean).join(' ');
-      
+
       days.push(
         <td key={i} className={cellClassNames} style={{ width: '14.28%' }}>
-          <div 
+          <div
             className="calendar-date"
             onClick={() => onDateClick(date, dateActivities)}
             style={{ cursor: 'pointer', height: '100%' }}
@@ -372,42 +595,73 @@ const SimplifiedCalendar = ({
               <div className="calendar-date-number">{date.date()}</div>
             </div>
             <div className="calendar-events-week">
-              {dateActivities.slice(0, 10).map((activity, index) => (
-                <Tooltip key={index} title={activity.title}>
-                  <div 
-                    className="calendar-event-item"
+              {Object.entries(groupedActivities).slice(0, 8).map(([category, activities]) => (
+                <Tooltip
+                  key={category}
+                  title={
+                    <div>
+                      <div><strong>{category}</strong></div>
+                      <div>{activities.length} activities</div>
+                      <div>{departments[activities[0].department]?.name}</div>
+                    </div>
+                  }
+                >
+                  <div
+                    className="calendar-event-category"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEventClick(activity);
+                      if (activities.length === 1) {
+                        onEventClick(activities[0]);
+                      } else {
+                        onShowAllCategories(date, groupedActivities);
+                      }
                     }}
                   >
-                    <Tag 
-                      color={departments[activity.department]?.color || 'blue'}
-                      style={{ 
-                        fontSize: '11px', 
-                        padding: '2px 6px', 
-                        margin: '2px 0',
-                        lineHeight: '1.3',
-                        height: 'auto',
+                    <div
+                      style={{
+                        backgroundColor: departments[activities[0].department]?.color || 'blue',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        margin: '1px',
                         cursor: 'pointer',
-                        width: '100%',
-                        textAlign: 'left',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        textAlign: 'center',
+                        lineHeight: '1.2',
+                        height: 'auto'
                       }}
                     >
-                      {activity.title.substring(0, 20)}
-                      {activity.title.length > 20 ? '...' : ''}
-                    </Tag>
+                      <div style={{ fontWeight: 'bold', fontSize: '9px' }}>
+                        {tableCategoryMapping[activities[0].sourceTable]?.shortName || category.substring(0, 12)}
+                      </div>
+                      <div style={{ fontSize: '8px' }}>
+                        {activities.length}
+                      </div>
+                    </div>
                   </div>
                 </Tooltip>
               ))}
-              {dateActivities.length > 10 && (
-                <div className="calendar-more-events">
-                  <Tag style={{ fontSize: '10px', padding: '1px 4px' }}>
-                    +{dateActivities.length - 10} more
-                  </Tag>
+              {Object.keys(groupedActivities).length > 8 && (
+                <div 
+                  className="calendar-more-events"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowAllCategories(date, groupedActivities);
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '9px',
+                      padding: '1px 4px',
+                      backgroundColor: '#f0f0f0',
+                      borderRadius: '2px',
+                      textAlign: 'center',
+                      marginTop: '2px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    +{Object.keys(groupedActivities).length - 8} more categories
+                  </div>
                 </div>
               )}
             </div>
@@ -415,7 +669,7 @@ const SimplifiedCalendar = ({
         </td>
       );
     }
-    
+
     return [<tr key="week">{days}</tr>];
   };
 
@@ -423,15 +677,16 @@ const SimplifiedCalendar = ({
   const renderDayView = () => {
     const date = selectedDate || currentMonth;
     const dateActivities = getActivitiesForDate(date.toDate());
+    const groupedActivities = getGroupedActivities(date.toDate());
     const isToday = date.isSame(dayjs(), 'day');
-    
+
     const cellClassNames = [
       'calendar-cell',
       'calendar-cell-day',
       isToday ? 'calendar-cell-today' : '',
       'calendar-cell-selected'
     ].filter(Boolean).join(' ');
-    
+
     return [
       <tr key="day">
         <td className={cellClassNames} style={{ height: '500px' }}>
@@ -441,55 +696,71 @@ const SimplifiedCalendar = ({
               <div className="calendar-date-number-large">{date.format('MMMM D, YYYY')}</div>
             </div>
             <div className="calendar-events-day">
-              {dateActivities.length === 0 ? (
-                <Empty 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE} 
+              {Object.keys(groupedActivities).length === 0 ? (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description="No activities for this day"
                   style={{ margin: '40px 0' }}
                 />
               ) : (
-                dateActivities.map((activity, index) => (
-                  <div 
-                    key={index}
-                    className="calendar-event-item-day"
-                    onClick={() => onEventClick(activity)}
-                  >
-                    <Card 
-                      size="small" 
-                      style={{ 
-                        marginBottom: '8px',
-                        cursor: 'pointer',
-                        borderLeft: `4px solid ${departments[activity.department]?.color || '#1890ff'}`
-                      }}
-                    >
-                      <Space direction="vertical" style={{ width: '100%' }} size="small">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Text strong style={{ fontSize: '14px', flex: 1 }}>
-                            {activity.title}
-                          </Text>
-                          <Tag color={departments[activity.department]?.color}>
-                            {departments[activity.department]?.name}
-                          </Tag>
-                        </div>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.categoryName}
-                        </Text>
-                        {activity.hasTime && (
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            <ClockCircleOutlined /> {new Date(activity.start).toLocaleTimeString()}
-                          </Text>
-                        )}
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          <Tag color={activity.type === 'meeting' ? 'blue' : 'green'}>
-                            {activity.type === 'meeting' ? 'Meeting' : 'Task'}
-                          </Tag>
-                          <Tag color={priorityColors[activity.priority]}>
-                            {priorityLabels[activity.priority]}
-                          </Tag>
-                        </div>
+                Object.entries(groupedActivities).map(([category, activities]) => (
+                  <Card
+                    key={category}
+                    size="small"
+                    style={{
+                      marginBottom: '12px',
+                      borderLeft: `4px solid ${departments[activities[0].department]?.color || '#1890ff'}`
+                    }}
+                    title={
+                      <Space>
+                        <Text strong>{category}</Text>
+                        <Tag color="blue">{activities.length} events</Tag>
+                        <Tag color={departments[activities[0].department]?.color}>
+                          {departments[activities[0].department]?.name}
+                        </Tag>
                       </Space>
-                    </Card>
-                  </div>
+                    }
+                    extra={
+                      <Button 
+                        type="link" 
+                        onClick={() => onShowAllCategories(date, {[category]: activities})}
+                      >
+                        View All
+                      </Button>
+                    }
+                  >
+                    <List
+                      size="small"
+                      dataSource={activities.slice(0, 3)}
+                      renderItem={activity => (
+                        <List.Item
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => onEventClick(activity)}
+                        >
+                          <List.Item.Meta
+                            title={activity.title}
+                            description={
+                              <Space>
+                                <Tag color={activity.type === 'meeting' ? 'blue' : 'green'}>
+                                  {activity.type === 'meeting' ? 'Meeting' : 'Task'}
+                                </Tag>
+                                <Tag color={priorityColors[activity.priority]}>
+                                  {priorityLabels[activity.priority]}
+                                </Tag>
+                              </Space>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                    />
+                    {activities.length > 3 && (
+                      <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                        <Text type="secondary">
+                          +{activities.length - 3} more events
+                        </Text>
+                      </div>
+                    )}
+                  </Card>
                 ))
               )}
             </div>
@@ -538,13 +809,13 @@ const SimplifiedCalendar = ({
   };
 
   return (
-    <Card 
+    <Card
       title={
         <Space>
           <CalendarOutlined />
           <Text strong>Organizational Calendar</Text>
-          <Select 
-            value={viewMode} 
+          <Select
+            value={viewMode}
             onChange={onViewModeChange}
             size="small"
             style={{ width: 120 }}
@@ -557,18 +828,18 @@ const SimplifiedCalendar = ({
       }
       extra={
         <Space>
-          <Button 
-            icon={<LeftOutlined />} 
+          <Button
+            icon={<LeftOutlined />}
             onClick={() => navigateView(-1)}
             size="small"
           />
           <Text strong>{getHeaderText()}</Text>
-          <Button 
-            icon={<RightOutlined />} 
+          <Button
+            icon={<RightOutlined />}
             onClick={() => navigateView(1)}
             size="small"
           />
-          <Button 
+          <Button
             onClick={() => {
               const now = dayjs();
               onMonthChange(now);
@@ -590,9 +861,9 @@ const SimplifiedCalendar = ({
             <thead>
               <tr>
                 {weekDays.map(day => (
-                  <th key={day} style={{ 
-                    padding: '12px', 
-                    textAlign: 'center', 
+                  <th key={day} style={{
+                    padding: '12px',
+                    textAlign: 'center',
                     backgroundColor: '#fafafa',
                     border: '1px solid #e8e8e8',
                     fontWeight: 'bold'
@@ -607,7 +878,7 @@ const SimplifiedCalendar = ({
             </tbody>
           </table>
         )}
-        
+
         {viewMode === 'day' && (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <tbody>
@@ -615,14 +886,14 @@ const SimplifiedCalendar = ({
             </tbody>
           </table>
         )}
-        
+
         {/* Calendar Legend */}
         <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
           <Text strong>Legend: </Text>
           <Space wrap size={[8, 8]} style={{ marginTop: '8px' }}>
             {Object.entries(departments).slice(0, 6).map(([key, dept]) => (
               <Space key={key} size={4}>
-                <div 
+                <div
                   style={{
                     width: '12px',
                     height: '12px',
@@ -639,7 +910,7 @@ const SimplifiedCalendar = ({
           </Space>
         </div>
       </div>
-      
+
       <style jsx>{`
         .calendar-cell {
           border: 1px solid #e8e8e8;
@@ -786,7 +1057,7 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
   };
 
   return (
-    <Card 
+    <Card
       title={
         <Space>
           <CalendarOutlined />
@@ -800,9 +1071,9 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
             {activities.length} Total
           </Tag>
           {activities.length > pageSize && (
-            <Button 
-              type="link" 
-              icon={<EyeOutlined />} 
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
               onClick={onViewAll}
               size="small"
             >
@@ -814,8 +1085,8 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
     >
       <div style={{ minHeight: '400px', position: 'relative' }}>
         {currentActivities.length === 0 ? (
-          <Empty 
-            image={Empty.PRESENTED_IMAGE_SIMPLE} 
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="No activities found"
           />
         ) : (
@@ -824,14 +1095,14 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
               dataSource={currentActivities}
               renderItem={activity => (
                 <List.Item
-                  style={{ 
-                    padding: '12px 0', 
+                  style={{
+                    padding: '12px 0',
                     borderBottom: '1px solid #f0f0f0',
                     cursor: 'pointer'
                   }}
                   onClick={() => onActivityClick(activity)}
                   actions={[
-                    <Tag 
+                    <Tag
                       color={priorityColors[activity.priority] || 'blue'}
                       style={{ fontSize: '12px', padding: '2px 6px' }}
                     >
@@ -841,8 +1112,8 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                 >
                   <List.Item.Meta
                     title={
-                      <Text 
-                        style={{ 
+                      <Text
+                        style={{
                           fontSize: '14px',
                           fontWeight: '600',
                           lineHeight: '1.4',
@@ -858,8 +1129,8 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                           {departments[activity.department]?.name} • {activity.categoryName}
                         </Text>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.hasTime ? 
-                            new Date(activity.start).toLocaleString() : 
+                          {activity.hasTime ?
+                            new Date(activity.start).toLocaleString() :
                             new Date(activity.date || activity.created_at).toLocaleDateString()
                           }
                         </Text>
@@ -869,12 +1140,12 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                 </List.Item>
               )}
             />
-            
+
             {/* Enhanced Pagination with Arrows */}
             {activities.length > pageSize && (
-              <div style={{ 
-                marginTop: '16px', 
-                display: 'flex', 
+              <div style={{
+                marginTop: '16px',
+                display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 borderTop: '1px solid #f0f0f0',
@@ -888,11 +1159,11 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                 >
                   Previous
                 </Button>
-                
+
                 <Text style={{ color: '#666' }}>
                   Page {currentPage} of {totalPages}
                 </Text>
-                
+
                 <Button
                   type="text"
                   onClick={handleNext}
@@ -927,7 +1198,7 @@ const DepartmentFilter = ({ selectedDepartment, onDepartmentChange }) => {
           {Object.entries(departments).map(([key, dept]) => (
             <Option key={key} value={key}>
               <Space>
-                <div 
+                <div
                   style={{
                     width: '12px',
                     height: '12px',
@@ -971,11 +1242,11 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
       const worksheet = XLSX.utils.json_to_sheet(dataForExport);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Activities');
-      
+
       const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
       const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
       XLSX.writeFile(workbook, fileName);
-      
+
       toast.success('Excel file exported successfully!');
     } catch (error) {
       console.error('Error exporting to Excel:', error);
@@ -983,17 +1254,17 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
     }
   };
 
- const exportToPDF = () => {
+  const exportToPDF = () => {
     try {
       const doc = new jsPDF();
-      
+
       // Title
       doc.setFontSize(16);
       doc.text('Organizational Calendar Export', 14, 15);
       doc.setFontSize(10);
       const departmentText = selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : '';
       doc.text(`View: ${currentView}${departmentText} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`, 14, 22);
-      
+
       // Prepare table data manually without autoTable
       const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
       const tableData = activities.map(activity => [
@@ -1015,7 +1286,7 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
       doc.setFillColor(52, 152, 219);
       doc.setTextColor(255, 255, 255);
       let xPosition = 14;
-      
+
       headers.forEach((header, index) => {
         doc.rect(xPosition, yPosition - 5, colWidths[index], 8, 'F');
         doc.text(header, xPosition + 2, yPosition);
@@ -1049,7 +1320,7 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
       const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
       const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.pdf`;
       doc.save(fileName);
-      
+
       toast.success('PDF file exported successfully!');
     } catch (error) {
       console.error('Error exporting to PDF:', error);
@@ -1081,151 +1352,12 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
   );
 };
 
-// Date Activities Modal Component
-const DateActivitiesModal = ({ 
-  visible, 
-  onClose, 
-  selectedDate, 
-  activities,
-  onActivityClick 
-}) => {
-  const columns = [
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      width: 80,
-      render: (type) => (
-        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
-          {type === 'meeting' ? 'Meeting' : 'Task'}
-        </Tag>
-      )
-    },
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-      render: (title, record) => (
-        <Button 
-          type="link" 
-          onClick={() => onActivityClick(record)}
-          style={{ padding: 0, height: 'auto', textAlign: 'left', fontSize: '14px' }}
-        >
-          {title}
-        </Button>
-      )
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      width: 120,
-      render: (department) => (
-        <Tag color={departments[department]?.color || 'default'}>
-          {departments[department]?.name || department}
-        </Tag>
-      )
-    },
-    {
-      title: 'Category',
-      dataIndex: 'categoryName',
-      key: 'categoryName',
-      width: 150
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 100,
-      render: (priority) => (
-        <Tag color={priorityColors[priority]}>
-          {priorityLabels[priority]}
-        </Tag>
-      )
-    }
-  ];
-
-  return (
-    <Modal
-      title={
-        <Space>
-          <CalendarOutlined />
-          Activities for {selectedDate?.format('MMMM D, YYYY')}
-        </Space>
-      }
-      open={visible}
-      onCancel={onClose}
-      width={800}
-      footer={[
-        <Button key="close" onClick={onClose} size="large">
-          Close
-        </Button>
-      ]}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <Row gutter={16}>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Total Activities"
-                value={activities.length}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Meetings"
-                value={activities.filter(a => a.type === 'meeting').length}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Tasks"
-                value={activities.filter(a => a.type === 'task').length}
-                valueStyle={{ color: '#fa8c16' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="High Priority"
-                value={activities.filter(a => a.priority >= 4).length}
-                valueStyle={{ color: '#e74c3c' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        <Table
-          columns={columns}
-          dataSource={activities}
-          pagination={{ 
-            pageSize: 10,
-            showSizeChanger: false 
-          }}
-          scroll={{ y: 400 }}
-          size="middle"
-          locale={{
-            emptyText: 'No activities scheduled for this date'
-          }}
-        />
-      </Space>
-    </Modal>
-  );
-};
-
 // All Activities Modal Component
-const AllActivitiesModal = ({ 
-  visible, 
-  onClose, 
+const AllActivitiesModal = ({
+  visible,
+  onClose,
   activities,
-  onActivityClick 
+  onActivityClick
 }) => {
   const columns = [
     {
@@ -1244,8 +1376,8 @@ const AllActivitiesModal = ({
       dataIndex: 'title',
       key: 'title',
       render: (title, record) => (
-        <Button 
-          type="link" 
+        <Button
+          type="link"
           onClick={() => onActivityClick(record)}
           style={{ padding: 0, height: 'auto', textAlign: 'left' }}
         >
@@ -1260,8 +1392,8 @@ const AllActivitiesModal = ({
       width: 120,
       render: (start, record) => (
         <Text>
-          {record.hasTime ? 
-            new Date(start).toLocaleString() : 
+          {record.hasTime ?
+            new Date(start).toLocaleString() :
             new Date(start).toLocaleDateString()
           }
         </Text>
@@ -1317,7 +1449,7 @@ const AllActivitiesModal = ({
       <Table
         columns={columns}
         dataSource={activities}
-        pagination={{ 
+        pagination={{
           pageSize: 20,
           showSizeChanger: true,
           showQuickJumper: true
@@ -1333,10 +1465,10 @@ const AllActivitiesModal = ({
 };
 
 // Activity Detail Modal Component
-const ActivityDetailModal = ({ 
-  visible, 
-  onClose, 
-  selectedActivity 
+const ActivityDetailModal = ({
+  visible,
+  onClose,
+  selectedActivity
 }) => {
   if (!selectedActivity) return null;
 
@@ -1370,9 +1502,9 @@ const ActivityDetailModal = ({
             </Title>
           </Col>
         </Row>
-        
+
         <Divider />
-        
+
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12}>
             <Text strong>Type: </Text>
@@ -1458,13 +1590,19 @@ const Dashboard = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
-  
+
   // Modal states
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isActivityModalVisible, setIsActivityModalVisible] = useState(false);
-  const [dateActivitiesModalVisible, setDateActivitiesModalVisible] = useState(false);
-  const [dateActivities, setDateActivities] = useState([]);
   const [allActivitiesModalVisible, setAllActivitiesModalVisible] = useState(false);
+  
+  // New modal states for layered approach
+  const [categoryOverviewModalVisible, setCategoryOverviewModalVisible] = useState(false);
+  const [categoryEventsModalVisible, setCategoryEventsModalVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategoryActivities, setSelectedCategoryActivities] = useState([]);
+  const [tempGroupedActivities, setTempGroupedActivities] = useState({});
+  const [tempSelectedDate, setTempSelectedDate] = useState(null);
 
   // Stats state
   const [stats, setStats] = useState({
@@ -1545,17 +1683,136 @@ const Dashboard = () => {
   };
 
   // Helper function to get activity title
-  const getActivityTitle = (item) => {
+  const getActivityTitle = (item, tableName, categoryName) => {
     if (!item) return 'Unknown Activity';
-    
+
+    const department = tableCategoryMapping[tableName]?.department;
+
+    // Department-specific title mappings
+    const titleMappings = {
+      // Imports Department
+      'IMPORTS': {
+        'Upcoming Shipment Clearance plan': item.pord_number || 'PORD Number',
+        'Meeting Schedule': item.subject || 'Meeting'
+      },
+      // Regulatory Department
+      'REGULATORY': {
+        'Meetings': item.subject || 'Meeting',
+        'Submissions (new/renewal)': item.product || 'Product'
+      },
+      // Stores Department
+      'STORES': {
+        'Plan Loading': item.cluster || 'Cluster',
+        'VST': item.cluster || 'Cluster'
+      },
+      // HR Department
+      'HR': {
+        'Meetings': item.subject || 'Meeting',
+        'Training': item.training_program || 'Training Program',
+        'Special Events': item.event_name || 'Special Event'
+      },
+      // BDM Department
+      'BDM': {
+        'Meeting Schedule': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area',
+        'Principle Visit': item.principle_name || 'Principle Name',
+        'College Session': item.session || 'Session',
+        'Promotional Activities': item.promotional_activity || 'Promotional Activity'
+      },
+      // Surge-Surgecare Departments
+      'SURGE_SURGECARE': {
+        'Promotional Activities': item.promotional_activity || 'Promotional Activity',
+        'Principal Visit': item.principle_name || 'Principle Name',
+        'College Session': item.session || 'Session',
+        'Visit Plan': item.area || 'Area',
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting'
+      },
+      'SURGE_SURGECARE_IMAGE': {
+        'Promotional Activities': item.promotional_activity || 'Promotional Activity',
+        'Principal Visit': item.principle_name || 'Principle Name',
+        'College Session': item.session || 'Session',
+        'Visit Plan': item.area || 'Area',
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting'
+      },
+      // Hi-Tech Department
+      'HI_TECH': {
+        'Visit Plan': item.institute || 'Institute',
+        'Technical Discussion': item.subject || 'Technical Discussion',
+        'Tender Validation': item.tender_number || 'Tender'
+      },
+      // SOMT Department
+      'SOMT': {
+        'Tender': item.instrument || 'Instrument',
+        'Meetings': item.subject || 'Meeting'
+      },
+      // Sales Operations
+      'SALES_OPERATIONS': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.meeting || 'Meeting'
+      },
+      // E-Healthcare
+      'E_HEALTHCARE': {
+        'Visit Plan': item.area || 'Area',
+        'Meetings': item.subject || 'Meeting'
+      },
+      // Customer Care
+      'CUSTOMER_CARE': {
+        'Delivery Schedule': item.area || 'Area',
+        'Meetings': item.subject || 'Meeting',
+        'Special Tasks': item.subject || 'Task'
+      },
+      // Clusters (1-6)
+      'CLUSTER_1': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area'
+      },
+      'CLUSTER_2': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area'
+      },
+      'CLUSTER_3': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area'
+      },
+      'CLUSTER_4': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area'
+      },
+      'CLUSTER_5': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area'
+      },
+      'CLUSTER_6': {
+        'Special Tasks': item.task || 'Task',
+        'Meetings': item.subject || 'Meeting',
+        'Visit Plan': item.area || 'Area'
+      }
+    };
+
+    // Try to get department-specific title
+    if (department && titleMappings[department] && titleMappings[department][categoryName]) {
+      const title = titleMappings[department][categoryName];
+      return title;
+    }
+
+    // Fallback to generic field names
     if (item.meeting) return item.meeting;
     if (item.subject) return item.subject;
+    if (item.task) return item.task;
     if (item.customer_name) return `Visit: ${item.customer_name}`;
     if (item.principle_name) return `Principle: ${item.principle_name}`;
     if (item.promotional_activity) return item.promotional_activity;
-    if (item.task) return item.task;
-    
-    return `${item.categoryName} Activity`;
+    if (item.area) return `Area: ${item.area}`;
+    if (item.session) return `Session: ${item.session}`;
+
+    return `${categoryName} Activity`;
   };
 
   const fetchAllActivities = async () => {
@@ -1587,8 +1844,8 @@ const Dashboard = () => {
                 department: tableInfo.department,
                 date: baseDate,
                 start: baseDate,
-                title: getActivityTitle(item),
-                priority: item.priority || 3, // Default priority
+                title: getActivityTitle(item, tableName, tableInfo.categoryName),
+                priority: item.priority || 3,
                 status: item.status || 'scheduled'
               };
 
@@ -1646,20 +1903,21 @@ const Dashboard = () => {
     if (!selectedDepartment) {
       return allActivities;
     }
-    
+
     return allActivities.filter(activity => activity.department === selectedDepartment);
   };
 
   const handleDateClick = (date, activities = []) => {
     setSelectedDate(date);
-    
-    if (activities.length > 0) {
-      setDateActivities(activities);
-      setDateActivitiesModalVisible(true);
-    }
+    // Don't automatically open modal anymore - let users click categories
   };
 
   const handleEventClick = (activity) => {
+    // Close any open modals first
+    setCategoryOverviewModalVisible(false);
+    setCategoryEventsModalVisible(false);
+    setAllActivitiesModalVisible(false);
+    
     setSelectedActivity(activity);
     setIsActivityModalVisible(true);
   };
@@ -1667,6 +1925,26 @@ const Dashboard = () => {
   const handleActivityClick = (activity) => {
     setSelectedActivity(activity);
     setIsActivityModalVisible(true);
+  };
+
+  const handleShowAllCategories = (date, groupedActivities) => {
+    // Close any open modals first
+    setCategoryEventsModalVisible(false);
+    setIsActivityModalVisible(false);
+    setAllActivitiesModalVisible(false);
+    
+    setTempSelectedDate(date);
+    setTempGroupedActivities(groupedActivities);
+    setCategoryOverviewModalVisible(true);
+  };
+
+  const handleCategorySelect = (category, activities) => {
+    // Close category overview modal
+    setCategoryOverviewModalVisible(false);
+    
+    setSelectedCategory(category);
+    setSelectedCategoryActivities(activities);
+    setCategoryEventsModalVisible(true);
   };
 
   const handleMonthChange = (newDate) => {
@@ -1730,8 +2008,8 @@ const Dashboard = () => {
                   >
                     Refresh
                   </Button>
-                  <ExportButton 
-                    activities={getFilteredActivities()} 
+                  <ExportButton
+                    activities={getFilteredActivities()}
                     currentView={viewMode}
                     currentDate={currentMonth}
                     selectedDepartment={selectedDepartment}
@@ -1839,9 +2117,10 @@ const Dashboard = () => {
               onEventClick={handleEventClick}
               viewMode={viewMode}
               onViewModeChange={handleViewModeChange}
+              onShowAllCategories={handleShowAllCategories}
             />
           </Col>
-          
+
           <Col xs={24} lg={8}>
             <RecentActivities
               activities={getFilteredActivities()}
@@ -1851,13 +2130,22 @@ const Dashboard = () => {
           </Col>
         </Row>
 
-        {/* Date Activities Modal */}
-        <DateActivitiesModal
-          visible={dateActivitiesModalVisible}
-          onClose={() => setDateActivitiesModalVisible(false)}
-          selectedDate={selectedDate}
-          activities={dateActivities}
-          onActivityClick={handleActivityClick}
+        {/* Category Overview Modal */}
+        <CategoryOverviewModal
+          visible={categoryOverviewModalVisible}
+          onClose={() => setCategoryOverviewModalVisible(false)}
+          selectedDate={tempSelectedDate}
+          groupedActivities={tempGroupedActivities}
+          onCategorySelect={handleCategorySelect}
+        />
+
+        {/* Category Events Modal */}
+        <CategoryEventsModal
+          visible={categoryEventsModalVisible}
+          onClose={() => setCategoryEventsModalVisible(false)}
+          selectedCategory={selectedCategory}
+          categoryActivities={selectedCategoryActivities}
+          onEventClick={handleEventClick}
         />
 
         {/* All Activities Modal */}
