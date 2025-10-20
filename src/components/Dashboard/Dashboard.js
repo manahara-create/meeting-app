@@ -1909,7 +1909,6 @@ const Dashboard = () => {
 
   const handleDateClick = (date, activities = []) => {
     setSelectedDate(date);
-    // Don't automatically open modal anymore - let users click categories
   };
 
   const handleEventClick = (activity) => {

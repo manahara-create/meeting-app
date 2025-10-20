@@ -3,7 +3,7 @@ import {
   Card, Button, Row, Col, Typography, Alert,
   Space, Tag, Statistic, Spin, Empty, Result,
   Modal, message, Divider, Tooltip, Badge,
-  Tabs, Switch, Pagination, Table
+  Tabs, Switch, Pagination, Table, List, Avatar
 } from 'antd';
 import { 
   TeamOutlined, UserOutlined, CrownOutlined,
@@ -12,7 +12,8 @@ import {
   EyeOutlined, InfoCircleOutlined, SafetyCertificateOutlined,
   WarningOutlined, FrownOutlined, ReloadOutlined,
   AppstoreOutlined, BarsOutlined, FilterOutlined,
-  SearchOutlined, FileTextOutlined
+  SearchOutlined, FileTextOutlined, DatabaseOutlined,
+  UsergroupAddOutlined, BarChartOutlined, LoginOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
@@ -23,31 +24,25 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
-// Department configuration with enhanced metadata and meeting tables
+// Department configuration - simplified to focus on user counts
 const departmentConfig = {
   BDM: { 
     name: 'BDM', 
     color: '#3498db',
     description: 'Business Development Management',
     icon: <TeamOutlined />,
-    tables: ['bdm_customer_visit', 'bdm_principle_visit', 'bdm_weekly_meetings', 'bdm_college_session', 'bdm_promotional_activities'],
-    meetingTables: ['bdm_customer_visit', 'bdm_principle_visit', 'bdm_weekly_meetings'] // Specific meeting tables
   },
   SALES_OPERATIONS: { 
     name: 'Sales Operations', 
     color: '#f39c12',
     description: 'Sales Operations and Management',
     icon: <UserOutlined />,
-    tables: ['sales_operations_meetings', 'sales_operations_tasks'],
-    meetingTables: ['sales_operations_meetings'] // Specific meeting tables
   },
   SCMT: { 
     name: 'SCMT', 
     color: '#27ae60',
     description: 'Supply Chain Management',
     icon: <SafetyCertificateOutlined />,
-    tables: ['scmt_d_n_d', 'scmt_meetings_and_sessions', 'scmt_others', 'scmt_weekly_meetings'],
-    meetingTables: ['scmt_meetings_and_sessions', 'scmt_weekly_meetings'] // Specific meeting tables
   }
 };
 
@@ -72,14 +67,16 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => (
   />
 );
 
-// Department Card Component
-const DepartmentCard = ({ department, userCount, activityCount, meetingCount, onNavigate, loading = false }) => {
+// Department Card Component - Removed user restriction
+const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) => {
   const config = departmentConfig[department.name] || {
     name: department.name,
     color: '#666',
     description: department.description || 'Department',
     icon: <TeamOutlined />
   };
+
+  const hasUsers = userCount > 0;
 
   return (
     <Card
@@ -89,13 +86,13 @@ const DepartmentCard = ({ department, userCount, activityCount, meetingCount, on
         height: '100%',
         border: `2px solid ${config.color}20`,
         borderRadius: '12px',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
       }}
       bodyStyle={{ 
         padding: '24px',
         textAlign: 'center'
       }}
-      onClick={() => !loading && onNavigate(department.name)}
+      onClick={() => !loading && onNavigate(department.name, hasUsers)}
     >
       <div style={{ 
         fontSize: '48px', 
@@ -115,32 +112,27 @@ const DepartmentCard = ({ department, userCount, activityCount, meetingCount, on
 
       <Divider style={{ margin: '16px 0' }} />
 
-      <Row gutter={16} style={{ marginBottom: '16px' }}>
-        <Col span={8}>
-          <Statistic
-            title="Team Members"
-            value={userCount || 0}
-            prefix={<UserOutlined />}
-            valueStyle={{ fontSize: '16px', color: config.color }}
-          />
-        </Col>
-        <Col span={8}>
-          <Statistic
-            title="Activities"
-            value={activityCount || 0}
-            prefix={<CalendarOutlined />}
-            valueStyle={{ fontSize: '16px', color: config.color }}
-          />
-        </Col>
-        <Col span={8}>
-          <Statistic
-            title="Meetings"
-            value={meetingCount || 0}
-            prefix={<FileTextOutlined />}
-            valueStyle={{ fontSize: '16px', color: config.color }}
-          />
-        </Col>
-      </Row>
+      <div style={{ marginBottom: '16px' }}>
+        <Statistic
+          title="Team Members"
+          value={userCount || 0}
+          prefix={<UserOutlined />}
+          valueStyle={{ 
+            fontSize: '24px', 
+            color: config.color
+          }}
+        />
+      </div>
+
+      {!hasUsers && (
+        <Alert
+          message="No Active Users"
+          description="This department is available but currently has no registered team members"
+          type="info"
+          showIcon
+          style={{ marginBottom: '16px' }}
+        />
+      )}
 
       <Button
         type="primary"
@@ -152,16 +144,105 @@ const DepartmentCard = ({ department, userCount, activityCount, meetingCount, on
           fontWeight: 'bold',
           marginTop: '8px'
         }}
-        icon={<ArrowRightOutlined />}
+        icon={hasUsers ? <ArrowRightOutlined /> : <LoginOutlined />}
         block
       >
-        Enter Department
+        {hasUsers ? 'Enter Department' : 'Explore Department'}
       </Button>
     </Card>
   );
 };
 
-// Department Statistics Component
+// Department List View Component
+const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) => {
+  return (
+    <Card 
+      title={
+        <Space>
+          <BarsOutlined />
+          <Text strong>Department List View</Text>
+          <Tag color="blue">{departments.length} Departments</Tag>
+        </Space>
+      }
+      loading={loading}
+    >
+      <List
+        itemLayout="horizontal"
+        dataSource={departments}
+        renderItem={(dept) => {
+          const config = departmentConfig[dept.name] || {
+            name: dept.name,
+            color: '#666',
+            icon: <TeamOutlined />
+          };
+          const userCount = userCounts[dept.id] || 0;
+          const hasUsers = userCount > 0;
+
+          return (
+            <List.Item
+              actions={[
+                <Button 
+                  type="primary"
+                  icon={hasUsers ? <ArrowRightOutlined /> : <LoginOutlined />}
+                  onClick={() => onNavigate(dept.name, hasUsers)}
+                >
+                  {hasUsers ? 'View' : 'Explore'}
+                </Button>
+              ]}
+            >
+              <List.Item.Meta
+                avatar={
+                  <Avatar 
+                    size="large" 
+                    style={{ 
+                      backgroundColor: config.color,
+                      color: '#fff'
+                    }}
+                    icon={config.icon}
+                  />
+                }
+                title={
+                  <Space>
+                    <Text style={{ color: config.color }}>
+                      {config.name}
+                    </Text>
+                    {!hasUsers && (
+                      <Tag color="blue" icon={<InfoCircleOutlined />}>
+                        No Active Users
+                      </Tag>
+                    )}
+                  </Space>
+                }
+                description={
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary">{config.description}</Text>
+                    <Space>
+                      <UserOutlined />
+                      <Text strong>
+                        {userCount} team member{userCount !== 1 ? 's' : ''}
+                      </Text>
+                      {hasUsers ? (
+                        <Tag color="green" icon={<CheckCircleOutlined />}>
+                          Active Team
+                        </Tag>
+                      ) : (
+                        <Tag color="blue" icon={<InfoCircleOutlined />}>
+                          Available
+                        </Tag>
+                      )}
+                    </Space>
+                  </Space>
+                }
+              />
+            </List.Item>
+          );
+        }}
+      />
+    </Card>
+  );
+};
+
+// Department Statistics Component - Simplified
 const DepartmentStatistics = ({ stats, loading = false }) => (
   <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
     <Col xs={24} sm={8} md={6}>
@@ -187,7 +268,7 @@ const DepartmentStatistics = ({ stats, loading = false }) => (
     <Col xs={24} sm={8} md={6}>
       <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
         <Statistic
-          title="Active Departments"
+          title="Departments with Users"
           value={stats?.departmentsWithUsers || 0}
           prefix={<CheckCircleOutlined />}
           valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
@@ -197,113 +278,15 @@ const DepartmentStatistics = ({ stats, loading = false }) => (
     <Col xs={24} sm={8} md={6}>
       <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
         <Statistic
-          title="Total Meetings"
-          value={stats?.totalMeetings || 0}
-          prefix={<FileTextOutlined />}
-          valueStyle={{ color: '#722ed1', fontSize: '20px' }}
+          title="Non-Users Departments"
+          value={stats?.departmentsWithoutUsers || 0}
+          prefix={<InfoCircleOutlined />}
+          valueStyle={{ color: '#1890ff', fontSize: '20px' }}
         />
       </Card>
     </Col>
   </Row>
 );
-
-// Recent Meetings Table Component
-const RecentMeetingsTable = ({ meetings, loading }) => {
-  const columns = [
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      width: 120,
-      render: (dept) => (
-        <Tag color={departmentConfig[dept]?.color || '#666'}>
-          {departmentConfig[dept]?.name || dept}
-        </Tag>
-      )
-    },
-    {
-      title: 'Meeting Type',
-      dataIndex: 'meeting_type',
-      key: 'meeting_type',
-      width: 150,
-      render: (type) => (
-        <Text strong>{type || 'Meeting'}</Text>
-      )
-    },
-    {
-      title: 'Title/Description',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
-      render: (title, record) => (
-        <Tooltip title={title || record.description || 'No title provided'}>
-          {title || record.description || 'Untitled Meeting'}
-        </Tooltip>
-      )
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      width: 120,
-      render: (date) => (
-        <Text type="secondary">
-          {date ? dayjs(date).format('MMM DD, YYYY') : 'Not specified'}
-        </Text>
-      )
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status) => {
-        const statusConfig = {
-          completed: { color: 'green', text: 'Completed' },
-          scheduled: { color: 'blue', text: 'Scheduled' },
-          cancelled: { color: 'red', text: 'Cancelled' },
-          pending: { color: 'orange', text: 'Pending' }
-        };
-        const config = statusConfig[status] || { color: 'default', text: status };
-        return <Tag color={config.color}>{config.text}</Tag>;
-      }
-    }
-  ];
-
-  return (
-    <Card
-      title={
-        <Space>
-          <FileTextOutlined />
-          <Text strong>Recent Meetings & Visits</Text>
-          <Tag color="blue">{meetings.length} Total</Tag>
-        </Space>
-      }
-      loading={loading}
-    >
-      {meetings.length === 0 ? (
-        <Empty 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
-          description="No meetings found"
-        />
-      ) : (
-        <Table
-          columns={columns}
-          dataSource={meetings}
-          rowKey="id"
-          size="small"
-          pagination={{ 
-            pageSize: 5,
-            showSizeChanger: false,
-            showTotal: (total, range) => 
-              `${range[0]}-${range[1]} of ${total} meetings`
-          }}
-          scroll={{ x: 800 }}
-        />
-      )}
-    </Card>
-  );
-};
 
 // Enhanced Departments Component
 const Departments = () => {
@@ -314,19 +297,18 @@ const Departments = () => {
 
   const [departments, setDepartments] = useState([]);
   const [userCounts, setUserCounts] = useState({});
-  const [activityCounts, setActivityCounts] = useState({});
-  const [meetingCounts, setMeetingCounts] = useState({});
-  const [recentMeetings, setRecentMeetings] = useState([]);
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // View state
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   
   // Stats state
   const [stats, setStats] = useState({
     totalDepartments: 0,
     totalUsers: 0,
     departmentsWithUsers: 0,
-    totalActivities: 0,
-    totalMeetings: 0
+    departmentsWithoutUsers: 0
   });
 
   // Auto-refresh states
@@ -451,10 +433,7 @@ const Departments = () => {
       await Promise.all([
         fetchCurrentUser(),
         fetchDepartments(),
-        fetchUserCounts(),
-        fetchActivityCounts(),
-        fetchMeetingCounts(),
-        fetchRecentMeetings()
+        fetchUserCounts()
       ]);
     } catch (error) {
       handleError(error, 'fetching departments data');
@@ -477,20 +456,34 @@ const Departments = () => {
         return;
       }
 
+      // FIX for the JSON coercion error - use maybeSingle() instead of single()
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle()
 
       if (profileError) {
+        // If it's a "not found" error, it's okay - user might not have a profile yet
+        if (profileError.code === 'PGRST116') {
+          console.log('User profile not found, creating default profile...');
+          safeSetState(setCurrentUser, user);
+          safeSetState(setCurrentUserRole, 'user');
+          return;
+        }
         throw new Error(`Profile fetch failed: ${profileError.message}`);
       }
 
       safeSetState(setCurrentUser, { ...user, ...profile });
       safeSetState(setCurrentUserRole, profile?.role || 'user');
     } catch (error) {
-      handleError(error, 'fetching current user');
+      console.warn('Error fetching current user:', error);
+      // Don't throw error for profile issues, just continue with basic user info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        safeSetState(setCurrentUser, user);
+        safeSetState(setCurrentUserRole, 'user');
+      }
     }
   };
 
@@ -537,168 +530,55 @@ const Departments = () => {
     }
   };
 
-  const fetchActivityCounts = async () => {
-    try {
-      const counts = {};
-      
-      // Fetch activity counts from all department tables
-      const tablePromises = Object.values(departmentConfig).flatMap(dept => 
-        dept.tables.map(async (tableName) => {
-          try {
-            const { data, error } = await supabase
-              .from(tableName)
-              .select('id', { count: 'exact' });
-
-            if (!error && data) {
-              const deptKey = Object.keys(departmentConfig).find(
-                key => departmentConfig[key].name === dept.name
-              );
-              
-              if (deptKey) {
-                counts[deptKey] = (counts[deptKey] || 0) + data.length;
-              }
-            }
-          } catch (tableError) {
-            console.warn(`Failed to count activities from ${tableName}:`, tableError);
-          }
-        })
-      );
-
-      await Promise.allSettled(tablePromises);
-      safeSetState(setActivityCounts, counts);
-    } catch (error) {
-      handleError(error, 'fetching activity counts');
-      safeSetState(setActivityCounts, {});
-    }
-  };
-
-  const fetchMeetingCounts = async () => {
-    try {
-      const counts = {};
-      
-      // Fetch meeting counts from specific meeting tables only
-      const tablePromises = Object.entries(departmentConfig).map(async ([deptKey, dept]) => {
-        try {
-          let totalMeetings = 0;
-          
-          for (const tableName of dept.meetingTables) {
-            const { data, error } = await supabase
-              .from(tableName)
-              .select('id', { count: 'exact' });
-
-            if (!error && data) {
-              totalMeetings += data.length;
-            }
-          }
-          
-          counts[deptKey] = totalMeetings;
-        } catch (tableError) {
-          console.warn(`Failed to count meetings for ${dept.name}:`, tableError);
-        }
-      });
-
-      await Promise.allSettled(tablePromises);
-      safeSetState(setMeetingCounts, counts);
-    } catch (error) {
-      handleError(error, 'fetching meeting counts');
-      safeSetState(setMeetingCounts, {});
-    }
-  };
-
-  const fetchRecentMeetings = async () => {
-    try {
-      const allMeetings = [];
-      
-      // Fetch recent meetings from all meeting tables
-      const tablePromises = Object.entries(departmentConfig).flatMap(([deptKey, dept]) => 
-        dept.meetingTables.map(async (tableName) => {
-          try {
-            const { data, error } = await supabase
-              .from(tableName)
-              .select('*')
-              .order('created_at', { ascending: false })
-              .limit(10);
-
-            if (!error && data) {
-              // Add department and meeting type information to each record
-              const meetingsWithMetadata = data.map(meeting => ({
-                ...meeting,
-                department: deptKey,
-                meeting_type: getMeetingTypeDisplayName(tableName),
-                source_table: tableName
-              }));
-              
-              allMeetings.push(...meetingsWithMetadata);
-            }
-          } catch (tableError) {
-            console.warn(`Failed to fetch meetings from ${tableName}:`, tableError);
-          }
-        })
-      );
-
-      await Promise.allSettled(tablePromises);
-      
-      // Sort by date and take top 20 most recent
-      const sortedMeetings = allMeetings
-        .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
-        .slice(0, 20);
-      
-      safeSetState(setRecentMeetings, sortedMeetings);
-    } catch (error) {
-      handleError(error, 'fetching recent meetings');
-      safeSetState(setRecentMeetings, []);
-    }
-  };
-
-  // Helper function to get display name for meeting types
-  const getMeetingTypeDisplayName = (tableName) => {
-    const typeMap = {
-      'bdm_customer_visit': 'Customer Visit',
-      'bdm_principle_visit': 'Principle Visit',
-      'bdm_weekly_meetings': 'Weekly Meeting',
-      'sales_operations_meetings': 'Sales Operations Meeting',
-      'scmt_meetings_and_sessions': 'SCMT Meeting',
-      'scmt_weekly_meetings': 'SCMT Weekly Meeting'
-    };
-    
-    return typeMap[tableName] || tableName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
   const calculateStats = () => {
     try {
       const totalDepartments = departments.length;
       const totalUsers = userCounts ? Object.values(userCounts).reduce((sum, count) => sum + count, 0) : 0;
       const departmentsWithUsers = userCounts ? Object.keys(userCounts).length : 0;
-      const totalActivities = activityCounts ? Object.values(activityCounts).reduce((sum, count) => sum + count, 0) : 0;
-      const totalMeetings = meetingCounts ? Object.values(meetingCounts).reduce((sum, count) => sum + count, 0) : 0;
+      const departmentsWithoutUsers = totalDepartments - departmentsWithUsers;
 
       safeSetState(setStats, {
         totalDepartments,
         totalUsers,
         departmentsWithUsers,
-        totalActivities,
-        totalMeetings
+        departmentsWithoutUsers
       });
 
-      return { totalDepartments, totalUsers, departmentsWithUsers, totalActivities, totalMeetings };
+      return { totalDepartments, totalUsers, departmentsWithUsers, departmentsWithoutUsers };
     } catch (error) {
       handleError(error, 'calculating statistics');
       return { 
         totalDepartments: 0, 
         totalUsers: 0, 
-        departmentsWithUsers: 0, 
-        totalActivities: 0,
-        totalMeetings: 0 
+        departmentsWithUsers: 0,
+        departmentsWithoutUsers: 0
       };
     }
   };
 
   useEffect(() => {
     calculateStats();
-  }, [departments, userCounts, activityCounts, meetingCounts]);
+  }, [departments, userCounts]);
 
-  const handleDepartmentClick = (departmentName) => {
+  const handleDepartmentClick = (departmentName, hasUsers) => {
     try {
+      // Show toast message if no users in department
+      if (!hasUsers) {
+        toast.warning(
+          <div>
+            <strong>Heads up! 🚧</strong>
+            <br />
+            You're entering <strong>{departmentName}</strong> department which currently has no registered users.
+            <br />
+            <small>While you can explore the department structure, user-specific features won't be available.</small>
+          </div>,
+          {
+            autoClose: 6000,
+            position: "top-center"
+          }
+        );
+      }
+
       // Navigate to the corresponding page based on department name
       switch(departmentName) {
         case 'BDM':
@@ -745,7 +625,7 @@ const Departments = () => {
 
   // Render loading state
   if (loading && !isRefreshing) {
-    return <LoadingSpinner tip="Loading departments and statistics..." />;
+    return <LoadingSpinner tip="Loading departments and user data..." />;
   }
 
   return (
@@ -779,7 +659,7 @@ const Departments = () => {
         <Row justify="space-between" align="middle" gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-              <TeamOutlined /> Department Management
+              <TeamOutlined /> Department Overview
             </Title>
             {!isAdmin && (
               <Tag icon={<CrownOutlined />} color="red" style={{ marginTop: '8px' }}>
@@ -792,6 +672,43 @@ const Departments = () => {
               <Text type="secondary" style={{ fontSize: '14px', display: 'block' }}>
                 <ClockCircleOutlined /> Last updated: {formatTimeSinceLastRefresh()}
               </Text>
+              <Space>
+                <Switch
+                  checkedChildren="Auto Refresh On"
+                  unCheckedChildren="Auto Refresh Off"
+                  checked={autoRefresh}
+                  onChange={handleAutoRefreshToggle}
+                  size="small"
+                />
+              </Space>
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Space style={{ float: 'right' }}>
+              <Button 
+                type={viewMode === 'grid' ? 'primary' : 'default'}
+                icon={<AppstoreOutlined />}
+                onClick={() => setViewMode('grid')}
+                size="small"
+              >
+                Grid
+              </Button>
+              <Button 
+                type={viewMode === 'list' ? 'primary' : 'default'}
+                icon={<BarsOutlined />}
+                onClick={() => setViewMode('list')}
+                size="small"
+              >
+                List
+              </Button>
+              <Button 
+                icon={<SyncOutlined />} 
+                onClick={manualRefresh}
+                loading={isRefreshing}
+                size="small"
+              >
+                Refresh
+              </Button>
             </Space>
           </Col>
         </Row>
@@ -821,118 +738,152 @@ const Departments = () => {
       {/* Statistics Cards */}
       <DepartmentStatistics stats={stats} loading={isRefreshing} />
 
-      {/* Recent Meetings Table */}
-      <RecentMeetingsTable meetings={recentMeetings} loading={isRefreshing} />
-
-      {/* Department Cards */}
-      <Card 
-        title={
-          <Space>
-            <TeamOutlined />
-            <Text strong>Departments</Text>
-            <Tag color="blue">{departments.length} Total</Tag>
-          </Space>
-        }
-        bordered={false}
-        extra={
-          <Button 
-            icon={<SyncOutlined />} 
-            onClick={manualRefresh}
-            loading={isRefreshing}
-            size="small"
-          >
-            Refresh Departments
-          </Button>
-        }
-        style={{ marginTop: 24 }}
-      >
-        {departments.length === 0 ? (
-          <Empty 
-            image={Empty.PRESENTED_IMAGE_SIMPLE} 
-            description="No departments found"
-          />
-        ) : (
-          <Row gutter={[24, 24]}>
-            {departments.map(dept => {
-              const deptKey = Object.keys(departmentConfig).find(
-                key => departmentConfig[key].name === dept.name
-              );
-              
-              return (
+      {/* Departments Display - Grid or List View */}
+      {viewMode === 'grid' ? (
+        <Card 
+          title={
+            <Space>
+              <AppstoreOutlined />
+              <Text strong>Departments Grid View</Text>
+              <Tag color="blue">{departments.length} Total</Tag>
+              <Tag color="green">{stats.departmentsWithUsers} With Users</Tag>
+              <Tag color="blue">{stats.departmentsWithoutUsers} Available</Tag>
+            </Space>
+          }
+          bordered={false}
+          style={{ marginTop: 24 }}
+        >
+          {departments.length === 0 ? (
+            <Empty 
+              image={Empty.PRESENTED_IMAGE_SIMPLE} 
+              description="No departments found"
+            />
+          ) : (
+            <Row gutter={[24, 24]}>
+              {departments.map(dept => (
                 <Col xs={24} md={8} key={dept.id}>
                   <DepartmentCard
                     department={dept}
                     userCount={userCounts[dept.id]}
-                    activityCount={activityCounts[deptKey]}
-                    meetingCount={meetingCounts[deptKey]}
                     onNavigate={handleDepartmentClick}
                     loading={isRefreshing}
                   />
                 </Col>
-              );
-            })}
-          </Row>
-        )}
-      </Card>
+              ))}
+            </Row>
+          )}
+        </Card>
+      ) : (
+        <DepartmentListView
+          departments={departments}
+          userCounts={userCounts}
+          onNavigate={handleDepartmentClick}
+          loading={isRefreshing}
+        />
+      )}
 
-      {/* Department Information */}
+      {/* Department Information & Summary */}
       <Card 
-        title="Department Information & Guidelines"
+        title="Department Summary & Information"
         style={{ marginTop: 24 }}
+        extra={
+          <Button 
+            icon={<BarChartOutlined />}
+            onClick={() => navigate('/analytics')}
+            size="small"
+          >
+            View Analytics
+          </Button>
+        }
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Alert
-            message="Meeting & Visit Tracking"
-            description="This dashboard specifically tracks meetings, customer visits, principle visits, and other departmental meetings. All meeting activities are consolidated here for easy monitoring."
-            type="info"
-            showIcon
-          />
-          
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
-              <Card size="small" title="Tracked Meeting Types" type="inner">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {Object.entries(departmentConfig).map(([key, dept]) => (
-                    <div key={key}>
-                      <Text strong style={{ color: dept.color }}>
-                        {dept.name}:
-                      </Text>
-                      <Text style={{ marginLeft: 8 }}>
-                        {dept.meetingTables.map(table => 
-                          getMeetingTypeDisplayName(table)
-                        ).join(', ')}
-                      </Text>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12}>
+            <Card size="small" title="Department Status Overview" type="inner">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {departments.map(dept => {
+                  const userCount = userCounts[dept.id] || 0;
+                  const hasUsers = userCount > 0;
+                  const config = departmentConfig[dept.name] || {
+                    name: dept.name,
+                    color: '#666'
+                  };
+
+                  return (
+                    <div key={dept.id} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 0',
+                      borderBottom: '1px solid #f0f0f0'
+                    }}>
+                      <Space>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: config.color
+                        }} />
+                        <Text strong>{dept.name}</Text>
+                      </Space>
+                      <Space>
+                        <Text>
+                          {userCount} user{userCount !== 1 ? 's' : ''}
+                        </Text>
+                        {hasUsers ? (
+                          <Tag color="green" size="small">Active Team</Tag>
+                        ) : (
+                          <Tag color="blue" size="small">Available</Tag>
+                        )}
+                      </Space>
                     </div>
-                  ))}
-                </Space>
-              </Card>
-            </Col>
-            <Col xs={24} md={12}>
-              <Card size="small" title="Quick Stats" type="inner">
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Your Role:</Text>
-                    <Tag color={isAdmin ? 'red' : 'blue'}>
-                      {isAdmin ? 'Administrator' : 'User'}
-                    </Tag>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Active Departments:</Text>
-                    <Text strong>{stats.departmentsWithUsers}</Text>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Total Team Members:</Text>
-                    <Text strong>{stats.totalUsers}</Text>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text>Total Meetings Tracked:</Text>
-                    <Text strong>{stats.totalMeetings}</Text>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-          </Row>
-        </Space>
+                  );
+                })}
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} md={12}>
+            <Card size="small" title="Quick Actions & Information" type="inner">
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Alert
+                  message="All Departments Are Accessible"
+                  description="You can explore any department regardless of user count. Departments without users will show a friendly notification."
+                  type="info"
+                  showIcon
+                />
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Your Role:</Text>
+                  <Tag color={isAdmin ? 'red' : 'blue'}>
+                    {isAdmin ? 'Administrator' : 'User'}
+                  </Tag>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Departments with Users:</Text>
+                  <Text strong>{stats.departmentsWithUsers}</Text>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Available Departments:</Text>
+                  <Text strong>{stats.departmentsWithoutUsers}</Text>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text>Total Team Members:</Text>
+                  <Text strong>{stats.totalUsers}</Text>
+                </div>
+                
+                {isAdmin && (
+                  <Button 
+                    type="primary" 
+                    icon={<UsergroupAddOutlined />}
+                    onClick={() => navigate('/admin/user-management')}
+                    block
+                  >
+                    Manage Users & Departments
+                  </Button>
+                )}
+              </Space>
+            </Card>
+          </Col>
+        </Row>
       </Card>
     </div>
   );
