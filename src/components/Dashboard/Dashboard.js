@@ -161,9 +161,9 @@ const tableCategoryMapping = {
   'ehealthcare_visit_plan': { type: 'task', categoryName: 'E-Healthcare Visit Plan', department: 'E_HEALTHCARE', shortName: 'E-Health Visit' },
 
   // Hi-Tech
-  'hitech_page_generation': { type: 'task', categoryName: 'Hi-Tech Page Generation', department: 'HI_TECH', shortName: 'Hi-Tech Page' },
   'hitech_technical_discussions': { type: 'meeting', categoryName: 'Hi-Tech Technical Discussion', department: 'HI_TECH', shortName: 'Hi-Tech Tech' },
   'hitech_tender_validation': { type: 'task', categoryName: 'Hi-Tech Tender Validation', department: 'HI_TECH', shortName: 'Hi-Tech Tender' },
+  'hitech_visit_plan': { type: 'task', categoryName: 'Hi-Tech Visit Plan', department: 'HI_TECH', shortName: 'Hi-Tech Visit' },
 
   // HR
   'hr_meetings': { type: 'meeting', categoryName: 'HR - Meetings', department: 'HR', shortName: 'HR Meet' },
@@ -183,19 +183,28 @@ const tableCategoryMapping = {
   'sales_operations_special_tasks': { type: 'task', categoryName: 'Sales Operations Special Tasks', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Task' },
 
   // SOMT
-  'somt_meetings': { type: 'meeting', categoryName: 'SOMT -Meetings', department: 'SOMT', shortName: 'SOMT Meet' },
-  'somt_tender': { type: 'task', categoryName: 'SOMT -Tender', department: 'SOMT', shortName: 'SOMT Tender' },
+  'somt_meetings': { type: 'meeting', categoryName: 'SOMT - Meetings', department: 'SOMT', shortName: 'SOMT Meet' },
+  'somt_tender': { type: 'task', categoryName: 'SOMT - Tender', department: 'SOMT', shortName: 'SOMT Tender' },
 
   // Stores
   'stores_plan_loading': { type: 'task', categoryName: 'Stores - Plan Loading', department: 'STORES', shortName: 'Stores Load' },
   'stores_vst': { type: 'task', categoryName: 'Stores - VST', department: 'STORES', shortName: 'Stores VST' },
 
   // Surge-Surgecare
-  'surge_surgecare_imagine_college_session': { type: 'meeting', categoryName: 'SSI - College Session', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI College' },
-  'surge_surgecare_imagine_principal_visit': { type: 'task', categoryName: 'SSI - Principle Visit', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Principle' },
-  'surge_surgecare_imagine_promotional_activities': { type: 'task', categoryName: 'SSI - Promotional Activities', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Promo' },
-  'surge_surgecare_imagine_visit_plan': { type: 'task', categoryName: 'SSI - Visit Plan', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Visit' },
-  'surge_surgecare_principal_visit': { type: 'task', categoryName: 'SS - Principle Visit', department: 'SURGE_SURGECARE', shortName: 'SS Principle' }
+  'surge_surgecare_meetings': { type: 'meeting', categoryName: 'Surge-Surgecare - Meetings', department: 'SURGE_SURGECARE', shortName: 'SS Meet' },
+  'surge_surgecare_college_session': { type: 'meeting', categoryName: 'Surge-Surgecare - College Session', department: 'SURGE_SURGECARE', shortName: 'SS College' },
+  'surge_surgecare_principal_visit': { type: 'task', categoryName: 'Surge-Surgecare - Principle Visit', department: 'SURGE_SURGECARE', shortName: 'SS Principle' },
+  'surge_surgecare_promotional_activities': { type: 'task', categoryName: 'Surge-Surgecare - Promotional Activities', department: 'SURGE_SURGECARE', shortName: 'SS Promo' },
+  'surge_surgecare_visit_plan': { type: 'task', categoryName: 'Surge-Surgecare - Visit Plan', department: 'SURGE_SURGECARE', shortName: 'SS Visit' },
+  'surge_surgecare_special_tasks': { type: 'task', categoryName: 'Surge-Surgecare - Special Tasks', department: 'SURGE_SURGECARE', shortName: 'SS Task' },
+
+  // Surge-Surgecare-Image
+  'surge_surgecare_image_meetings': { type: 'meeting', categoryName: 'SSI - Meetings', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Meet' },
+  'surge_surgecare_image_college_session': { type: 'meeting', categoryName: 'SSI - College Session', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI College' },
+  'surge_surgecare_image_principal_visit': { type: 'task', categoryName: 'SSI - Principle Visit', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Principle' },
+  'surge_surgecare_image_promotional_activities': { type: 'task', categoryName: 'SSI - Promotional Activities', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Promo' },
+  'surge_surgecare_image_visit_plan': { type: 'task', categoryName: 'SSI - Visit Plan', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Visit' },
+  'surge_surgecare_image_special_tasks': { type: 'task', categoryName: 'SSI - Special Tasks', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Task' }
 };
 
 // Category Overview Modal Component

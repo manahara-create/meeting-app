@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -14,7 +14,8 @@ import {
     MessageOutlined, WechatOutlined, SendOutlined,
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
-    StarOutlined, FlagOutlined
+    StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -23,6 +24,8 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -228,10 +231,10 @@ const DiscussionModal = React.memo(({
         if (!category) return null;
 
         const tableMap = {
-            'customer_visit': 'bdm_customer_visit_fb',
+            'visit_plan': 'bdm_visit_plan_fb',
             'principle_visit': 'bdm_principle_visit_fb',
-            'weekly_meetings': 'bdm_weekly_meetings_fb',
-            'college_sessions': 'bdm_college_session_fb',
+            'meetings': 'bdm_meetings_fb',
+            'college_session': 'bdm_college_session_fb',
             'promotional_activities': 'bdm_promotional_activities_fb'
         };
 
@@ -402,7 +405,7 @@ const DiscussionModal = React.memo(({
             title={
                 <Space>
                     <WechatOutlined />
-                    Discussion: {record?.meeting || record?.company || record?.customer_name || 'Record'}
+                    Discussion: {record?.subject || record?.name || record?.college_name || record?.principle_name || record?.promotional_activity || 'Record'}
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
                     {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
                     {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
@@ -522,39 +525,11 @@ const UserScheduleModal = React.memo(({
                 return item.description || 'No description available';
             }
             if (item.type === 'bdm_activity') {
-                return item.remarks || item.objectives || item.purpose || 'No description available';
+                return item.remarks || item.purpose || 'No description available';
             }
             return 'No description available';
         } catch (error) {
             return 'Description not available';
-        }
-    };
-
-    // Safe time display function
-    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
-        if (!time) return '-';
-
-        try {
-            // Handle both string time and dayjs object
-            let timeObj;
-            if (typeof time === 'string') {
-                // Try different time formats
-                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
-                for (const fmt of formats) {
-                    timeObj = dayjs(time, fmt);
-                    if (timeObj.isValid()) break;
-                }
-                // If no format works, try creating from string directly
-                if (!timeObj || !timeObj.isValid()) {
-                    timeObj = dayjs(`1970-01-01T${time}`);
-                }
-            } else {
-                timeObj = time;
-            }
-
-            return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
-        } catch (error) {
-            return '-';
         }
     };
 
@@ -617,20 +592,13 @@ const UserScheduleModal = React.memo(({
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.topic || item.meeting || item.promotional_activity ||
-                                                    item.session || item.customer_name || item.principle_name ||
-                                                    item.activity_type || 'Unknown Activity'}
+                                                {item.subject || item.name || item.college_name || item.principle_name || item.promotional_activity || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Date & Time">
+                                        <Descriptions.Item label="Date">
                                             <Space>
                                                 <CalendarOutlined />
                                                 {safeDayjs(item.start_date || item.date || item.schedule_date || item.visit_duration_start).format('DD/MM/YYYY')}
-                                                {(item.start_time || item.end_time) && (
-                                                    <Tag color="purple">
-                                                        <TimeDisplay time={item.start_time} /> - <TimeDisplay time={item.end_time} />
-                                                    </Tag>
-                                                )}
                                             </Space>
                                         </Descriptions.Item>
 
@@ -645,19 +613,14 @@ const UserScheduleModal = React.memo(({
                                                 {item.company}
                                             </Descriptions.Item>
                                         )}
-                                        {item.venue && (
-                                            <Descriptions.Item label="Venue">
-                                                <Tag color="blue">{item.venue}</Tag>
+                                        {item.area && (
+                                            <Descriptions.Item label="Area">
+                                                <Tag color="blue">{item.area}</Tag>
                                             </Descriptions.Item>
                                         )}
                                         {item.remarks && (
                                             <Descriptions.Item label="Remarks">
                                                 {item.remarks}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.objectives && (
-                                            <Descriptions.Item label="Objectives">
-                                                {item.objectives}
                                             </Descriptions.Item>
                                         )}
                                         {item.purpose && (
@@ -693,6 +656,244 @@ const UserScheduleModal = React.memo(({
     );
 });
 
+// Export Button Component
+const ExportButton = ({ 
+    activities = [], 
+    selectedCategory = null,
+    moduleName = '',
+    priorityLabels = {}
+}) => {
+    const priorityOptions = [
+        { value: 1, label: 'Low', color: 'green' },
+        { value: 2, label: 'Normal', color: 'blue' },
+        { value: 3, label: 'Medium', color: 'orange' },
+        { value: 4, label: 'High', color: 'red' },
+        { value: 5, label: 'Critical', color: 'purple' }
+    ];
+
+    const getPriorityLabel = (priority) => {
+        const option = priorityOptions.find(opt => opt.value === priority);
+        return option ? option.label : 'Normal';
+    };
+
+    /** -----------------------------
+     * Export to Excel (.xlsx)
+     * ----------------------------- */
+    const exportToExcel = () => {
+        try {
+            const dataForExport = activities.map(activity => {
+                // Common structure shared by BDM modules
+                const base = {
+                    'Company': activity.company || '',
+                    'Category': selectedCategory?.name || '',
+                    'Priority': getPriorityLabel(activity.priority),
+                    'Responsible BDM(s)': Array.isArray(activity.responsible_bdm_names)
+                        ? activity.responsible_bdm_names.join(', ')
+                        : activity.responsible_bdm_names || '',
+                    'Remarks': activity.remarks || '',
+                    'Created Date': activity.created_at
+                        ? dayjs(activity.created_at).format('YYYY-MM-DD')
+                        : ''
+                };
+
+                // Extend base based on table type
+                switch (selectedCategory?.id) {
+                    case 'college_session':
+                        return {
+                            ...base,
+                            'College Name': activity.college_name || '',
+                            'Session': activity.session || '',
+                            'Start Date': activity.start_date
+                                ? dayjs(activity.start_date).format('YYYY-MM-DD')
+                                : ''
+                        };
+
+                    case 'meetings':
+                        return {
+                            ...base,
+                            'Subject': activity.subject || '',
+                            'Date': activity.date
+                                ? dayjs(activity.date).format('YYYY-MM-DD')
+                                : '',
+                            'Status': activity.status || ''
+                        };
+
+                    case 'principle_visit':
+                        return {
+                            ...base,
+                            'Principle Name': activity.principle_name || '',
+                            'Visitors Name': activity.visitors_name || '',
+                            'Visitors Job': activity.visitors_job || '',
+                            'Purpose': activity.purpose || '',
+                            'Visit Start': activity.visit_duration_start
+                                ? dayjs(activity.visit_duration_start).format('YYYY-MM-DD HH:mm')
+                                : '',
+                            'Visit End': activity.visit_duration_end
+                                ? dayjs(activity.visit_duration_end).format('YYYY-MM-DD HH:mm')
+                                : ''
+                        };
+
+                    case 'promotional_activities':
+                        return {
+                            ...base,
+                            'Promotional Activity': activity.promotional_activity || '',
+                            'Type': activity.type || '',
+                            'Date': activity.date
+                                ? dayjs(activity.date).format('YYYY-MM-DD')
+                                : ''
+                        };
+
+                    case 'visit_plan':
+                        return {
+                            ...base,
+                            'Schedule Date': activity.schedule_date
+                                ? dayjs(activity.schedule_date).format('YYYY-MM-DD')
+                                : '',
+                            'Name': activity.name || '',
+                            'Area': activity.area || '',
+                            'Customer': activity.customer || '',
+                            'Purpose': activity.purpose || '',
+                            'ROI': activity.roi || '',
+                            'Status': activity.status || ''
+                        };
+
+                    default:
+                        return base;
+                }
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'BDM Export');
+
+            // Auto-size columns
+            const colWidths = [];
+            if (dataForExport.length > 0) {
+                Object.keys(dataForExport[0]).forEach(key => {
+                    const maxLength = Math.max(
+                        key.length,
+                        ...dataForExport.map(row => String(row[key] || '').length)
+                    );
+                    colWidths.push({ wch: Math.min(maxLength + 2, 50) });
+                });
+                worksheet['!cols'] = colWidths;
+            }
+
+            const fileName = `${selectedCategory?.name || 'bdm_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success(`Excel file exported successfully! (${dataForExport.length} records)`);
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+            toast.error('Failed to export Excel file');
+        }
+    };
+
+    /** -----------------------------
+     * Export to PDF (.pdf)
+     * ----------------------------- */
+    const exportToPDF = () => {
+        try {
+            const doc = new jsPDF();
+            doc.setFontSize(16);
+            doc.text('BDM Export Summary', 14, 15);
+            doc.setFontSize(10);
+            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
+            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+
+            const headers = ['Company', 'Category', 'Priority', 'Responsible BDMs', 'Date'];
+            const tableData = activities.map(a => [
+                a.company || '',
+                selectedCategory?.name || '',
+                getPriorityLabel(a.priority),
+                Array.isArray(a.responsible_bdm_names)
+                    ? a.responsible_bdm_names.join(', ')
+                    : a.responsible_bdm_names || '',
+                a[selectedCategory?.dateField] 
+                    ? dayjs(a[selectedCategory?.dateField]).format('YYYY-MM-DD')
+                    : ''
+            ]);
+
+            let y = 35;
+            const xStart = 14;
+            const colWidths = [40, 30, 20, 50, 25];
+            const lineHeight = 7;
+            const pageHeight = doc.internal.pageSize.height;
+
+            // Header background
+            doc.setFillColor(41, 128, 185);
+            doc.setTextColor(255, 255, 255);
+            let x = xStart;
+            headers.forEach((header, i) => {
+                doc.rect(x, y - 5, colWidths[i], 8, 'F');
+                doc.text(header, x + 2, y);
+                x += colWidths[i];
+            });
+
+            doc.setTextColor(0, 0, 0);
+            y += 10;
+
+            // Rows
+            tableData.forEach(row => {
+                if (y > pageHeight - 20) {
+                    doc.addPage();
+                    y = 20;
+                }
+                x = xStart;
+                row.forEach((cell, i) => {
+                    doc.text(cell.toString().substring(0, 35), x + 2, y);
+                    x += colWidths[i];
+                });
+                y += lineHeight;
+            });
+
+            const fileName = `${selectedCategory?.name || 'bdm_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+
+            doc.save(fileName);
+            toast.success('PDF file exported successfully!');
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            toast.error('Failed to export PDF file');
+        }
+    };
+
+    /** -----------------------------
+     * Dropdown menu
+     * ----------------------------- */
+    const exportItems = [
+        { 
+            key: 'excel', 
+            icon: <FileExcelOutlined />, 
+            label: 'Export to Excel', 
+            onClick: exportToExcel 
+        },
+        { 
+            key: 'pdf', 
+            icon: <FilePdfOutlined />, 
+            label: 'Export to PDF', 
+            onClick: exportToPDF 
+        }
+    ];
+
+    return (
+        <Dropdown 
+            menu={{ items: exportItems }} 
+            placement="bottomRight"
+            disabled={activities.length === 0}
+        >
+            <Button 
+                type="primary" 
+                icon={<DownloadOutlined />} 
+                size="large"
+                disabled={activities.length === 0}
+            >
+                Export
+            </Button>
+        </Dropdown>
+    );
+};
+
 const BDM = () => {
     // Error handling states
     const [error, setError] = useState(null);
@@ -713,6 +914,9 @@ const BDM = () => {
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
 
+    // View mode state (web view or excel view)
+    const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
+
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
     const [bdmUsers, setBdmUsers] = useState([]);
@@ -732,21 +936,17 @@ const BDM = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Default time values
-    const defaultStartTime = dayjs('06:00', 'HH:mm');
-    const defaultEndTime = dayjs('21:00', 'HH:mm');
-
-    // BDM Categories configuration
+    // Updated BDM Categories configuration to match new database structure
     const bdmCategories = [
         {
-            id: 'customer_visit',
-            name: 'Customer Visit',
-            table: 'bdm_customer_visit',
+            id: 'visit_plan',
+            name: 'Visit Plan',
+            table: 'bdm_visit_plan',
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'schedule_date',
             color: '#1890ff',
-            hasTimeFields: true
+            hasTimeFields: false
         },
         {
             id: 'principle_visit',
@@ -759,24 +959,24 @@ const BDM = () => {
             hasTimeFields: false
         },
         {
-            id: 'weekly_meetings',
-            name: 'Weekly Meetings',
-            table: 'bdm_weekly_meetings',
+            id: 'meetings',
+            name: 'Meetings',
+            table: 'bdm_meetings',
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#fa8c16',
-            hasTimeFields: true
+            hasTimeFields: false
         },
         {
-            id: 'college_sessions',
+            id: 'college_session',
             name: 'College Sessions',
             table: 'bdm_college_session',
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'start_date',
             color: '#722ed1',
-            hasTimeFields: true
+            hasTimeFields: false
         },
         {
             id: 'promotional_activities',
@@ -837,40 +1037,6 @@ const BDM = () => {
         }
     }, [handleError]);
 
-    // Safe time parsing function
-    const safeTimeParse = useCallback((time) => {
-        try {
-            if (!time) return defaultStartTime;
-
-            if (dayjs.isDayjs(time)) {
-                return time;
-            }
-
-            if (typeof time === 'string') {
-                // Try different time formats
-                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
-                for (const format of formats) {
-                    const parsed = dayjs(time, format);
-                    if (parsed.isValid()) {
-                        return parsed;
-                    }
-                }
-
-                // If no format works, try creating from string directly
-                const directParse = dayjs(`1970-01-01T${time}`);
-                if (directParse.isValid()) {
-                    return directParse;
-                }
-            }
-
-            console.warn('Invalid time provided, using default:', time);
-            return defaultStartTime;
-        } catch (error) {
-            console.error('Error parsing time:', time, error);
-            return defaultStartTime;
-        }
-    }, [defaultStartTime]);
-
     // Safe date parsing function
     const safeDayjs = useCallback((date, format = null) => {
         try {
@@ -883,12 +1049,6 @@ const BDM = () => {
             }
 
             if (typeof date === 'string' || typeof date === 'number') {
-                // Skip time-only strings
-                if (typeof date === 'string' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(date)) {
-                    console.warn('Time string provided to date parser:', date);
-                    return dayjs(); // Return current date for time strings
-                }
-
                 const parsedDate = format ? dayjs(date, format) : dayjs(date);
 
                 if (!parsedDate.isValid()) {
@@ -906,19 +1066,6 @@ const BDM = () => {
             return dayjs();
         }
     }, []);
-
-    // Time Display Component
-    const TimeDisplay = ({ time, format = 'HH:mm' }) => {
-        if (!time) return '-';
-
-        try {
-            // Handle both string time and dayjs object
-            const timeObj = safeTimeParse(time);
-            return timeObj.isValid() ? timeObj.format(format) : '-';
-        } catch (error) {
-            return '-';
-        }
-    };
 
     // Reset error boundary
     const resetErrorBoundary = useCallback(() => {
@@ -1164,10 +1311,10 @@ const BDM = () => {
 
         try {
             const tableMap = {
-                'customer_visit': 'bdm_customer_visit_fb',
+                'visit_plan': 'bdm_visit_plan_fb',
                 'principle_visit': 'bdm_principle_visit_fb',
-                'weekly_meetings': 'bdm_weekly_meetings_fb',
-                'college_sessions': 'bdm_college_session_fb',
+                'meetings': 'bdm_meetings_fb',
+                'college_session': 'bdm_college_session_fb',
                 'promotional_activities': 'bdm_promotional_activities_fb'
             };
 
@@ -1225,9 +1372,8 @@ const BDM = () => {
                 .order('start_date', { ascending: true });
 
             if (personalError) console.error('Personal meetings error:', personalError);
-            console.log('Personal meetings:', personalMeetings?.length || 0);
 
-            // 2. BDM activities - CORRECTED FILTERING
+            // 2. BDM activities - Updated for new table structure
             for (const category of bdmCategories) {
                 console.log(`Checking category: ${category.name}`);
 
@@ -1242,17 +1388,16 @@ const BDM = () => {
                 let categoryActivities = [];
 
                 try {
-                    // Different filtering strategies for each category
+                    // Different filtering strategies for each category based on new structure
                     switch (category.id) {
-                        case 'customer_visit':
-                        case 'college_sessions':
+                        case 'visit_plan':
+                        case 'college_session':
                         case 'promotional_activities':
-                            // These use responsible_bdm_2 field (text array)
-                            // First, get all records and filter client-side for better accuracy
+                            // These use responsible_bdm_names field (text array)
                             const { data: textArrayData } = await query;
                             if (textArrayData) {
                                 categoryActivities = textArrayData.filter(item => {
-                                    const responsibleUsers = item.responsible_bdm_2;
+                                    const responsibleUsers = item.responsible_bdm_names;
                                     if (!responsibleUsers) return false;
 
                                     // Handle both string arrays and comma-separated strings
@@ -1269,16 +1414,16 @@ const BDM = () => {
                             break;
 
                         case 'principle_visit':
-                            // This uses responsible_bdm field (uuid array)
-                            // Use contains filter for array fields
-                            const { data: uuidArrayData } = await query.contains('responsible_bdm', [userId]);
+                            // This uses responsible_bdm_ids field (uuid array)
+                            const { data: uuidArrayData } = await query.contains('responsible_bdm_ids', [userId]);
                             categoryActivities = uuidArrayData || [];
                             break;
 
-                        case 'weekly_meetings':
-                            // This uses conducted_by field (text)
-                            const { data: conductedData } = await query.ilike('conducted_by', `%${userName}%`);
-                            categoryActivities = conductedData || [];
+                        case 'meetings':
+                            // This table doesn't have specific responsible field in new structure
+                            // We'll include all meetings for now, or you can add specific logic
+                            const { data: meetingsData } = await query;
+                            categoryActivities = meetingsData || [];
                             break;
 
                         default:
@@ -1316,8 +1461,6 @@ const BDM = () => {
             ];
 
             console.log('Total schedule items:', userSchedule.length);
-            console.log('Schedule details:', userSchedule);
-
             safeSetState(setUserSchedule, userSchedule);
 
         } catch (error) {
@@ -1335,6 +1478,7 @@ const BDM = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
+            safeSetState(setViewMode, 'web'); // Reset to web view when category changes
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1382,7 +1526,7 @@ const BDM = () => {
 
             // Format date fields based on category with error handling
             try {
-                if (selectedCategory.id === 'customer_visit' && record.schedule_date) {
+                if (selectedCategory.id === 'visit_plan' && record.schedule_date) {
                     formattedRecord.schedule_date = safeDayjs(record.schedule_date);
                 }
                 if (selectedCategory.id === 'principle_visit') {
@@ -1393,29 +1537,16 @@ const BDM = () => {
                         formattedRecord.visit_duration_end = safeDayjs(record.visit_duration_end);
                     }
                 }
-                if ((selectedCategory.id === 'weekly_meetings' || selectedCategory.id === 'promotional_activities') && record.date) {
+                if ((selectedCategory.id === 'meetings' || selectedCategory.id === 'promotional_activities') && record.date) {
                     formattedRecord.date = safeDayjs(record.date);
                 }
-                if (selectedCategory.id === 'college_sessions') {
+                if (selectedCategory.id === 'college_session') {
                     if (record.start_date) {
                         formattedRecord.start_date = safeDayjs(record.start_date);
                     }
-                    if (record.end_date) {
-                        formattedRecord.end_date = safeDayjs(record.end_date);
-                    }
-                }
-
-                // Format time fields using the dedicated time parser
-                if (selectedCategory.hasTimeFields) {
-                    if (record.start_time) {
-                        formattedRecord.start_time = safeTimeParse(record.start_time);
-                    }
-                    if (record.end_time) {
-                        formattedRecord.end_time = safeTimeParse(record.end_time);
-                    }
                 }
             } catch (dateError) {
-                console.warn('Error formatting dates/times for editing:', dateError);
+                console.warn('Error formatting dates for editing:', dateError);
             }
 
             form.setFieldsValue(formattedRecord);
@@ -1506,168 +1637,14 @@ const BDM = () => {
         }
     };
 
-    // Helper function to ensure time fields have defaults
-    const ensureTimeDefaults = (values) => {
-        if (!selectedCategory?.hasTimeFields) return values;
-
-        return {
-            ...values,
-            start_time: values.start_time || defaultStartTime,
-            end_time: values.end_time || defaultEndTime
-        };
-    };
-
-    // FIXED: Create personal meetings function - moved before handleFormSubmit
-    const createPersonalMeetingsForBDMs = async (record, category, formData) => {
-        try {
-            let responsibleUsers = [];
-            let meetingDate = '';
-            let meetingTitle = '';
-            let startTime = defaultStartTime;
-            let endTime = defaultEndTime;
-
-            // Extract responsible users and meeting details based on category
-            switch (category.id) {
-                case 'customer_visit':
-                    responsibleUsers = formData.responsible_bdm_2 || [];
-                    meetingDate = formData.schedule_date;
-                    meetingTitle = `Customer Visit: ${formData.customer_name || formData.company}`;
-                    startTime = formData.start_time || defaultStartTime;
-                    endTime = formData.end_time || defaultEndTime;
-                    break;
-
-                case 'principle_visit':
-                    responsibleUsers = formData.responsible_bdm || [];
-                    meetingDate = formData.visit_duration_start;
-                    meetingTitle = `Principle Visit: ${formData.principle_name}`;
-                    break;
-
-                case 'weekly_meetings':
-                    responsibleUsers = formData.conducted_by ? [formData.conducted_by] : [];
-                    meetingDate = formData.date;
-                    meetingTitle = `Weekly Meeting: ${formData.meeting}`;
-                    startTime = formData.start_time || defaultStartTime;
-                    endTime = formData.end_time || defaultEndTime;
-                    break;
-
-                case 'college_sessions':
-                    responsibleUsers = formData.responsible_bdm_2 || [];
-                    meetingDate = formData.start_date;
-                    meetingTitle = `College Session: ${formData.college_name}`;
-                    startTime = formData.start_time || defaultStartTime;
-                    endTime = formData.end_time || defaultEndTime;
-                    break;
-
-                case 'promotional_activities':
-                    responsibleUsers = formData.responsible_bdm_2 || [];
-                    meetingDate = formData.date;
-                    meetingTitle = `Promotional Activity: ${formData.promotional_activity}`;
-                    break;
-            }
-
-            console.log('Creating personal meetings for:', {
-                category: category.name,
-                responsibleUsers,
-                meetingDate,
-                meetingTitle,
-                startTime,
-                endTime
-            });
-
-            // If no responsible users, return
-            if (!responsibleUsers.length || !meetingDate) {
-                console.log('No responsible users or meeting date found');
-                return;
-            }
-
-            // Convert string array to array if needed
-            const usersArray = Array.isArray(responsibleUsers) ? responsibleUsers : [responsibleUsers];
-            console.log('Users array:', usersArray);
-
-            let createdCount = 0;
-
-            // Create personal meetings for each responsible BDM
-            for (const userRef of usersArray) {
-                let user = null;
-
-                // Find user by different identifier types
-                if (typeof userRef === 'string') {
-                    // Try to find by full name (exact match first, then partial)
-                    user = bdmUsers.find(u => u.full_name === userRef);
-                    if (!user) {
-                        user = bdmUsers.find(u => u.full_name && u.full_name.toLowerCase().includes(userRef.toLowerCase()));
-                    }
-                    if (!user) {
-                        // Try to find by email
-                        user = bdmUsers.find(u => u.email === userRef);
-                    }
-                    if (!user) {
-                        // Try to find by ID
-                        user = bdmUsers.find(u => u.id === userRef);
-                    }
-                } else if (typeof userRef === 'object' && userRef.id) {
-                    user = bdmUsers.find(u => u.id === userRef.id);
-                }
-
-                if (user) {
-                    console.log(`Creating personal meeting for user: ${user.full_name}`);
-
-                    // Format the date properly
-                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
-                    const formattedStartTime = startTime ? safeDayjs(startTime).format('HH:mm:ss') : null;
-                    const formattedEndTime = endTime ? safeDayjs(endTime).format('HH:mm:ss') : null;
-
-                    // Create personal meeting
-                    const personalMeetingData = {
-                        topic: meetingTitle,
-                        start_date: formattedDate,
-                        end_date: formattedDate, // Same day for now
-                        description: `Automatically created from ${category.name}: ${formData.remarks || 'No description'}`,
-                        venue: formData.company || 'TBD',
-                        user_id: user.id,
-                        priority: formData.priority || 2, // Use same priority as main record
-                        ...(formattedStartTime && { start_time: formattedStartTime }),
-                        ...(formattedEndTime && { end_time: formattedEndTime })
-                    };
-
-                    const { data, error } = await supabase
-                        .from('personal_meetings')
-                        .insert([personalMeetingData])
-                        .select();
-
-                    if (error) {
-                        console.error(`Error creating personal meeting for user ${user.full_name}:`, error);
-                    } else {
-                        console.log(`Personal meeting created for ${user.full_name}:`, data);
-                        createdCount++;
-                    }
-                } else {
-                    console.warn(`User not found for reference:`, userRef);
-                }
-            }
-
-            if (createdCount > 0) {
-                toast.info(`Created personal meetings for ${createdCount} team member(s)`);
-            }
-
-        } catch (error) {
-            console.error('Error creating personal meetings:', error);
-            // Don't throw error here to avoid affecting main form submission
-        }
-    };
-
-    // CORRECTED handleFormSubmit to fix time handling and use the properly defined createPersonalMeetingsForBDMs
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
-            // Ensure time defaults
-            const valuesWithDefaults = ensureTimeDefaults(values);
-
             // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
-            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
+            const { department_id, category_id, ...cleanData } = values;
             const submitData = { ...cleanData };
 
             // Convert dayjs objects to proper formats with error handling
@@ -1675,28 +1652,13 @@ const BDM = () => {
                 try {
                     const value = submitData[key];
                     if (dayjs.isDayjs(value)) {
-                        if (key.includes('time')) {
-                            // Convert time to HH:mm:ss format
-                            submitData[key] = value.format('HH:mm:ss');
-                        } else {
-                            // Convert date to YYYY-MM-DD format
-                            submitData[key] = value.format('YYYY-MM-DD');
-                        }
+                        // Convert date to YYYY-MM-DD format
+                        submitData[key] = value.format('YYYY-MM-DD');
                     }
                 } catch (dateError) {
-                    console.warn(`Error converting date/time field ${key}:`, dateError);
+                    console.warn(`Error converting date field ${key}:`, dateError);
                 }
             });
-
-            // Handle time fields specifically
-            if (selectedCategory.hasTimeFields) {
-                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
-                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
-                }
-                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
-                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
-                }
-            }
 
             let result;
 
@@ -1746,9 +1708,6 @@ const BDM = () => {
 
                 toast.success('Record created successfully');
             }
-
-            // Auto-create personal meetings for responsible BDMs - FIXED: Now properly defined
-            await createPersonalMeetingsForBDMs(result, selectedCategory, submitData);
 
             safeSetState(setModalVisible, false);
             fetchTableData();
@@ -1818,23 +1777,6 @@ const BDM = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const timeColumn = selectedCategory.hasTimeFields ? [
-                {
-                    title: 'Start Time',
-                    dataIndex: 'start_time',
-                    key: 'start_time',
-                    width: 100,
-                    render: (time) => <TimeDisplay time={time} />
-                },
-                {
-                    title: 'End Time',
-                    dataIndex: 'end_time',
-                    key: 'end_time',
-                    width: 100,
-                    render: (time) => <TimeDisplay time={time} />
-                }
-            ] : [];
-
             const baseColumns = [
                 {
                     title: 'Created',
@@ -1850,21 +1792,20 @@ const BDM = () => {
                     },
                     width: 100
                 },
-                priorityColumn,
-                ...timeColumn
+                priorityColumn
             ];
 
             switch (selectedCategory.id) {
-                case 'customer_visit':
+                case 'visit_plan':
                     return [
                         ...baseColumns,
                         { title: 'Schedule Date', dataIndex: 'schedule_date', key: 'schedule_date', width: 120 },
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Customer Name', dataIndex: 'customer_name', key: 'customer_name', width: 150 },
-                        { title: 'Objectives', dataIndex: 'objectives', key: 'objectives', width: 200 },
+                        { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
+                        { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
+                        { title: 'Customer', dataIndex: 'customer', key: 'customer', width: 150 },
+                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
                         { title: 'ROI', dataIndex: 'roi', key: 'roi', width: 100 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        { title: 'Responsible BDM', dataIndex: 'responsible_bdm_2', key: 'responsible_bdm_2', width: 150 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
                         actionColumn
                     ];
 
@@ -1881,27 +1822,24 @@ const BDM = () => {
                         actionColumn
                     ];
 
-                case 'weekly_meetings':
+                case 'meetings':
                     return [
                         ...baseColumns,
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Meeting', dataIndex: 'meeting', key: 'meeting', width: 200 },
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { title: 'Conducted By', dataIndex: 'conducted_by', key: 'conducted_by', width: 150 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
+                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
                         actionColumn
                     ];
 
-                case 'college_sessions':
+                case 'college_session':
                     return [
                         ...baseColumns,
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'College Name', dataIndex: 'college_name', key: 'college_name', width: 150 },
                         { title: 'Session', dataIndex: 'session', key: 'session', width: 150 },
                         { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
-                        { title: 'End Date', dataIndex: 'end_date', key: 'end_date', width: 120 },
                         { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        { title: 'Responsible BDM', dataIndex: 'responsible_bdm_2', key: 'responsible_bdm_2', width: 150 },
                         actionColumn
                     ];
 
@@ -1913,7 +1851,6 @@ const BDM = () => {
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        { title: 'Responsible BDM', dataIndex: 'responsible_bdm_2', key: 'responsible_bdm_2', width: 150 },
                         actionColumn
                     ];
 
@@ -1967,35 +1904,8 @@ const BDM = () => {
                 </>
             );
 
-            const timeFields = selectedCategory.hasTimeFields ? (
-                <>
-                    <Form.Item
-                        name="start_time"
-                        label="Start Time"
-                        initialValue={defaultStartTime}
-                    >
-                        <TimePicker
-                            format="HH:mm"
-                            style={{ width: '100%' }}
-                            placeholder="Select start time"
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="end_time"
-                        label="End Time"
-                        initialValue={defaultEndTime}
-                    >
-                        <TimePicker
-                            format="HH:mm"
-                            style={{ width: '100%' }}
-                            placeholder="Select end time"
-                        />
-                    </Form.Item>
-                </>
-            ) : null;
-
             switch (selectedCategory.id) {
-                case 'customer_visit':
+                case 'visit_plan':
                     return (
                         <>
                             <Form.Item
@@ -2009,50 +1919,44 @@ const BDM = () => {
                                     placeholder="Select schedule date"
                                 />
                             </Form.Item>
-                            {timeFields}
                             {commonFields}
                             <Form.Item
-                                name="customer_name"
-                                label="Customer Name"
-                                rules={[{ required: true, message: 'Please enter customer name' }]}
+                                name="name"
+                                label="Name"
+                                rules={[{ required: true, message: 'Please enter name' }]}
                             >
-                                <Input placeholder="Enter customer name" />
+                                <Input placeholder="Enter name" />
                             </Form.Item>
                             <Form.Item
-                                name="objectives"
-                                label="Objectives"
-                                rules={[{ required: true, message: 'Please enter objectives' }]}
+                                name="area"
+                                label="Area"
                             >
-                                <TextArea rows={3} placeholder="Enter meeting objectives" />
+                                <Input placeholder="Enter area" />
+                            </Form.Item>
+                            <Form.Item
+                                name="customer"
+                                label="Customer"
+                            >
+                                <Input placeholder="Enter customer" />
+                            </Form.Item>
+                            <Form.Item
+                                name="purpose"
+                                label="Purpose"
+                                rules={[{ required: true, message: 'Please enter purpose' }]}
+                            >
+                                <TextArea rows={3} placeholder="Enter purpose" />
                             </Form.Item>
                             <Form.Item
                                 name="roi"
                                 label="ROI"
                             >
-                                <InputNumber
-                                    style={{ width: '100%' }}
-                                    placeholder="Enter ROI value"
-                                    min={0}
-                                />
+                                <Input placeholder="Enter ROI" />
                             </Form.Item>
                             <Form.Item
-                                name="responsible_bdm_2"
-                                label="Responsible BDM"
+                                name="status"
+                                label="Status"
                             >
-                                <Select
-                                    mode="multiple"
-                                    placeholder="Select responsible BDMs"
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                                    }
-                                >
-                                    {bdmUsers.map(user => (
-                                        <Option key={user.id} value={user.full_name || user.email}>
-                                            {user.full_name || user.email}
-                                        </Option>
-                                    ))}
-                                </Select>
+                                <Input placeholder="Enter status" />
                             </Form.Item>
                         </>
                     );
@@ -2071,7 +1975,6 @@ const BDM = () => {
                             <Form.Item
                                 name="visitors_name"
                                 label="Visitors Name"
-                                rules={[{ required: true, message: 'Please enter visitors name' }]}
                             >
                                 <Input placeholder="Enter visitors name" />
                             </Form.Item>
@@ -2109,29 +2012,10 @@ const BDM = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter visit purpose" />
                             </Form.Item>
-                            <Form.Item
-                                name="responsible_bdm"
-                                label="Responsible BDMs"
-                            >
-                                <Select
-                                    mode="multiple"
-                                    placeholder="Select responsible BDMs"
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                                    }
-                                >
-                                    {bdmUsers.map(user => (
-                                        <Option key={user.id} value={user.id}>
-                                            {user.full_name || user.email}
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
                         </>
                     );
 
-                case 'weekly_meetings':
+                case 'meetings':
                     return (
                         <>
                             <Form.Item
@@ -2145,25 +2029,24 @@ const BDM = () => {
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
-                            {timeFields}
                             {commonFields}
                             <Form.Item
-                                name="meeting"
-                                label="Meeting Description"
-                                rules={[{ required: true, message: 'Please enter meeting description' }]}
+                                name="subject"
+                                label="Subject"
+                                rules={[{ required: true, message: 'Please enter subject' }]}
                             >
-                                <TextArea rows={3} placeholder="Enter meeting description" />
+                                <TextArea rows={3} placeholder="Enter meeting subject" />
                             </Form.Item>
                             <Form.Item
-                                name="conducted_by"
-                                label="Conducted By"
+                                name="status"
+                                label="Status"
                             >
-                                <Input placeholder="Enter conductor name" />
+                                <Input placeholder="Enter status" />
                             </Form.Item>
                         </>
                     );
 
-                case 'college_sessions':
+                case 'college_session':
                     return (
                         <>
                             {commonFields}
@@ -2177,7 +2060,6 @@ const BDM = () => {
                             <Form.Item
                                 name="session"
                                 label="Session"
-                                rules={[{ required: true, message: 'Please enter session details' }]}
                             >
                                 <TextArea rows={3} placeholder="Enter session details" />
                             </Form.Item>
@@ -2191,36 +2073,6 @@ const BDM = () => {
                                     format="DD/MM/YYYY"
                                     placeholder="Select session start date"
                                 />
-                            </Form.Item>
-                            <Form.Item
-                                name="end_date"
-                                label="End Date"
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select session start date"
-                                />
-                            </Form.Item>
-                            {timeFields}
-                            <Form.Item
-                                name="responsible_bdm_2"
-                                label="Responsible BDM"
-                            >
-                                <Select
-                                    mode="multiple"
-                                    placeholder="Select responsible BDMs"
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                                    }
-                                >
-                                    {bdmUsers.map(user => (
-                                        <Option key={user.id} value={user.full_name || user.email}>
-                                            {user.full_name || user.email}
-                                        </Option>
-                                    ))}
-                                </Select>
                             </Form.Item>
                         </>
                     );
@@ -2252,25 +2104,6 @@ const BDM = () => {
                                 label="Activity Type"
                             >
                                 <Input placeholder="Enter activity type" />
-                            </Form.Item>
-                            <Form.Item
-                                name="responsible_bdm_2"
-                                label="Responsible BDM"
-                            >
-                                <Select
-                                    mode="multiple"
-                                    placeholder="Select responsible BDMs"
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                                    }
-                                >
-                                    {bdmUsers.map(user => (
-                                        <Option key={user.id} value={user.full_name || user.email}>
-                                            {user.full_name || user.email}
-                                        </Option>
-                                    ))}
-                                </Select>
                             </Form.Item>
                         </>
                     );
@@ -2359,7 +2192,12 @@ const BDM = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
+                style={{ 
+                    marginBottom: 16, 
+                    backgroundColor: '#fafafa',
+                    borderRadius: '12px',
+                    border: '2px solid #1890ff20'
+                }}
                 bodyStyle={{ padding: '12px 16px' }}
             >
                 <Row justify="space-between" align="middle" gutter={[16, 16]}>
@@ -2441,13 +2279,13 @@ const BDM = () => {
                 </Row>
             </Card>
 
-            {/* Date Range Filter and Create Button */}
+            {/* View Mode Selection and Date Range Filter */}
             {selectedCategory && (
                 <Card
                     title={
                         <Space>
                             <FilterOutlined />
-                            Filter Data
+                            Filter Data & View Options
                             <Tag color="blue">
                                 Default: {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
@@ -2455,15 +2293,29 @@ const BDM = () => {
                     }
                     style={{ marginBottom: 24 }}
                     extra={
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={handleCreate}
-                            loading={loading}
-                            size="large"
-                        >
-                            Add New Record
-                        </Button>
+                        <Space>
+                            <Radio.Group 
+                                value={viewMode} 
+                                onChange={(e) => setViewMode(e.target.value)}
+                                buttonStyle="solid"
+                            >
+                                <Radio.Button value="web">
+                                    <AppstoreOutlined /> Web View
+                                </Radio.Button>
+                                <Radio.Button value="excel">
+                                    <FileExcelOutlined /> Excel View
+                                </Radio.Button>
+                            </Radio.Group>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={handleCreate}
+                                loading={loading}
+                                size="large"
+                            >
+                                Add New Record
+                            </Button>
+                        </Space>
                     }
                 >
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -2536,13 +2388,13 @@ const BDM = () => {
                 </>
             )}
 
-            {/* Data Table */}
+            {/* Data Table or Export Button */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <Card
                     title={
                         <Space>
                             {selectedCategory.icon}
-                            {selectedCategory.name} Data
+                            {selectedCategory.name} Data - {viewMode === 'web' ? 'Web View' : 'Excel View'}
                             <Badge count={tableData.length} showZero color="#1890ff" />
                         </Space>
                     }
@@ -2555,6 +2407,16 @@ const BDM = () => {
                                 <Tag color={priorityOptions.find(opt => opt.value === priorityFilter)?.color}>
                                     Priority: {priorityOptions.find(opt => opt.value === priorityFilter)?.label}
                                 </Tag>
+                            )}
+                            {viewMode === 'excel' && (
+                                <ExportButton
+                                    activities={tableData}
+                                    selectedCategory={selectedCategory}
+                                    moduleName={selectedCategory.table}
+                                    priorityLabels={Object.fromEntries(
+                                        priorityOptions.map(opt => [opt.value, opt.label])
+                                    )}
+                                />
                             )}
                             <Button
                                 icon={<ReloadOutlined />}
@@ -2582,7 +2444,7 @@ const BDM = () => {
                                 </Space>
                             }
                         />
-                    ) : (
+                    ) : viewMode === 'web' ? (
                         <Table
                             columns={getTableColumns()}
                             dataSource={tableData.map(item => ({ ...item, key: item.id }))}
@@ -2596,6 +2458,20 @@ const BDM = () => {
                             scroll={{ x: true }}
                             size="middle"
                         />
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '40px' }}>
+                            <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
+                            <Title level={4}>Ready to Export Data</Title>
+                            <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                            </Text>
+                            <Alert
+                                message="Excel View Mode"
+                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                type="info"
+                                showIcon
+                            />
+                        </div>
                     )}
                 </Card>
             )}
@@ -2752,7 +2628,7 @@ const BDM = () => {
 
             {/* Instructions */}
             {!selectedCategory && (
-                <Card title="How to Use BDM Module">
+                <Card title="How to Use BDM Module" style={{ borderRadius: '12px' }}>
                     <Alert
                         message="Manage BDM Department Data"
                         description={
@@ -2760,21 +2636,18 @@ const BDM = () => {
                                 <Text strong>Follow these steps:</Text>
                                 <ol>
                                     <li>Click on any category card above to select a data type</li>
+                                    <li>Choose between Web View (for editing/discussion) or Excel View (for export)</li>
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
-                                    <li>View the filtered data in the table below (sorted by priority)</li>
-                                    <li>Use the "Add New Record" button to create new entries</li>
-                                    <li>Use Edit/Delete actions in the table to manage records</li>
-                                    <li>Use "Discuss" button to participate in group discussions for each record</li>
+                                    <li>In Web View: Use Edit/Delete actions and Discuss features</li>
+                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
-                                    <li>Use "Check Team Availability" to view team schedules in popup windows</li>
+                                    <li>Use "Check Team Availability" to view team schedules</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
                                 </ol>
                                 <Text type="secondary">
-                                    Each category represents different BDM activities and tasks recorded in the system.
-                                    Default date range shows data from yesterday to 9 days in the future (10 days total).
-                                    Priority levels help you focus on critical tasks first.
-                                    Schedule details open in convenient popup windows for better visibility.
+                                    Each category represents different BDM activities recorded in the system.
+                                    Web View provides full interactive features while Excel View is for read-only data export.
                                 </Text>
                             </div>
                         }

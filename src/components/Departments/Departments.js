@@ -5,7 +5,7 @@ import {
   Modal, message, Divider, Tooltip, Badge,
   Tabs, Switch, Pagination, Table, List, Avatar
 } from 'antd';
-import { 
+import {
   TeamOutlined, UserOutlined, CrownOutlined,
   ArrowRightOutlined, CalendarOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, SyncOutlined, ClockCircleOutlined,
@@ -31,196 +31,218 @@ const { TabPane } = Tabs;
 
 // Comprehensive Department configuration for all 21 departments
 const departmentConfig = {
-  'After Sales': { 
-    name: 'After Sales', 
+  'After Sales': {
+    name: 'After Sales',
     color: '#ff4d4f', // Red
     emoji: '🔧',
     description: 'After Sales Service and Support',
     icon: <CustomerServiceOutlined />,
     gradient: 'linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%)',
-    url: '/departments/after-sales'
+    url: '/departments/after-sales',
+    person: 'Not Confrimed Yet'
   },
-  'BDM': { 
-    name: 'BDM', 
+  'BDM': {
+    name: 'BDM',
     color: '#1890ff', // Blue
     emoji: '🚀',
     description: 'Business Development Management',
     icon: <RocketOutlined />,
     gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-    url: '/departments/bdm'
+    url: '/departments/bdm',
+    person: 'Prasadi Nuwanthika'
   },
-  'Cluster 1': { 
-    name: 'Cluster 1', 
+  'Cluster 1': {
+    name: 'Cluster 1',
     color: '#52c41a', // Green
     emoji: '🏢',
     description: 'Cluster 1 Operations',
     icon: <ClusterOutlined />,
     gradient: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
-    url: '/departments/cluster-1'
+    url: '/departments/cluster-1',
+    person: 'Imesha Nilakshi'
   },
-  'Cluster 2': { 
-    name: 'Cluster 2', 
+  'Cluster 2': {
+    name: 'Cluster 2',
     color: '#faad14', // Gold
     emoji: '🏢',
     description: 'Cluster 2 Operations',
     icon: <ClusterOutlined />,
     gradient: 'linear-gradient(135deg, #faad14 0%, #d48806 100%)',
-    url: '/departments/cluster-2'
+    url: '/departments/cluster-2',
+    person: 'Pradheesha Jeromie'
   },
-  'Cluster 3': { 
-    name: 'Cluster 3', 
+  'Cluster 3': {
+    name: 'Cluster 3',
     color: '#13c2c2', // Cyan
     emoji: '🏢',
     description: 'Cluster 3 Operations',
     icon: <ClusterOutlined />,
     gradient: 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)',
-    url: '/departments/cluster-3'
+    url: '/departments/cluster-3',
+    person: 'Gayathri Silva'
   },
-  'Cluster 4': { 
-    name: 'Cluster 4', 
+  'Cluster 4': {
+    name: 'Cluster 4',
     color: '#722ed1', // Purple
     emoji: '🏢',
     description: 'Cluster 4 Operations',
     icon: <ClusterOutlined />,
     gradient: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
-    url: '/departments/cluster-4'
+    url: '/departments/cluster-4',
+    person: 'Imesha Nilakshi'
   },
-  'Cluster 5': { 
-    name: 'Cluster 5', 
+  'Cluster 5': {
+    name: 'Cluster 5',
     color: '#eb2f96', // Magenta
     emoji: '🏢',
     description: 'Cluster 5 Operations',
     icon: <ClusterOutlined />,
     gradient: 'linear-gradient(135deg, #eb2f96 0%, #c41d7f 100%)',
-    url: '/departments/cluster-5'
+    url: '/departments/cluster-5',
+    person: 'Pradheesha Jeromie'
   },
-  'Cluster 6': { 
-    name: 'Cluster 6', 
+  'Cluster 6': {
+    name: 'Cluster 6',
     color: '#fa541c', // Volcano
     emoji: '🏢',
     description: 'Cluster 6 Operations',
     icon: <ClusterOutlined />,
     gradient: 'linear-gradient(135deg, #fa541c 0%, #d4380d 100%)',
-    url: '/departments/cluster-6'
+    url: '/departments/cluster-6',
+    person: 'Gayathri Silva'
   },
-  'Customer Care': { 
-    name: 'Customer Care', 
+  'Customer Care': {
+    name: 'Customer Care',
     color: '#1890ff', // Blue
     emoji: '💁',
     description: 'Customer Care and Support',
     icon: <CustomerServiceOutlined />,
     gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-    url: '/departments/customer-care'
+    url: '/departments/customer-care',
+    person: 'Rashmika Premathilaka'
   },
-  'E-Healthcare': { 
-    name: 'E-Healthcare', 
+  'E-Healthcare': {
+    name: 'E-Healthcare',
     color: '#52c41a', // Green
     emoji: '🏥',
     description: 'E-Healthcare Services',
     icon: <MedicineBoxOutlined />,
     gradient: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
-    url: '/departments/e-healthcare'
+    url: '/departments/e-healthcare',
+    person: 'Dhara Nethmi'
   },
-  'Finance': { 
-    name: 'Finance', 
+  'Finance': {
+    name: 'Finance',
     color: '#faad14', // Gold
     emoji: '💰',
     description: 'Finance and Accounting',
     icon: <DollarOutlined />,
     gradient: 'linear-gradient(135deg, #faad14 0%, #d48806 100%)',
-    url: '/departments/finance'
+    url: '/departments/finance',
+    person: 'Not Confrimed Yet'
   },
-  'Hi-Tech': { 
-    name: 'Hi-Tech', 
+  'Hi-Tech': {
+    name: 'Hi-Tech',
     color: '#13c2c2', // Cyan
     emoji: '🔬',
     description: 'Hi-Tech Solutions',
     icon: <LaptopOutlined />,
     gradient: 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)',
-    url: '/departments/hi-tech'
+    url: '/departments/hi-tech',
+    person: 'Sahiru Chathuranga'
   },
-  'HR': { 
-    name: 'HR', 
+  'HR': {
+    name: 'HR',
     color: '#722ed1', // Purple
     emoji: '👥',
     description: 'Human Resources',
     icon: <TeamOutlined />,
     gradient: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
-    url: '/departments/hr'
+    url: '/departments/hr',
+    person: 'Nethmini Koshila'
   },
-  'Imports': { 
-    name: 'Imports', 
+  'Imports': {
+    name: 'Imports',
     color: '#eb2f96', // Magenta
     emoji: '📦',
     description: 'Import Operations',
     icon: <ImportOutlined />,
     gradient: 'linear-gradient(135deg, #eb2f96 0%, #c41d7f 100%)',
-    url: '/departments/imports'
+    url: '/departments/imports',
+    person: 'Subhashini Sandamalie'
   },
-  'IT': { 
-    name: 'IT', 
+  'IT': {
+    name: 'IT',
     color: '#fa541c', // Volcano
     emoji: '💻',
     description: 'Information Technology',
     icon: <SettingOutlined />,
     gradient: 'linear-gradient(135deg, #fa541c 0%, #d4380d 100%)',
-    url: '/departments/it'
+    url: '/departments/it',
+    person: 'Not Yet Confrimed'
   },
-  'Regulatory': { 
-    name: 'Regulatory', 
+  'Regulatory': {
+    name: 'Regulatory',
     color: '#1890ff', // Blue
     emoji: '📋',
     description: 'Regulatory Affairs',
     icon: <SafetyCertificateOutlined />,
     gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-    url: '/departments/regulatory'
+    url: '/departments/regulatory',
+    person: 'Hiruni Achinthya'
   },
-  'Sales Operations': { 
-    name: 'Sales Operations', 
+  'Sales Operations': {
+    name: 'Sales Operations',
     color: '#52c41a', // Green
     emoji: '📊',
     description: 'Sales Operations Management',
     icon: <ShopOutlined />,
     gradient: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
-    url: '/departments/sales-operations'
+    url: '/departments/sales-operations',
+    person: 'Imesha Nilakshi'
   },
-  'SOMT': { 
-    name: 'SOMT', 
+  'SOMT': {
+    name: 'SOMT',
     color: '#faad14', // Gold
     emoji: '🔄',
     description: 'Sales Operations Management Team',
     icon: <SolutionOutlined />,
     gradient: 'linear-gradient(135deg, #faad14 0%, #d48806 100%)',
-    url: '/departments/somt'
+    url: '/departments/somt',
+    person: 'Rahul Rupkumar'
   },
-  'Stores': { 
-    name: 'Stores', 
+  'Stores': {
+    name: 'Stores',
     color: '#13c2c2', // Cyan
     emoji: '🏪',
     description: 'Store Operations',
     icon: <ShopFilled />,
     gradient: 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)',
-    url: '/departments/stores'
+    url: '/departments/stores',
+    person: 'Suranga Silva'
   },
-  'Surge-Surgecare': { 
-    name: 'Surge-Surgecare', 
+  'Surge-Surgecare': {
+    name: 'Surge-Surgecare',
     color: '#722ed1', // Purple
     emoji: '⚡',
     description: 'Surge and Surgecare Services',
     icon: <MedicineBoxOutlined />,
     gradient: 'linear-gradient(135deg, #722ed1 0%, #531dab 100%)',
-    url: '/departments/surge-surgecare'
+    url: '/departments/surge-surgecare',
+    person: 'Shahan Anthony'
   },
-  'Surge-Surgecare-Image': { 
-    name: 'Surge-Surgecare-Image', 
+  'Surge-Surgecare-Image': {
+    name: 'Surge-Surgecare-Image',
     color: '#eb2f96', // Magenta
     emoji: '🖼️',
     description: 'Surgecare Imaging Services',
     icon: <FileImageOutlined />,
     gradient: 'linear-gradient(135deg, #eb2f96 0%, #c41d7f 100%)',
-    url: '/departments/surge-surgecare-image'
+    url: '/departments/surge-surgecare-image',
+    person: 'Selvarathnam Rajnikanth'
   }
 };
+
 
 // Loading component
 const LoadingSpinner = ({ tip = "Loading departments data..." }) => (
@@ -261,7 +283,7 @@ const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) 
     <Card
       hoverable
       loading={loading}
-      style={{ 
+      style={{
         height: '100%',
         border: `2px solid ${config.color}30`,
         borderRadius: '16px',
@@ -269,15 +291,15 @@ const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) 
         background: `linear-gradient(135deg, ${config.color}15 0%, ${config.color}05 100%)`,
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
       }}
-      bodyStyle={{ 
+      bodyStyle={{
         padding: '24px',
         textAlign: 'center'
       }}
       onClick={() => !loading && onNavigate(department.name, hasUsers)}
     >
       {/* Emoji and Icon Header */}
-      <div style={{ 
-        fontSize: '48px', 
+      <div style={{
+        fontSize: '48px',
         marginBottom: '12px',
         display: 'flex',
         justifyContent: 'center',
@@ -285,17 +307,17 @@ const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) 
         gap: '12px'
       }}>
         <span style={{ fontSize: '40px' }}>{config.emoji}</span>
-        <div style={{ 
+        <div style={{
           color: config.color,
           fontSize: '32px'
         }}>
           {config.icon}
         </div>
       </div>
-      
+
       {/* Department Name with Color */}
-      <Title level={3} style={{ 
-        color: config.color, 
+      <Title level={3} style={{
+        color: config.color,
         marginBottom: '8px',
         background: config.gradient,
         WebkitBackgroundClip: 'text',
@@ -304,7 +326,7 @@ const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) 
       }}>
         {config.name}
       </Title>
-      
+
       <Text type="secondary" style={{ display: 'block', marginBottom: '16px' }}>
         {config.description}
       </Text>
@@ -321,34 +343,36 @@ const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) 
           }
           value={userCount || 0}
           prefix={<UserOutlined style={{ color: config.color }} />}
-          valueStyle={{ 
-            fontSize: '28px', 
+          valueStyle={{
+            fontSize: '28px',
             color: config.color,
             fontWeight: 'bold'
           }}
         />
       </div>
 
-      {!hasUsers && (
-        <Alert
-          message="No Active Users"
-          description="This department is available but currently has no registered team members"
-          type="info"
-          showIcon
-          icon={<InfoCircleOutlined style={{ color: config.color }} />}
-          style={{ 
-            marginBottom: '16px',
-            border: `1px solid ${config.color}30`,
-            background: `${config.color}10`
+      <div style={{ marginBottom: '16px' }}>
+        <Statistic
+          title={
+            <Text style={{ color: config.color, fontWeight: 100 }}>
+              Responsible Person
+            </Text>
+          }
+          value={config.person || 'Not Confirmed Yet'}
+          prefix={<UserOutlined style={{ color: config.color }} />}
+          valueStyle={{
+            fontSize: '20px',
+            color: config.color,
+            fontWeight: 'bold'
           }}
         />
-      )}
+      </div>
 
       {/* Action Button */}
       <Button
         type="primary"
         size="large"
-        style={{ 
+        style={{
           background: config.gradient,
           border: 'none',
           borderRadius: '8px',
@@ -370,7 +394,7 @@ const DepartmentCard = ({ department, userCount, onNavigate, loading = false }) 
 // Department List View Component
 const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) => {
   return (
-    <Card 
+    <Card
       title={
         <Space>
           <BarsOutlined />
@@ -406,7 +430,7 @@ const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) =>
                 background: `linear-gradient(135deg, ${config.color}08 0%, ${config.color}03 100%)`
               }}
               actions={[
-                <Button 
+                <Button
                   type="primary"
                   style={{
                     background: config.gradient,
@@ -423,9 +447,9 @@ const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) =>
             >
               <List.Item.Meta
                 avatar={
-                  <Avatar 
-                    size="large" 
-                    style={{ 
+                  <Avatar
+                    size="large"
+                    style={{
                       background: config.gradient,
                       color: '#fff',
                       fontSize: '16px'
@@ -435,15 +459,15 @@ const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) =>
                 }
                 title={
                   <Space>
-                    <Text strong style={{ 
+                    <Text strong style={{
                       color: config.color,
                       fontSize: '18px'
                     }}>
                       {config.name}
                     </Text>
                     {!hasUsers && (
-                      <Tag 
-                        color="blue" 
+                      <Tag
+                        color="blue"
                         icon={<InfoCircleOutlined />}
                         style={{ border: `1px solid ${config.color}30` }}
                       >
@@ -463,16 +487,16 @@ const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) =>
                         {userCount} team member{userCount !== 1 ? 's' : ''}
                       </Text>
                       {hasUsers ? (
-                        <Tag 
-                          color="green" 
+                        <Tag
+                          color="green"
                           icon={<CheckCircleOutlined />}
                           style={{ border: '1px solid #52c41a30' }}
                         >
                           Active Team
                         </Tag>
                       ) : (
-                        <Tag 
-                          color="blue" 
+                        <Tag
+                          color="blue"
                           icon={<InfoCircleOutlined />}
                           style={{ border: `1px solid ${config.color}30` }}
                         >
@@ -495,13 +519,13 @@ const DepartmentListView = ({ departments, userCounts, onNavigate, loading }) =>
 const DepartmentStatistics = ({ stats, loading = false }) => (
   <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
     <Col xs={24} sm={8} md={6}>
-      <Card 
-        size="small" 
-        style={{ 
+      <Card
+        size="small"
+        style={{
           textAlign: 'center',
           border: '2px solid #1890ff20',
           borderRadius: '8px'
-        }} 
+        }}
         loading={loading}
       >
         <Statistic
@@ -513,13 +537,13 @@ const DepartmentStatistics = ({ stats, loading = false }) => (
       </Card>
     </Col>
     <Col xs={24} sm={8} md={6}>
-      <Card 
-        size="small" 
-        style={{ 
+      <Card
+        size="small"
+        style={{
           textAlign: 'center',
           border: '2px solid #52c41a20',
           borderRadius: '8px'
-        }} 
+        }}
         loading={loading}
       >
         <Statistic
@@ -531,13 +555,13 @@ const DepartmentStatistics = ({ stats, loading = false }) => (
       </Card>
     </Col>
     <Col xs={24} sm={8} md={6}>
-      <Card 
-        size="small" 
-        style={{ 
+      <Card
+        size="small"
+        style={{
           textAlign: 'center',
           border: '2px solid #fa8c1620',
           borderRadius: '8px'
-        }} 
+        }}
         loading={loading}
       >
         <Statistic
@@ -549,13 +573,13 @@ const DepartmentStatistics = ({ stats, loading = false }) => (
       </Card>
     </Col>
     <Col xs={24} sm={8} md={6}>
-      <Card 
-        size="small" 
-        style={{ 
+      <Card
+        size="small"
+        style={{
           textAlign: 'center',
           border: '2px solid #722ed120',
           borderRadius: '8px'
-        }} 
+        }}
         loading={loading}
       >
         <Statistic
@@ -580,10 +604,10 @@ const Departments = () => {
   const [userCounts, setUserCounts] = useState({});
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  
+
   // View state
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
-  
+
   // Stats state
   const [stats, setStats] = useState({
     totalDepartments: 0,
@@ -610,19 +634,19 @@ const Departments = () => {
   // Global error handler
   const handleError = (error, context = 'Unknown operation') => {
     console.error(`Error in ${context}:`, error);
-    
+
     const errorMessage = error?.message || 'An unexpected error occurred';
-    
+
     if (!context.includes('auto-refresh')) {
       toast.error(`Error in ${context}: ${errorMessage}`);
     }
-    
+
     setError({
       message: errorMessage,
       context,
       timestamp: new Date().toISOString()
     });
-    
+
     return error;
   };
 
@@ -726,7 +750,7 @@ const Departments = () => {
   const fetchCurrentUser = async () => {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
+
       if (authError) {
         throw new Error(`Authentication failed: ${authError.message}`);
       }
@@ -797,13 +821,13 @@ const Departments = () => {
       }
 
       const counts = {};
-      
+
       (users || []).forEach(user => {
         if (user.department_id) {
           counts[user.department_id] = (counts[user.department_id] || 0) + 1;
         }
       });
-      
+
       safeSetState(setUserCounts, counts);
     } catch (error) {
       handleError(error, 'fetching user counts');
@@ -828,9 +852,9 @@ const Departments = () => {
       return { totalDepartments, totalUsers, departmentsWithUsers, departmentsWithoutUsers };
     } catch (error) {
       handleError(error, 'calculating statistics');
-      return { 
-        totalDepartments: 0, 
-        totalUsers: 0, 
+      return {
+        totalDepartments: 0,
+        totalUsers: 0,
         departmentsWithUsers: 0,
         departmentsWithoutUsers: 0
       };
@@ -849,7 +873,7 @@ const Departments = () => {
         emoji: '🏢',
         url: `/departments/${departmentName.toLowerCase().replace(/\s+/g, '-')}`
       };
-      
+
       // Show toast message if no users in department
       if (!hasUsers) {
         toast.warning(
@@ -932,8 +956,8 @@ const Departments = () => {
       {/* Header with Controls */}
       <Card
         size="small"
-        style={{ 
-          marginBottom: 16, 
+        style={{
+          marginBottom: 16,
           backgroundColor: '#fafafa',
           borderRadius: '12px',
           border: '2px solid #1890ff20'
@@ -972,7 +996,7 @@ const Departments = () => {
           </Col>
           <Col xs={24} sm={12} md={8}>
             <Space style={{ float: 'right' }}>
-              <Button 
+              <Button
                 type={viewMode === 'grid' ? 'primary' : 'default'}
                 icon={<AppstoreOutlined />}
                 onClick={() => setViewMode('grid')}
@@ -980,7 +1004,7 @@ const Departments = () => {
               >
                 Grid
               </Button>
-              <Button 
+              <Button
                 type={viewMode === 'list' ? 'primary' : 'default'}
                 icon={<BarsOutlined />}
                 onClick={() => setViewMode('list')}
@@ -988,8 +1012,8 @@ const Departments = () => {
               >
                 List
               </Button>
-              <Button 
-                icon={<SyncOutlined />} 
+              <Button
+                icon={<SyncOutlined />}
                 onClick={manualRefresh}
                 loading={isRefreshing}
                 size="small"
@@ -1027,7 +1051,7 @@ const Departments = () => {
 
       {/* Departments Display - Grid or List View */}
       {viewMode === 'grid' ? (
-        <Card 
+        <Card
           title={
             <Space>
               <AppstoreOutlined />
@@ -1041,8 +1065,8 @@ const Departments = () => {
           style={{ marginTop: 24, borderRadius: '12px' }}
         >
           {departments.length === 0 ? (
-            <Empty 
-              image={Empty.PRESENTED_IMAGE_SIMPLE} 
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
               description="No departments found"
             />
           ) : (
@@ -1070,11 +1094,11 @@ const Departments = () => {
       )}
 
       {/* Department Information & Summary */}
-      <Card 
+      <Card
         title="Department Summary & Information"
         style={{ marginTop: 24, borderRadius: '12px' }}
         extra={
-          <Button 
+          <Button
             icon={<BarChartOutlined />}
             onClick={() => navigate('/analytics')}
             size="small"
@@ -1098,8 +1122,8 @@ const Departments = () => {
                     };
 
                     return (
-                      <div key={dept.id} style={{ 
-                        display: 'flex', 
+                      <div key={dept.id} style={{
+                        display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         padding: '12px 0',
@@ -1137,7 +1161,7 @@ const Departments = () => {
                   type="info"
                   showIcon
                 />
-                
+
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text>Your Role:</Text>
                   <Tag color={isAdmin ? 'red' : 'blue'}>
@@ -1156,10 +1180,10 @@ const Departments = () => {
                   <Text>Total Team Members:</Text>
                   <Text strong>{stats.totalUsers}</Text>
                 </div>
-                
+
                 {isAdmin && (
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     icon={<UsergroupAddOutlined />}
                     onClick={() => navigate('/admin/user-management')}
                     block
