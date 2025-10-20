@@ -29,6 +29,8 @@ import Cluster6 from './components/Schedules/Cluster_6';
 import CustomerCare from './components/Schedules/Customer_Care';
 import EHealthcare from './components/Schedules/eHealthcare.js';
 import HiTech from './components/Schedules/HiTech.js';
+import HR from './components/Schedules/Hr.js';
+import Import from './components/Schedules/Imports.js';
 
 
 import 'antd/dist/reset.css';
@@ -131,10 +133,10 @@ function AppContent() {
           <Route path="departments/customer-care" element={<CustomerCare />} />
           <Route path="departments/e-healthcare" element={<EHealthcare />} />
           <Route path="departments/hi-tech" element={<HiTech />} />
-          <Route path="departments/hr" element={<OopsPage />} />
+          <Route path="departments/hr" element={<HR />} />
           <Route path="departments/finance" element={<OopsPage />} />
           <Route path="departments/it" element={<OopsPage />} />
-          <Route path="departments/imports" element={<OopsPage />} />
+          <Route path="departments/imports" element={<Import />} />
           <Route path="departments/regulatory" element={<OopsPage />} />
           <Route path="departments/sales-operations" element={<OopsPage />} />
           <Route path="departments/somt" element={<OopsPage />} />
