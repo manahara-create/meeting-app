@@ -1661,28 +1661,12 @@ const CustomerCare = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
+
 
             switch (selectedCategory.id) {
                 case 'delivery_schedule':
                     return [
-                        ...baseColumns,
+
                         { title: 'Delivery Date', dataIndex: 'delivery_date', key: 'delivery_date', width: 120 },
                         { title: 'Region', dataIndex: 'region', key: 'region', width: 120 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
@@ -1693,7 +1677,7 @@ const CustomerCare = () => {
 
                 case 'meetings':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1702,7 +1686,7 @@ const CustomerCare = () => {
 
                 case 'special_tasks':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1710,7 +1694,7 @@ const CustomerCare = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');

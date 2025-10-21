@@ -1328,7 +1328,7 @@ const StoresView = () => {
                 }
             ];
 
-            return [...baseColumns, actionColumn];
+            return ;
         } catch (error) {
             handleError(error, 'generating table columns');
             return [];

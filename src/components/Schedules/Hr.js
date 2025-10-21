@@ -1667,23 +1667,7 @@ const HR = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
+
 
             const formatTime = (time) => {
                 try {
@@ -1697,7 +1681,7 @@ const HR = () => {
             switch (selectedCategory.id) {
                 case 'meetings':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 100, render: formatTime },
                         { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100, render: formatTime },
@@ -1707,7 +1691,7 @@ const HR = () => {
 
                 case 'training':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 100, render: formatTime },
                         { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100, render: formatTime },
@@ -1731,7 +1715,7 @@ const HR = () => {
 
                 case 'special_events_n_tasks':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1740,7 +1724,7 @@ const HR = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');

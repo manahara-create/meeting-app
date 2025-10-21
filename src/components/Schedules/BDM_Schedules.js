@@ -1777,28 +1777,9 @@ const BDM = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
-
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return [
-                        ...baseColumns,
                         { title: 'Schedule Date', dataIndex: 'schedule_date', key: 'schedule_date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
@@ -1811,7 +1792,7 @@ const BDM = () => {
 
                 case 'principle_visit':
                     return [
-                        ...baseColumns,
+
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Principle Name', dataIndex: 'principle_name', key: 'principle_name', width: 150 },
                         { title: 'Visitors Name', dataIndex: 'visitors_name', key: 'visitors_name', width: 150 },
@@ -1824,7 +1805,7 @@ const BDM = () => {
 
                 case 'meetings':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
@@ -1834,7 +1815,7 @@ const BDM = () => {
 
                 case 'college_session':
                     return [
-                        ...baseColumns,
+
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'College Name', dataIndex: 'college_name', key: 'college_name', width: 150 },
                         { title: 'Session', dataIndex: 'session', key: 'session', width: 150 },
@@ -1845,7 +1826,7 @@ const BDM = () => {
 
                 case 'promotional_activities':
                     return [
-                        ...baseColumns,
+
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
@@ -1855,7 +1836,7 @@ const BDM = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');

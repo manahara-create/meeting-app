@@ -1647,28 +1647,12 @@ const Cluster3 = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
+
 
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
@@ -1678,7 +1662,7 @@ const Cluster3 = () => {
 
                 case 'meetings':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1687,7 +1671,7 @@ const Cluster3 = () => {
 
                 case 'special_task':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1695,7 +1679,7 @@ const Cluster3 = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');

@@ -1315,28 +1315,12 @@ const SOMT = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
+
 
             switch (selectedCategory.id) {
                 case 'meetings':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1345,7 +1329,7 @@ const SOMT = () => {
 
                 case 'tender':
                     return [
-                        ...baseColumns,
+
                         { title: 'Close Date', dataIndex: 'close_date', key: 'close_date', width: 120 },
                         { title: 'Close Time', dataIndex: 'close_time', key: 'close_time', width: 100 },
                         { title: 'Customer', dataIndex: 'customer', key: 'customer', width: 150 },
@@ -1369,7 +1353,7 @@ const SOMT = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');

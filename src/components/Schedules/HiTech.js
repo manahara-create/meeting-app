@@ -1675,28 +1675,12 @@ const HiTech = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
+
 
             switch (selectedCategory.id) {
                 case 'page_generation':
                     return [
-                        ...baseColumns,
+
                         { title: 'SP Name', dataIndex: 'sp_name', key: 'sp_name', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Institute', dataIndex: 'institute', key: 'institute', width: 150 },
@@ -1706,7 +1690,7 @@ const HiTech = () => {
 
                 case 'technical_discussions':
                     return [
-                        ...baseColumns,
+
                         { title: 'SP Name', dataIndex: 'sp_name', key: 'sp_name', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Promotional Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
@@ -1717,7 +1701,7 @@ const HiTech = () => {
 
                 case 'tender_validation':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'SP Name', dataIndex: 'sp_name', key: 'sp_name', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
@@ -1728,7 +1712,7 @@ const HiTech = () => {
 
                 case 'visit_plan':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Institute', dataIndex: 'institute', key: 'institute', width: 150 },
@@ -1737,7 +1721,7 @@ const HiTech = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');

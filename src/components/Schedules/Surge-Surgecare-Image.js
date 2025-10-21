@@ -1484,28 +1484,12 @@ const SurgeSurgeCareImageView = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn
-            ];
+
 
             switch (selectedCategory.id) {
                 case 'college_session':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'College', dataIndex: 'college', key: 'college', width: 150 },
@@ -1528,7 +1512,7 @@ const SurgeSurgeCareImageView = () => {
 
                 case 'meetings':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 120 },
@@ -1537,7 +1521,7 @@ const SurgeSurgeCareImageView = () => {
 
                 case 'principal_visit':
                     return [
-                        ...baseColumns,
+
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Principal Name', dataIndex: 'principle_name', key: 'principle_name', width: 150 },
                         { title: 'Visitors Name', dataIndex: 'visitors_name', key: 'visitors_name', width: 150 },
@@ -1574,7 +1558,7 @@ const SurgeSurgeCareImageView = () => {
 
                 case 'promotional_activities':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Promotional Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
@@ -1597,7 +1581,7 @@ const SurgeSurgeCareImageView = () => {
 
                 case 'special_tasks':
                     return [
-                        ...baseColumns,
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 120 },
@@ -1606,7 +1590,7 @@ const SurgeSurgeCareImageView = () => {
 
                 case 'visit_plan':
                     return [
-                        ...baseColumns,
+
                         { title: 'Schedule Date', dataIndex: 'schedule_date', key: 'schedule_date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
@@ -1615,7 +1599,7 @@ const SurgeSurgeCareImageView = () => {
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');
