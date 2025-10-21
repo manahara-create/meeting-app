@@ -25,7 +25,8 @@ import {
   Tooltip,
   ConfigProvider,
   Select,
-  Dropdown
+  Dropdown,
+  Collapse
 } from 'antd';
 import {
   CalendarOutlined,
@@ -211,7 +212,7 @@ const tableCategoryMapping = {
   'personal_meetings': { type: 'meeting', categoryName: 'Personal Meetings', department: 'PERSONAL', shortName: 'Personal' }
 };
 
-// Enhanced helper function to get date field based on table
+// COMPLETE FIXED helper function to get date field based on table with proper mapping
 const getDateFieldName = (tableName) => {
   const dateFields = {
     // BDM Department
@@ -256,62 +257,126 @@ const getDateFieldName = (tableName) => {
     'customer_care_meetings': 'date',
     'customer_care_special_tasks': 'date',
     
-    // E-Healthcare
+    // E-Healthcare - FIXED
     'ehealthcare_meetings': 'date',
     'ehealthcare_visit_plan': 'date',
     
-    // Hi-Tech
-    'hitech_page_generation': 'created_at',
-    'hitech_technical_discussions': 'created_at',
+    // Hi-Tech - FIXED: Some use created_at, some use date
+    'hitech_page_generation': 'created_at', // No date field, use created_at
+    'hitech_technical_discussions': 'created_at', // No date field, use created_at
     'hitech_tender_validation': 'date',
     'hitech_visit_plan': 'date',
     
-    // HR
+    // HR - FIXED: All use date field
     'hr_meetings': 'date',
     'hr_special_events_n_tasks': 'date',
     'hr_training': 'date',
     
-    // Imports
+    // Imports - FIXED
     'imports_meetings': 'date',
-    'imports_upcoming_shipment_clearance_plan': 'eta',
+    'imports_upcoming_shipment_clearance_plan': 'eta', // Uses eta field
     
-    // Regulatory
+    // Regulatory - FIXED
     'regulatory_meetings': 'date',
     'regulatory_submissions': 'date',
     
-    // Sales Operations
+    // Sales Operations - FIXED
     'sales_operations_meetings': 'date',
     'sales_operations_special_tasks': 'date',
     
-    // SOMT
+    // SOMT - FIXED
     'somt_meetings': 'date',
-    'somt_tender': 'close_date',
+    'somt_tender': 'close_date', // Uses close_date field
     
-    // Stores
+    // Stores - FIXED
     'stores_plan_loading': 'date',
     'stores_vst': 'date',
     
-    // Surgi Imaging
+    // Surgi Imaging - FIXED
     'surgi_imaging_college_session': 'date',
     'surgi_imaging_meetings': 'date',
-    'surgi_imaging_principal_visit': 'start_time',
+    'surgi_imaging_principal_visit': 'start_time', // Uses start_time timestamp
     'surgi_imaging_promotional_activities': 'date',
     'surgi_imaging_special_tasks': 'date',
     'surgi_imaging_visit_plan': 'schedule_date',
     
-    // Surgi Surgicare
+    // Surgi Surgicare - FIXED
     'surgi_surgicare_college_session': 'date',
     'surgi_surgicare_meetings': 'date',
-    'surgi_surgicare_principal_visit': 'visit_duration_start',
+    'surgi_surgicare_principal_visit': 'visit_duration_start', // Uses visit_duration_start
     'surgi_surgicare_promotional_activities': 'date',
     'surgi_surgicare_special_task': 'date',
     'surgi_surgicare_visit_plan': 'schedule_date',
     
-    // Personal Meetings
+    // Personal Meetings - FIXED
     'personal_meetings': 'start_date'
   };
   
-  return dateFields[tableName] || 'created_at';
+  const field = dateFields[tableName];
+  if (!field) {
+    console.warn(`No date field mapping found for table: ${tableName}, defaulting to 'date'`);
+    return 'date';
+  }
+  
+  return field;
+};
+
+// Comprehensive debug component to check ALL tables
+const ComprehensiveDateDebug = ({ activities }) => {
+  const tableGroups = {};
+  
+  // Group activities by table
+  activities.forEach(activity => {
+    if (!tableGroups[activity.sourceTable]) {
+      tableGroups[activity.sourceTable] = [];
+    }
+    tableGroups[activity.sourceTable].push(activity);
+  });
+
+  return (
+    <Card size="small" style={{ marginBottom: 16 }} title="Date Field Debug - All Tables">
+      <Collapse>
+        {Object.entries(tableGroups).map(([tableName, tableActivities]) => (
+          <Collapse.Panel 
+            key={tableName} 
+            header={
+              <Space>
+                <Text strong>{tableName}</Text>
+                <Tag color="blue">{tableActivities.length} records</Tag>
+                <Text type="secondary">
+                  Date Field: {tableActivities[0]?._dateField || 'unknown'}
+                </Text>
+              </Space>
+            }
+          >
+            <List
+              size="small"
+              dataSource={tableActivities.slice(0, 5)} // Show first 5
+              renderItem={(activity, index) => (
+                <List.Item>
+                  <Space direction="vertical" size={0}>
+                    <Text>
+                      {index + 1}. {activity.title || 'No Title'}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      Date: {activity.date} | 
+                      Raw: {activity._rawDate} | 
+                      Field: {activity._dateField}
+                    </Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+            {tableActivities.length > 5 && (
+              <Text type="secondary" style={{ fontSize: '12px', marginTop: 8 }}>
+                ... and {tableActivities.length - 5} more records
+              </Text>
+            )}
+          </Collapse.Panel>
+        ))}
+      </Collapse>
+    </Card>
+  );
 };
 
 // Category Overview Modal Component
@@ -1932,65 +1997,101 @@ const Dashboard = () => {
     }
   };
 
-  const fetchAllActivities = async () => {
-    const allActivitiesData = [];
+const fetchAllActivities = async () => {
+  const allActivitiesData = [];
 
-    try {
-      const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
-        try {
-          const dateField = getDateFieldName(tableName);
-          
-          const { data, error } = await supabase
-            .from(tableName)
-            .select('*')
-            .order(dateField, { ascending: false })
-            .limit(100); // Limit to prevent too much data
+  try {
+    const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
+      try {
+        const dateField = getDateFieldName(tableName);
+        
+        console.log(`Fetching from ${tableName} using date field: ${dateField}`);
+        
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .order(dateField, { ascending: false })
+          .limit(100);
 
-          if (error) {
-            console.warn(`Error fetching from ${tableName}:`, error);
-            return;
-          }
-
-          if (data) {
-            data.forEach(item => {
-              const baseDate = item[dateField] || item.created_at;
-
-              const itemWithMetadata = {
-                ...item,
-                sourceTable: tableName,
-                type: tableInfo.type,
-                categoryName: tableInfo.categoryName,
-                department: tableInfo.department,
-                date: baseDate,
-                start: baseDate,
-                title: getActivityTitle(item, tableName, tableInfo.categoryName),
-                priority: item.priority || 3,
-                status: item.status || 'scheduled',
-                hasTime: !!(item.start_time || item.end_time) // Check if it has specific time
-              };
-
-              allActivitiesData.push(itemWithMetadata);
-            });
-          }
-        } catch (tableError) {
-          console.warn(`Failed to fetch from table ${tableName}:`, tableError);
+        if (error) {
+          console.warn(`Error fetching from ${tableName}:`, error);
+          return;
         }
-      });
 
-      await Promise.allSettled(fetchPromises);
-      
-      // Sort activities by date
-      const sortedActivities = allActivitiesData.sort((a, b) => 
-        new Date(b.date || b.start || b.created_at) - new Date(a.date || a.start || a.created_at)
-      );
-      
-      setAllActivities(sortedActivities);
-      calculateStats(sortedActivities);
-    } catch (error) {
-      console.error('Error fetching all activities:', error);
-      throw error;
-    }
-  };
+        if (data && data.length > 0) {
+          let validRecords = 0;
+          let invalidRecords = 0;
+          
+          data.forEach(item => {
+            // Get the actual date field value
+            const baseDate = item[dateField];
+            
+            if (!baseDate) {
+              console.warn(`No date found for ${tableName} record ${item.id} in field ${dateField}`);
+              invalidRecords++;
+              return;
+            }
+
+            const itemWithMetadata = {
+              ...item,
+              sourceTable: tableName,
+              type: tableInfo.type,
+              categoryName: tableInfo.categoryName,
+              department: tableInfo.department,
+              date: baseDate, // Use the actual date field
+              start: baseDate, // Use the actual date field
+              title: getActivityTitle(item, tableName, tableInfo.categoryName),
+              priority: item.priority || 3,
+              status: item.status || 'scheduled',
+              hasTime: !!(item.start_time || item.end_time),
+              // Store the actual date field used for debugging
+              _dateField: dateField,
+              _rawDate: baseDate
+            };
+
+            allActivitiesData.push(itemWithMetadata);
+            validRecords++;
+          });
+          
+          console.log(`Fetched from ${tableName}: ${validRecords} valid, ${invalidRecords} invalid dates`);
+          
+          if (validRecords > 0) {
+            console.log(`First date in ${tableName}: ${data[0]?.[dateField]}`);
+          }
+        } else {
+          console.log(`No data found in table: ${tableName}`);
+        }
+      } catch (tableError) {
+        console.warn(`Failed to fetch from table ${tableName}:`, tableError);
+      }
+    });
+
+    await Promise.allSettled(fetchPromises);
+    
+    // Sort activities by actual date (not created_at)
+    const sortedActivities = allActivitiesData.sort((a, b) => {
+      const dateA = new Date(a.date || a.start || a.created_at);
+      const dateB = new Date(b.date || b.start || b.created_at);
+      return dateB - dateA; // Descending order (newest first)
+    });
+    
+    // Comprehensive debug log
+    console.log('=== COMPREHENSIVE DATE DEBUG ===');
+    Object.entries(Object.groupBy(sortedActivities, a => a.sourceTable)).forEach(([table, activities]) => {
+      console.log(`${table}: ${activities.length} activities`);
+      if (activities.length > 0) {
+        console.log(`  First date: ${activities[0].date}, Field: ${activities[0]._dateField}`);
+      }
+    });
+    console.log('=== END DEBUG ===');
+    
+    setAllActivities(sortedActivities);
+    calculateStats(sortedActivities);
+  } catch (error) {
+    console.error('Error fetching all activities:', error);
+    throw error;
+  }
+};
 
   const calculateStats = (activitiesData) => {
     const now = new Date();
