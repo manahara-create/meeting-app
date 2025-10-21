@@ -108,18 +108,18 @@ const departments = {
   SALES_OPERATIONS: { name: 'Sales Operations', color: '#2c3e50' },
   SOMT: { name: 'SOMT', color: '#d35400' },
   STORES: { name: 'Stores', color: '#27ae60' },
-  SURGE_SURGECARE: { name: 'Surge-Surgecare', color: '#2980b9' },
-  SURGE_SURGECARE_IMAGE: { name: 'Surge-Surgecare-Image', color: '#8e44ad' }
+  SURGI_IMAGING: { name: 'Surgi Imaging', color: '#2980b9' },
+  SURGI_SURGICARE: { name: 'Surgi Surgicare', color: '#8e44ad' }
 };
 
-// Complete table to category mapping
+// Complete table to category mapping matching database schema
 const tableCategoryMapping = {
   // BDM Department
   'bdm_college_session': { type: 'meeting', categoryName: 'BDM - College Session', department: 'BDM', shortName: 'College' },
-  'bdm_weekly_meetings': { type: 'meeting', categoryName: 'BDM - Meeting Schedule', department: 'BDM', shortName: 'Meeting' },
+  'bdm_meetings': { type: 'meeting', categoryName: 'BDM - Meeting Schedule', department: 'BDM', shortName: 'Meeting' },
   'bdm_principle_visit': { type: 'task', categoryName: 'BDM - Principle Visit', department: 'BDM', shortName: 'Principle' },
   'bdm_promotional_activities': { type: 'task', categoryName: 'BDM - Promotional Activities', department: 'BDM', shortName: 'Promo' },
-  'bdm_customer_visit': { type: 'task', categoryName: 'BDM - Visit Plan', department: 'BDM', shortName: 'Visit' },
+  'bdm_visit_plan': { type: 'task', categoryName: 'BDM - Visit Plan', department: 'BDM', shortName: 'Visit' },
 
   // Cluster 1
   'cluster_1_meetings': { type: 'meeting', categoryName: 'Cluster 1 - Meetings', department: 'CLUSTER_1', shortName: 'C1 Meet' },
@@ -164,6 +164,7 @@ const tableCategoryMapping = {
   'hitech_technical_discussions': { type: 'meeting', categoryName: 'Hi-Tech Technical Discussion', department: 'HI_TECH', shortName: 'Hi-Tech Tech' },
   'hitech_tender_validation': { type: 'task', categoryName: 'Hi-Tech Tender Validation', department: 'HI_TECH', shortName: 'Hi-Tech Tender' },
   'hitech_visit_plan': { type: 'task', categoryName: 'Hi-Tech Visit Plan', department: 'HI_TECH', shortName: 'Hi-Tech Visit' },
+  'hitech_page_generation': { type: 'task', categoryName: 'Hi-Tech Page Generation', department: 'HI_TECH', shortName: 'Hi-Tech Page' },
 
   // HR
   'hr_meetings': { type: 'meeting', categoryName: 'HR - Meetings', department: 'HR', shortName: 'HR Meet' },
@@ -172,7 +173,7 @@ const tableCategoryMapping = {
 
   // Imports
   'imports_meetings': { type: 'meeting', categoryName: 'Imports - Meeting Schedules', department: 'IMPORTS', shortName: 'Imports Meet' },
-  'imports_upcoming_shipments': { type: 'task', categoryName: 'Imports - Upcoming Shipments', department: 'IMPORTS', shortName: 'Imports Ship' },
+  'imports_upcoming_shipment_clearance_plan': { type: 'task', categoryName: 'Imports - Upcoming Shipments', department: 'IMPORTS', shortName: 'Imports Ship' },
 
   // Regulatory
   'regulatory_meetings': { type: 'meeting', categoryName: 'Regulatory - Meetings', department: 'REGULATORY', shortName: 'Regulatory Meet' },
@@ -190,21 +191,127 @@ const tableCategoryMapping = {
   'stores_plan_loading': { type: 'task', categoryName: 'Stores - Plan Loading', department: 'STORES', shortName: 'Stores Load' },
   'stores_vst': { type: 'task', categoryName: 'Stores - VST', department: 'STORES', shortName: 'Stores VST' },
 
-  // Surge-Surgecare
-  'surge_surgecare_meetings': { type: 'meeting', categoryName: 'Surge-Surgecare - Meetings', department: 'SURGE_SURGECARE', shortName: 'SS Meet' },
-  'surge_surgecare_college_session': { type: 'meeting', categoryName: 'Surge-Surgecare - College Session', department: 'SURGE_SURGECARE', shortName: 'SS College' },
-  'surge_surgecare_principal_visit': { type: 'task', categoryName: 'Surge-Surgecare - Principle Visit', department: 'SURGE_SURGECARE', shortName: 'SS Principle' },
-  'surge_surgecare_promotional_activities': { type: 'task', categoryName: 'Surge-Surgecare - Promotional Activities', department: 'SURGE_SURGECARE', shortName: 'SS Promo' },
-  'surge_surgecare_visit_plan': { type: 'task', categoryName: 'Surge-Surgecare - Visit Plan', department: 'SURGE_SURGECARE', shortName: 'SS Visit' },
-  'surge_surgecare_special_tasks': { type: 'task', categoryName: 'Surge-Surgecare - Special Tasks', department: 'SURGE_SURGECARE', shortName: 'SS Task' },
+  // Surgi Imaging
+  'surgi_imaging_college_session': { type: 'meeting', categoryName: 'Surgi Imaging - College Session', department: 'SURGI_IMAGING', shortName: 'SI College' },
+  'surgi_imaging_meetings': { type: 'meeting', categoryName: 'Surgi Imaging - Meetings', department: 'SURGI_IMAGING', shortName: 'SI Meet' },
+  'surgi_imaging_principal_visit': { type: 'task', categoryName: 'Surgi Imaging - Principle Visit', department: 'SURGI_IMAGING', shortName: 'SI Principle' },
+  'surgi_imaging_promotional_activities': { type: 'task', categoryName: 'Surgi Imaging - Promotional Activities', department: 'SURGI_IMAGING', shortName: 'SI Promo' },
+  'surgi_imaging_special_tasks': { type: 'task', categoryName: 'Surgi Imaging - Special Tasks', department: 'SURGI_IMAGING', shortName: 'SI Task' },
+  'surgi_imaging_visit_plan': { type: 'task', categoryName: 'Surgi Imaging - Visit Plan', department: 'SURGI_IMAGING', shortName: 'SI Visit' },
 
-  // Surge-Surgecare-Image
-  'surge_surgecare_image_meetings': { type: 'meeting', categoryName: 'SSI - Meetings', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Meet' },
-  'surge_surgecare_image_college_session': { type: 'meeting', categoryName: 'SSI - College Session', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI College' },
-  'surge_surgecare_image_principal_visit': { type: 'task', categoryName: 'SSI - Principle Visit', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Principle' },
-  'surge_surgecare_image_promotional_activities': { type: 'task', categoryName: 'SSI - Promotional Activities', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Promo' },
-  'surge_surgecare_image_visit_plan': { type: 'task', categoryName: 'SSI - Visit Plan', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Visit' },
-  'surge_surgecare_image_special_tasks': { type: 'task', categoryName: 'SSI - Special Tasks', department: 'SURGE_SURGECARE_IMAGE', shortName: 'SSI Task' }
+  // Surgi Surgicare
+  'surgi_surgicare_college_session': { type: 'meeting', categoryName: 'Surgi Surgicare - College Session', department: 'SURGI_SURGICARE', shortName: 'SS College' },
+  'surgi_surgicare_meetings': { type: 'meeting', categoryName: 'Surgi Surgicare - Meetings', department: 'SURGI_SURGICARE', shortName: 'SS Meet' },
+  'surgi_surgicare_principal_visit': { type: 'task', categoryName: 'Surgi Surgicare - Principle Visit', department: 'SURGI_SURGICARE', shortName: 'SS Principle' },
+  'surgi_surgicare_promotional_activities': { type: 'task', categoryName: 'Surgi Surgicare - Promotional Activities', department: 'SURGI_SURGICARE', shortName: 'SS Promo' },
+  'surgi_surgicare_special_task': { type: 'task', categoryName: 'Surgi Surgicare - Special Tasks', department: 'SURGI_SURGICARE', shortName: 'SS Task' },
+  'surgi_surgicare_visit_plan': { type: 'task', categoryName: 'Surgi Surgicare - Visit Plan', department: 'SURGI_SURGICARE', shortName: 'SS Visit' },
+
+  // Personal Meetings
+  'personal_meetings': { type: 'meeting', categoryName: 'Personal Meetings', department: 'PERSONAL', shortName: 'Personal' }
+};
+
+// Enhanced helper function to get date field based on table
+const getDateFieldName = (tableName) => {
+  const dateFields = {
+    // BDM Department
+    'bdm_college_session': 'start_date',
+    'bdm_meetings': 'date',
+    'bdm_principle_visit': 'visit_duration_start',
+    'bdm_promotional_activities': 'date',
+    'bdm_visit_plan': 'schedule_date',
+    
+    // Cluster 1
+    'cluster_1_meetings': 'date',
+    'cluster_1_special_task': 'date',
+    'cluster_1_visit_plan': 'date',
+    
+    // Cluster 2
+    'cluster_2_meetings': 'date',
+    'cluster_2_special_task': 'date',
+    'cluster_2_visit_plan': 'date',
+    
+    // Cluster 3
+    'cluster_3_meetings': 'date',
+    'cluster_3_special_task': 'date',
+    'cluster_3_visit_plan': 'date',
+    
+    // Cluster 4
+    'cluster_4_meetings': 'date',
+    'cluster_4_special_task': 'date',
+    'cluster_4_visit_plan': 'date',
+    
+    // Cluster 5
+    'cluster_5_meetings': 'date',
+    'cluster_5_special_task': 'date',
+    'cluster_5_visit_plan': 'date',
+    
+    // Cluster 6
+    'cluster_6_meetings': 'date',
+    'cluster_6_special_task': 'date',
+    'cluster_6_visit_plan': 'date',
+    
+    // Customer Care
+    'customer_care_delivery_schedule': 'delivery_date',
+    'customer_care_meetings': 'date',
+    'customer_care_special_tasks': 'date',
+    
+    // E-Healthcare
+    'ehealthcare_meetings': 'date',
+    'ehealthcare_visit_plan': 'date',
+    
+    // Hi-Tech
+    'hitech_page_generation': 'created_at',
+    'hitech_technical_discussions': 'created_at',
+    'hitech_tender_validation': 'date',
+    'hitech_visit_plan': 'date',
+    
+    // HR
+    'hr_meetings': 'date',
+    'hr_special_events_n_tasks': 'date',
+    'hr_training': 'date',
+    
+    // Imports
+    'imports_meetings': 'date',
+    'imports_upcoming_shipment_clearance_plan': 'eta',
+    
+    // Regulatory
+    'regulatory_meetings': 'date',
+    'regulatory_submissions': 'date',
+    
+    // Sales Operations
+    'sales_operations_meetings': 'date',
+    'sales_operations_special_tasks': 'date',
+    
+    // SOMT
+    'somt_meetings': 'date',
+    'somt_tender': 'close_date',
+    
+    // Stores
+    'stores_plan_loading': 'date',
+    'stores_vst': 'date',
+    
+    // Surgi Imaging
+    'surgi_imaging_college_session': 'date',
+    'surgi_imaging_meetings': 'date',
+    'surgi_imaging_principal_visit': 'start_time',
+    'surgi_imaging_promotional_activities': 'date',
+    'surgi_imaging_special_tasks': 'date',
+    'surgi_imaging_visit_plan': 'schedule_date',
+    
+    // Surgi Surgicare
+    'surgi_surgicare_college_session': 'date',
+    'surgi_surgicare_meetings': 'date',
+    'surgi_surgicare_principal_visit': 'visit_duration_start',
+    'surgi_surgicare_promotional_activities': 'date',
+    'surgi_surgicare_special_task': 'date',
+    'surgi_surgicare_visit_plan': 'schedule_date',
+    
+    // Personal Meetings
+    'personal_meetings': 'start_date'
+  };
+  
+  return dateFields[tableName] || 'created_at';
 };
 
 // Category Overview Modal Component
@@ -1596,6 +1703,149 @@ const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
   </div>
 );
 
+// Helper function to get activity title
+const getActivityTitle = (item, tableName, categoryName) => {
+  if (!item) return 'Unknown Activity';
+
+  const department = tableCategoryMapping[tableName]?.department;
+
+  // Department-specific title mappings
+  const titleMappings = {
+    // BDM Department
+    'BDM': {
+      'Meeting Schedule': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit',
+      'Principle Visit': item.principle_name || 'Principle Visit',
+      'College Session': item.session || 'College Session',
+      'Promotional Activities': item.promotional_activity || 'Promotional Activity'
+    },
+    // Clusters (1-6)
+    'CLUSTER_1': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_2': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_3': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_4': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_5': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_6': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    // Customer Care
+    'CUSTOMER_CARE': {
+      'Delivery Schedule': item.area || 'Delivery',
+      'Meetings': item.subject || 'Meeting',
+      'Special Tasks': item.subject || 'Task'
+    },
+    // E-Healthcare
+    'E_HEALTHCARE': {
+      'Visit Plan': item.area || 'Visit',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Hi-Tech
+    'HI_TECH': {
+      'Visit Plan':  item.institute || 'Visit',
+      'Technical Discussion': item.sp_name || 'Technical Discussion',
+      'Tender Validation': item.sp_name || 'Tender Validation',
+      'Page Generation': item.sp_name || 'Page Generation'
+    },
+    // HR
+    'HR': {
+      'Meetings': item.subject || 'Meeting',
+      'Training': item.training_program || 'Training',
+      'Special Events': item.task || 'Special Event'
+    },
+    // Imports
+    'IMPORTS': {
+      'Upcoming Shipments': item.company || item.pord_number || 'Shipment',
+      'Meeting Schedules': item.subject || 'Meeting'
+    },
+    // Regulatory
+    'REGULATORY': {
+      'Meetings': item.subject || 'Meeting',
+      'Submissions': item.company || item.product || 'Submission'
+    },
+    // Sales Operations
+    'SALES_OPERATIONS': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.meeting || 'Meeting'
+    },
+    // SOMT
+    'SOMT': {
+      'Tender': item.customer || item.instrument || 'Tender',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Stores
+    'STORES': {
+      'Plan Loading': item.cluster || item.area || 'Loading',
+      'VST': item.cluster || item.area || 'VST'
+    },
+    // Surgi Imaging
+    'SURGI_IMAGING': {
+      'Promotional Activities': item.promotional_activity || 'Promotional Activity',
+      'Principal Visit': item.principle_name || 'Principle Visit',
+      'College Session': item.session || 'College Session',
+      'Visit Plan': item.area || 'Visit',
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Surgi Surgicare
+    'SURGI_SURGICARE': {
+      'Promotional Activities': item.promotional_activity || 'Promotional Activity',
+      'Principal Visit': item.principle_name || 'Principle Visit',
+      'College Session': item.session || 'College Session',
+      'Visit Plan':  item.area || 'Visit',
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Personal
+    'PERSONAL': {
+      'Personal Meetings': item.topic || 'Personal Meeting'
+    }
+  };
+
+  // Try to get department-specific title
+  if (department && titleMappings[department] && titleMappings[department][categoryName]) {
+    const title = titleMappings[department][categoryName];
+    return typeof title === 'function' ? title(item) : title;
+  }
+
+  // Fallback to generic field names
+  if (item.meeting) return item.meeting;
+  if (item.subject) return item.subject;
+  if (item.task) return item.task;
+  if (item.name) return item.name;
+  if (item.topic) return item.topic;
+  if (item.principle_name) return `Principle: ${item.principle_name}`;
+  if (item.promotional_activity) return item.promotional_activity;
+  if (item.area) return `Area: ${item.area}`;
+  if (item.session) return `Session: ${item.session}`;
+  if (item.sp_name) return item.sp_name;
+  if (item.training_program) return item.training_program;
+  if (item.company) return `Company: ${item.company}`;
+
+  return `${categoryName} Activity`;
+};
+
 // Main Dashboard Component
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -1682,164 +1932,19 @@ const Dashboard = () => {
     }
   };
 
-  // Helper function to get date field based on table
-  const getDateFieldName = (tableName) => {
-    const dateFields = {
-      'bdm_customer_visit': 'schedule_date',
-      'bdm_principle_visit': 'visit_duration_start',
-      'bdm_weekly_meetings': 'date',
-      'bdm_college_session': 'start_date',
-      'bdm_promotional_activities': 'date',
-      'sales_operations_meetings': 'date',
-      'sales_operations_special_tasks': 'date',
-      // Add other tables as needed...
-    };
-    return dateFields[tableName] || 'created_at';
-  };
-
-  // Helper function to get activity title
-  const getActivityTitle = (item, tableName, categoryName) => {
-    if (!item) return 'Unknown Activity';
-
-    const department = tableCategoryMapping[tableName]?.department;
-
-    // Department-specific title mappings
-    const titleMappings = {
-      // Imports Department
-      'IMPORTS': {
-        'Upcoming Shipment Clearance plan': item.pord_number || 'PORD Number',
-        'Meeting Schedule': item.subject || 'Meeting'
-      },
-      // Regulatory Department
-      'REGULATORY': {
-        'Meetings': item.subject || 'Meeting',
-        'Submissions (new/renewal)': item.product || 'Product'
-      },
-      // Stores Department
-      'STORES': {
-        'Plan Loading': item.cluster || 'Cluster',
-        'VST': item.cluster || 'Cluster'
-      },
-      // HR Department
-      'HR': {
-        'Meetings': item.subject || 'Meeting',
-        'Training': item.training_program || 'Training Program',
-        'Special Events': item.event_name || 'Special Event'
-      },
-      // BDM Department
-      'BDM': {
-        'Meeting Schedule': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area',
-        'Principle Visit': item.principle_name || 'Principle Name',
-        'College Session': item.session || 'Session',
-        'Promotional Activities': item.promotional_activity || 'Promotional Activity'
-      },
-      // Surge-Surgecare Departments
-      'SURGE_SURGECARE': {
-        'Promotional Activities': item.promotional_activity || 'Promotional Activity',
-        'Principal Visit': item.principle_name || 'Principle Name',
-        'College Session': item.session || 'Session',
-        'Visit Plan': item.area || 'Area',
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting'
-      },
-      'SURGE_SURGECARE_IMAGE': {
-        'Promotional Activities': item.promotional_activity || 'Promotional Activity',
-        'Principal Visit': item.principle_name || 'Principle Name',
-        'College Session': item.session || 'Session',
-        'Visit Plan': item.area || 'Area',
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting'
-      },
-      // Hi-Tech Department
-      'HI_TECH': {
-        'Visit Plan': item.institute || 'Institute',
-        'Technical Discussion': item.subject || 'Technical Discussion',
-        'Tender Validation': item.tender_number || 'Tender'
-      },
-      // SOMT Department
-      'SOMT': {
-        'Tender': item.instrument || 'Instrument',
-        'Meetings': item.subject || 'Meeting'
-      },
-      // Sales Operations
-      'SALES_OPERATIONS': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.meeting || 'Meeting'
-      },
-      // E-Healthcare
-      'E_HEALTHCARE': {
-        'Visit Plan': item.area || 'Area',
-        'Meetings': item.subject || 'Meeting'
-      },
-      // Customer Care
-      'CUSTOMER_CARE': {
-        'Delivery Schedule': item.area || 'Area',
-        'Meetings': item.subject || 'Meeting',
-        'Special Tasks': item.subject || 'Task'
-      },
-      // Clusters (1-6)
-      'CLUSTER_1': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area'
-      },
-      'CLUSTER_2': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area'
-      },
-      'CLUSTER_3': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area'
-      },
-      'CLUSTER_4': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area'
-      },
-      'CLUSTER_5': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area'
-      },
-      'CLUSTER_6': {
-        'Special Tasks': item.task || 'Task',
-        'Meetings': item.subject || 'Meeting',
-        'Visit Plan': item.area || 'Area'
-      }
-    };
-
-    // Try to get department-specific title
-    if (department && titleMappings[department] && titleMappings[department][categoryName]) {
-      const title = titleMappings[department][categoryName];
-      return title;
-    }
-
-    // Fallback to generic field names
-    if (item.meeting) return item.meeting;
-    if (item.subject) return item.subject;
-    if (item.task) return item.task;
-    if (item.customer_name) return `Visit: ${item.customer_name}`;
-    if (item.principle_name) return `Principle: ${item.principle_name}`;
-    if (item.promotional_activity) return item.promotional_activity;
-    if (item.area) return `Area: ${item.area}`;
-    if (item.session) return `Session: ${item.session}`;
-
-    return `${categoryName} Activity`;
-  };
-
   const fetchAllActivities = async () => {
     const allActivitiesData = [];
 
     try {
       const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
         try {
+          const dateField = getDateFieldName(tableName);
+          
           const { data, error } = await supabase
             .from(tableName)
             .select('*')
-            .order('created_at', { ascending: false });
+            .order(dateField, { ascending: false })
+            .limit(100); // Limit to prevent too much data
 
           if (error) {
             console.warn(`Error fetching from ${tableName}:`, error);
@@ -1848,7 +1953,6 @@ const Dashboard = () => {
 
           if (data) {
             data.forEach(item => {
-              const dateField = getDateFieldName(tableName);
               const baseDate = item[dateField] || item.created_at;
 
               const itemWithMetadata = {
@@ -1861,7 +1965,8 @@ const Dashboard = () => {
                 start: baseDate,
                 title: getActivityTitle(item, tableName, tableInfo.categoryName),
                 priority: item.priority || 3,
-                status: item.status || 'scheduled'
+                status: item.status || 'scheduled',
+                hasTime: !!(item.start_time || item.end_time) // Check if it has specific time
               };
 
               allActivitiesData.push(itemWithMetadata);
@@ -1873,8 +1978,14 @@ const Dashboard = () => {
       });
 
       await Promise.allSettled(fetchPromises);
-      setAllActivities(allActivitiesData);
-      calculateStats(allActivitiesData);
+      
+      // Sort activities by date
+      const sortedActivities = allActivitiesData.sort((a, b) => 
+        new Date(b.date || b.start || b.created_at) - new Date(a.date || a.start || a.created_at)
+      );
+      
+      setAllActivities(sortedActivities);
+      calculateStats(sortedActivities);
     } catch (error) {
       console.error('Error fetching all activities:', error);
       throw error;
