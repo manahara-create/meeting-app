@@ -75,21 +75,83 @@ const organizationalLegends = {
   BMPL: { name: 'BMPL', color: '#3498db' },
   AIPL: { name: 'AIPL', color: '#e74c3c' },
   Cash: { name: 'Cash', color: '#2ecc71' },
-  End_Month: { name: 'End Month', color: '#f39c12' },
+  'End Month': { name: 'End Month', color: '#f39c12' },
   VST: { name: 'VST', color: '#9b59b6' },
-  Rolle_Over: { name: 'Rolle-Over', color: '#1abc9c' },
-  College_Session: { name: 'College Session', color: '#34495e' },
-  Hi_Tech: { name: 'Hi-Tech', color: '#e67e22' },
-  Exco_OP: { name: 'Exco OP', color: '#27ae60' },
-  Exco_FIN: { name: 'Exco FIN', color: '#8e44ad' },
-  PRE_EXCO_SCMT: { name: 'PRE EXCO SCMT', color: '#d35400' },
-  PRE_EXCO_ASSD: { name: 'PRE EXCO ASSD', color: '#c0392b' },
-  PRE_EXCO_HR: { name: 'PRE EXCO HR', color: '#16a085' },
-  PRE_EXCO_SALES: { name: 'PRE EXCO SALES', color: '#2980b9' },
-  PRE_EXCO_IT: { name: 'PRE EXCO IT', color: '#f1c40f' },
-  Monthly_Meeting_BDM: { name: 'Monthly Meeting BDM', color: '#7f8c8d' },
-  Monthly_Meeting_EHPL: { name: 'Monthly Meeting EHPL', color: '#2c3e50' },
-  Monthly_Meeting_SCLP: { name: 'Monthly Meeting SCLP', color: '#e84393' }
+  'Rolle-Over': { name: 'Rolle-Over', color: '#1abc9c' },
+  'College Session': { name: 'College Session', color: '#34495e' },
+  'Hi-Tech': { name: 'Hi-Tech', color: '#e67e22' },
+  'Exco OP': { name: 'Exco OP', color: '#27ae60' },
+  'Exco FIN': { name: 'Exco FIN', color: '#8e44ad' },
+  'PRE EXCO SCMT': { name: 'PRE EXCO SCMT', color: '#d35400' },
+  'PRE EXCO ASSD': { name: 'PRE EXCO ASSD', color: '#c0392b' },
+  'PRE EXCO HR': { name: 'PRE EXCO HR', color: '#16a085' },
+  'PRE EXCO SALES': { name: 'PRE EXCO SALES', color: '#2980b9' },
+  'PRE EXCO IT': { name: 'PRE EXCO IT', color: '#f1c40f' },
+  'Monthly Meeting BDM': { name: 'Monthly Meeting BDM', color: '#7f8c8d' },
+  'Monthly Meeting EHPL': { name: 'Monthly Meeting EHPL', color: '#2c3e50' },
+  'Monthly Meeting SCLP': { name: 'Monthly Meeting SCLP', color: '#e84393' }
+};
+
+// Function to calculate luminance and determine text color
+const getTextColorBasedOnBackground = (backgroundColor) => {
+  // Convert hex to RGB
+  const hex = backgroundColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Return black for light colors, white for dark colors
+  return luminance > 0.5 ? '#000000' : '#FFFFFF';
+};
+
+// Function to find matching legend from title
+const findMatchingLegend = (title) => {
+  if (!title) return null;
+
+  const normalizedTitle = title.trim().toLowerCase();
+
+  // Exact matches first
+  for (const [key, legend] of Object.entries(organizationalLegends)) {
+    if (normalizedTitle === legend.name.toLowerCase()) {
+      return { key, legend };
+    }
+  }
+
+  // Partial matches
+  for (const [key, legend] of Object.entries(organizationalLegends)) {
+    if (normalizedTitle.includes(legend.name.toLowerCase()) ||
+      legend.name.toLowerCase().includes(normalizedTitle)) {
+      return { key, legend };
+    }
+  }
+
+  // Special case for variations
+  const variations = {
+    'monthly meeting bdm': 'Monthly Meeting BDM',
+    'monthly meeting ehpl': 'Monthly Meeting EHPL',
+    'monthly meeting scpl': 'Monthly Meeting SCLP',
+    'monthly meeting scpl': 'Monthly Meeting SCLP',
+    'rolle over': 'Rolle-Over',
+    'rolle-over': 'Rolle-Over',
+    'college': 'College Session',
+    'exco': 'Exco OP',
+    'pre exco': 'PRE EXCO SCMT',
+    'end': 'End Month',
+    'hi tech': 'Hi-Tech',
+    'hi-tech': 'Hi-Tech'
+  };
+
+  for (const [variation, legendName] of Object.entries(variations)) {
+    if (normalizedTitle.includes(variation)) {
+      const legend = organizationalLegends[legendName];
+      return { key: legendName, legend };
+    }
+  }
+
+  return null;
 };
 
 // Priority and status configurations
@@ -247,77 +309,77 @@ const getDateFieldName = (tableName) => {
     'bdm_principle_visit': 'visit_duration_start',
     'bdm_promotional_activities': 'date',
     'bdm_visit_plan': 'schedule_date',
-    
+
     // Cluster 1
     'cluster_1_meetings': 'date',
     'cluster_1_special_task': 'date',
     'cluster_1_visit_plan': 'date',
-    
+
     // Cluster 2
     'cluster_2_meetings': 'date',
     'cluster_2_special_task': 'date',
     'cluster_2_visit_plan': 'date',
-    
+
     // Cluster 3
     'cluster_3_meetings': 'date',
     'cluster_3_special_task': 'date',
     'cluster_3_visit_plan': 'date',
-    
+
     // Cluster 4
     'cluster_4_meetings': 'date',
     'cluster_4_special_task': 'date',
     'cluster_4_visit_plan': 'date',
-    
+
     // Cluster 5
     'cluster_5_meetings': 'date',
     'cluster_5_special_task': 'date',
     'cluster_5_visit_plan': 'date',
-    
+
     // Cluster 6
     'cluster_6_meetings': 'date',
     'cluster_6_special_task': 'date',
     'cluster_6_visit_plan': 'date',
-    
+
     // Customer Care
     'customer_care_delivery_schedule': 'delivery_date',
     'customer_care_meetings': 'date',
     'customer_care_special_tasks': 'date',
-    
+
     // E-Healthcare - FIXED
     'ehealthcare_meetings': 'date',
     'ehealthcare_visit_plan': 'date',
-    
+
     // Hi-Tech - FIXED: Some use created_at, some use date
     'hitech_page_generation': 'created_at', // No date field, use created_at
     'hitech_technical_discussions': 'created_at', // No date field, use created_at
     'hitech_tender_validation': 'date',
     'hitech_visit_plan': 'date',
-    
+
     // HR - FIXED: All use date field
     'hr_meetings': 'date',
     'hr_special_events_n_tasks': 'date',
     'hr_training': 'date',
-    
+
     // Imports - FIXED
     'imports_meetings': 'date',
     'imports_upcoming_shipment_clearance_plan': 'eta', // Uses eta field
-    
+
     // Regulatory - FIXED
     'regulatory_meetings': 'date',
     'regulatory_submissions': 'date',
-    
+
     // Sales Operations - FIXED
     'sales_operations_meetings': 'date',
     'sales_operations_special_tasks': 'date',
-    
+
     // SOMT - FIXED
     'somt_meetings': 'date',
     'somt_tender': 'close_date', // Uses close_date field
-    
+
     // Stores - FIXED
     'stores_plan_loading': 'date',
     'stores_vst': 'date',
-    
+
     // Surgi Imaging - FIXED
     'surgi_imaging_college_session': 'date',
     'surgi_imaging_meetings': 'date',
@@ -325,7 +387,7 @@ const getDateFieldName = (tableName) => {
     'surgi_imaging_promotional_activities': 'date',
     'surgi_imaging_special_tasks': 'date',
     'surgi_imaging_visit_plan': 'schedule_date',
-    
+
     // Surgi Surgicare - FIXED
     'surgi_surgicare_college_session': 'date',
     'surgi_surgicare_meetings': 'date',
@@ -333,17 +395,17 @@ const getDateFieldName = (tableName) => {
     'surgi_surgicare_promotional_activities': 'date',
     'surgi_surgicare_special_task': 'date',
     'surgi_surgicare_visit_plan': 'schedule_date',
-    
+
     // Personal Meetings - FIXED
     'personal_meetings': 'start_date'
   };
-  
+
   const field = dateFields[tableName];
   if (!field) {
     console.warn(`No date field mapping found for table: ${tableName}, defaulting to 'date'`);
     return 'date';
   }
-  
+
   return field;
 };
 
@@ -360,8 +422,7 @@ const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) =>
         .insert([
           {
             title: values.title,
-            date: values.date.format('YYYY-MM-DD'),
-            legend_type: values.legend_type
+            date: values.date.format('YYYY-MM-DD')
           }
         ])
         .select();
@@ -398,7 +459,7 @@ const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) =>
           label="Event Title"
           rules={[{ required: true, message: 'Please enter event title' }]}
         >
-          <Input placeholder="Enter event title" />
+          <Input placeholder="Enter event title (e.g., VST, End Month, BMPL)" />
         </Form.Item>
 
         <Form.Item
@@ -406,34 +467,10 @@ const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) =>
           label="Event Date"
           rules={[{ required: true, message: 'Please select event date' }]}
         >
-          <DatePicker 
-            style={{ width: '100%' }} 
+          <DatePicker
+            style={{ width: '100%' }}
             format="YYYY-MM-DD"
           />
-        </Form.Item>
-
-        <Form.Item
-          name="legend_type"
-          label="Legend Type"
-          rules={[{ required: true, message: 'Please select legend type' }]}
-        >
-          <Select placeholder="Select legend type">
-            {Object.entries(organizationalLegends).map(([key, legend]) => (
-              <Option key={key} value={key}>
-                <Space>
-                  <div
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      backgroundColor: legend.color,
-                      borderRadius: '2px'
-                    }}
-                  />
-                  {legend.name}
-                </Space>
-              </Option>
-            ))}
-          </Select>
         </Form.Item>
 
         <Form.Item>
@@ -482,30 +519,36 @@ const OrganizationalCalendar = ({
   // Get activity titles for a date
   const getActivityTitlesForDate = (date) => {
     const dateActivities = getActivitiesForDate(date);
-    
+
     return dateActivities.map(activity => ({
       id: activity.id,
       title: activity.title || 'Untitled Event',
-      legend_type: activity.legend_type,
       fullActivity: activity
     }));
   };
 
-  // Get color based on legend type
+  // Get color based on legend type from title
   const getActivityColor = (activity) => {
-    const legend = organizationalLegends[activity.legend_type];
-    if (legend) {
+    const match = findMatchingLegend(activity.title);
+
+    if (match) {
+      const { legend } = match;
+      const textColor = getTextColorBasedOnBackground(legend.color);
+
       return {
-        background: `${legend.color}20`,
-        text: legend.color,
-        border: legend.color
+        background: legend.color,
+        text: textColor,
+        border: legend.color,
+        legendName: legend.name
       };
     }
-    
+
+    // Default color if no match found
     return {
-      background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+      background: '#e3f2fd',
       text: '#1565c0',
-      border: '#90caf9'
+      border: '#90caf9',
+      legendName: 'Event'
     };
   };
 
@@ -569,20 +612,20 @@ const OrganizationalCalendar = ({
               zIndex: 1
             }}></div>
           )}
-          
+
           <div
             onClick={() => onDateClick(date, dateActivities)}
-            style={{ 
-              cursor: 'pointer', 
-              height: '100%', 
+            style={{
+              cursor: 'pointer',
+              height: '100%',
               padding: '4px',
               position: 'relative',
               zIndex: 2
             }}
           >
-            <div style={{ 
-              textAlign: 'center', 
-              fontWeight: 'bold', 
+            <div style={{
+              textAlign: 'center',
+              fontWeight: 'bold',
               marginBottom: '4px',
               fontSize: isToday ? '14px' : '13px',
               color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
@@ -592,9 +635,9 @@ const OrganizationalCalendar = ({
             }}>
               {day}
             </div>
-            
-            <div style={{ 
-              maxHeight: '80px', 
+
+            <div style={{
+              maxHeight: '80px',
               overflowY: 'auto',
               fontSize: '9px',
               lineHeight: '1.2'
@@ -630,15 +673,15 @@ const OrganizationalCalendar = ({
                       e.stopPropagation();
                       onEventClick(activity.fullActivity);
                     }}
-                    title={`${activity.title} (${organizationalLegends[activity.legend_type]?.name || 'Event'})`}
+                    title={`${activity.title} (${colors.legendName})`}
                   >
                     {truncateTitle(activity.title, 18)}
                   </div>
                 );
               })}
-              
+
               {activityTitles.length > 4 && (
-                <div 
+                <div
                   style={{
                     fontSize: '8px',
                     padding: '1px 3px',
@@ -652,7 +695,7 @@ const OrganizationalCalendar = ({
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onShowAllCategories(date, 
+                    onShowAllCategories(date,
                       Object.groupBy(dateActivities, activity => activity.title || 'Untitled Event')
                     );
                   }}
@@ -749,19 +792,31 @@ const OrganizationalCalendar = ({
       <div style={{ marginBottom: '16px', padding: '12px', background: '#fafafa', borderRadius: '6px' }}>
         <Text strong style={{ marginBottom: '8px', display: 'block' }}>Legends:</Text>
         <Space wrap size={[8, 8]}>
-          {Object.entries(organizationalLegends).map(([key, legend]) => (
-            <Space key={key} size={4}>
-              <div
-                style={{
-                  width: '12px',
-                  height: '12px',
+          {Object.entries(organizationalLegends).map(([key, legend]) => {
+            const textColor = getTextColorBasedOnBackground(legend.color);
+            return (
+              <Space key={key} size={4}>
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: legend.color,
+                    borderRadius: '2px'
+                  }}
+                />
+                <Text style={{
+                  fontSize: '12px',
+                  color: textColor,
+                  padding: '2px 6px',
                   backgroundColor: legend.color,
-                  borderRadius: '2px'
-                }}
-              />
-              <Text style={{ fontSize: '12px' }}>{legend.name}</Text>
-            </Space>
-          ))}
+                  borderRadius: '3px',
+                  fontWeight: '500'
+                }}>
+                  {legend.name}
+                </Text>
+              </Space>
+            );
+          })}
         </Space>
       </div>
 
@@ -821,7 +876,7 @@ const DepartmentCalendar = ({
   // Get activity titles for a date
   const getActivityTitlesForDate = (date) => {
     const dateActivities = getActivitiesForDate(date);
-    
+
     return dateActivities.map(activity => ({
       id: activity.id || `${activity.sourceTable}-${activity.title}`,
       title: activity.title || getDefaultTitle(activity),
@@ -835,19 +890,19 @@ const DepartmentCalendar = ({
   // Get default title if activity title is missing
   const getDefaultTitle = (activity) => {
     const category = activity.categoryName;
-    
+
     // Extract meaningful title from category name
     if (category.includes(' - ')) {
       return category.split(' - ')[1] || category;
     }
-    
+
     return category || 'Activity';
   };
 
   // Get color based on activity type and priority
   const getActivityColor = (activity) => {
     const { type, priority } = activity;
-    
+
     // Color based on type and priority
     const colorSchemes = {
       meeting: {
@@ -929,20 +984,20 @@ const DepartmentCalendar = ({
               zIndex: 1
             }}></div>
           )}
-          
+
           <div
             onClick={() => onDateClick(date, dateActivities)}
-            style={{ 
-              cursor: 'pointer', 
-              height: '100%', 
+            style={{
+              cursor: 'pointer',
+              height: '100%',
               padding: '4px',
               position: 'relative',
               zIndex: 2
             }}
           >
-            <div style={{ 
-              textAlign: 'center', 
-              fontWeight: 'bold', 
+            <div style={{
+              textAlign: 'center',
+              fontWeight: 'bold',
               marginBottom: '4px',
               fontSize: isToday ? '14px' : '13px',
               color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
@@ -952,9 +1007,9 @@ const DepartmentCalendar = ({
             }}>
               {day}
             </div>
-            
-            <div style={{ 
-              maxHeight: '80px', 
+
+            <div style={{
+              maxHeight: '80px',
               overflowY: 'auto',
               fontSize: '9px',
               lineHeight: '1.2'
@@ -996,9 +1051,9 @@ const DepartmentCalendar = ({
                   </div>
                 );
               })}
-              
+
               {activityTitles.length > 4 && (
-                <div 
+                <div
                   style={{
                     fontSize: '8px',
                     padding: '1px 3px',
@@ -1012,7 +1067,7 @@ const DepartmentCalendar = ({
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onShowAllCategories(date, 
+                    onShowAllCategories(date,
                       Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
                     );
                   }}
@@ -1063,7 +1118,7 @@ const DepartmentCalendar = ({
       const isWeekend = date.day() === 0 || date.day() === 6;
 
       days.push(
-        <td key={i} style={{ 
+        <td key={i} style={{
           width: '14.28%',
           border: '1px solid #e8e8e8',
           verticalAlign: 'top',
@@ -1076,30 +1131,30 @@ const DepartmentCalendar = ({
         }}>
           <div
             onClick={() => onDateClick(date, dateActivities)}
-            style={{ 
-              cursor: 'pointer', 
-              height: '100%', 
+            style={{
+              cursor: 'pointer',
+              height: '100%',
               padding: '8px',
               position: 'relative'
             }}
           >
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: '8px',
               paddingBottom: '6px',
               borderBottom: `1px solid ${isToday ? '#1890ff' : (isWeekend ? '#ffa39e' : '#f0f0f0')}`
             }}>
-              <div style={{ 
-                fontSize: '12px', 
+              <div style={{
+                fontSize: '12px',
                 color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#666'),
                 fontWeight: 'bold'
               }}>
                 {date.format('ddd')}
               </div>
-              <div style={{ 
-                fontWeight: 'bold', 
+              <div style={{
+                fontWeight: 'bold',
                 fontSize: '14px',
                 color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
                 background: isToday ? 'rgba(24, 144, 255, 0.1)' : 'transparent',
@@ -1113,9 +1168,9 @@ const DepartmentCalendar = ({
                 {date.date()}
               </div>
             </div>
-            
-            <div style={{ 
-              maxHeight: '340px', 
+
+            <div style={{
+              maxHeight: '340px',
               overflowY: 'auto',
               fontSize: '10px',
               lineHeight: '1.3'
@@ -1166,9 +1221,9 @@ const DepartmentCalendar = ({
                   </div>
                 );
               })}
-              
+
               {activityTitles.length > 10 && (
-                <div 
+                <div
                   style={{
                     fontSize: '10px',
                     padding: '6px',
@@ -1182,7 +1237,7 @@ const DepartmentCalendar = ({
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onShowAllCategories(date, 
+                    onShowAllCategories(date,
                       Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
                     );
                   }}
@@ -1208,12 +1263,12 @@ const DepartmentCalendar = ({
 
     return [
       <tr key="day">
-        <td style={{ 
-          height: '500px', 
+        <td style={{
+          height: '500px',
           padding: '0',
           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
         }}>
-          <div style={{ 
+          <div style={{
             padding: '20px',
             height: '100%',
             background: 'white',
@@ -1248,7 +1303,7 @@ const DepartmentCalendar = ({
                 </div>
               )}
             </div>
-            
+
             <div>
               {activityTitles.length === 0 ? (
                 <div style={{
@@ -1280,8 +1335,8 @@ const DepartmentCalendar = ({
                         bodyStyle={{ padding: '12px' }}
                         onClick={() => onEventClick(activity.fullActivity)}
                       >
-                        <div style={{ 
-                          fontSize: '14px', 
+                        <div style={{
+                          fontSize: '14px',
                           fontWeight: 'bold',
                           marginBottom: '4px'
                         }}>
@@ -1997,7 +2052,9 @@ const OrganizationalActivityDetailModal = ({
     });
   };
 
-  const legend = organizationalLegends[selectedActivity.legend_type];
+  const match = findMatchingLegend(selectedActivity.title);
+  const legend = match ? match.legend : null;
+  const textColor = legend ? getTextColorBasedOnBackground(legend.color) : '#000000';
 
   return (
     <Modal
@@ -2041,7 +2098,15 @@ const OrganizationalActivityDetailModal = ({
                     borderRadius: '2px'
                   }}
                 />
-                <Text>{legend.name}</Text>
+                <Text style={{
+                  color: textColor,
+                  padding: '2px 8px',
+                  backgroundColor: legend.color,
+                  borderRadius: '4px',
+                  fontWeight: '500'
+                }}>
+                  {legend.name}
+                </Text>
               </Space>
             )}
           </Col>
@@ -2136,7 +2201,7 @@ const getActivityTitle = (item, tableName, categoryName) => {
     },
     // Hi-Tech
     'HI_TECH': {
-      'Visit Plan':  item.institute || 'Visit',
+      'Visit Plan': item.institute || 'Visit',
       'Technical Discussion': item.sp_name || 'Technical Discussion',
       'Tender Validation': item.sp_name || 'Tender Validation',
       'Page Generation': item.sp_name || 'Page Generation'
@@ -2186,7 +2251,7 @@ const getActivityTitle = (item, tableName, categoryName) => {
       'Promotional Activities': item.promotional_activity || 'Promotional Activity',
       'Principal Visit': item.principle_name || 'Principle Visit',
       'College Session': item.session || 'College Session',
-      'Visit Plan':  item.area || 'Visit',
+      'Visit Plan': item.area || 'Visit',
       'Special Tasks': item.task || 'Task',
       'Meetings': item.subject || 'Meeting'
     },
@@ -2237,7 +2302,7 @@ const Dashboard = () => {
   const [isOrganizationalActivityModalVisible, setIsOrganizationalActivityModalVisible] = useState(false);
   const [allActivitiesModalVisible, setAllActivitiesModalVisible] = useState(false);
   const [createEventModalVisible, setCreateEventModalVisible] = useState(false);
-  
+
   // New modal states for layered approach
   const [categoryOverviewModalVisible, setCategoryOverviewModalVisible] = useState(false);
   const [categoryEventsModalVisible, setCategoryEventsModalVisible] = useState(false);
@@ -2336,7 +2401,7 @@ const Dashboard = () => {
       }));
 
       setOrganizationalActivities(activitiesData);
-      
+
     } catch (error) {
       console.error('Error fetching organizational activities:', error);
       throw error;
@@ -2350,9 +2415,9 @@ const Dashboard = () => {
       const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
         try {
           const dateField = getDateFieldName(tableName);
-          
+
           console.log(`Fetching from ${tableName} using date field: ${dateField}`);
-          
+
           const { data, error } = await supabase
             .from(tableName)
             .select('*')
@@ -2367,11 +2432,11 @@ const Dashboard = () => {
           if (data && data.length > 0) {
             let validRecords = 0;
             let invalidRecords = 0;
-            
+
             data.forEach(item => {
               // Get the actual date field value
               const baseDate = item[dateField];
-              
+
               if (!baseDate) {
                 console.warn(`No date found for ${tableName} record ${item.id} in field ${dateField}`);
                 invalidRecords++;
@@ -2398,9 +2463,9 @@ const Dashboard = () => {
               allActivitiesData.push(itemWithMetadata);
               validRecords++;
             });
-            
+
             console.log(`Fetched from ${tableName}: ${validRecords} valid, ${invalidRecords} invalid dates`);
-            
+
             if (validRecords > 0) {
               console.log(`First date in ${tableName}: ${data[0]?.[dateField]}`);
             }
@@ -2413,14 +2478,14 @@ const Dashboard = () => {
       });
 
       await Promise.allSettled(fetchPromises);
-      
+
       // Sort activities by actual date (not created_at)
       const sortedActivities = allActivitiesData.sort((a, b) => {
         const dateA = new Date(a.date || a.start || a.created_at);
         const dateB = new Date(b.date || b.start || b.created_at);
         return dateB - dateA; // Descending order (newest first)
       });
-      
+
       setAllActivities(sortedActivities);
       calculateStats(sortedActivities);
     } catch (error) {
@@ -2479,7 +2544,7 @@ const Dashboard = () => {
     setCategoryOverviewModalVisible(false);
     setCategoryEventsModalVisible(false);
     setAllActivitiesModalVisible(false);
-    
+
     if (activity.sourceTable === 'organizational_data') {
       setSelectedActivity(activity);
       setIsOrganizationalActivityModalVisible(true);
@@ -2505,7 +2570,7 @@ const Dashboard = () => {
     setIsActivityModalVisible(false);
     setIsOrganizationalActivityModalVisible(false);
     setAllActivitiesModalVisible(false);
-    
+
     setTempSelectedDate(date);
     setTempGroupedActivities(groupedActivities);
     setCategoryOverviewModalVisible(true);
@@ -2514,7 +2579,7 @@ const Dashboard = () => {
   const handleCategorySelect = (category, activities) => {
     // Close category overview modal
     setCategoryOverviewModalVisible(false);
-    
+
     setSelectedCategory(category);
     setSelectedCategoryActivities(activities);
     setCategoryEventsModalVisible(true);
@@ -2540,6 +2605,199 @@ const Dashboard = () => {
 
   const handleEventCreated = () => {
     fetchOrganizationalActivities();
+  };
+
+  const CategoryOverviewModal = ({
+    visible,
+    onClose,
+    selectedDate,
+    groupedActivities,
+    onCategorySelect
+  }) => {
+    const categories = Object.entries(groupedActivities).map(([category, activities]) => ({
+      category,
+      count: activities.length,
+      department: activities[0]?.department,
+      color: departments[activities[0]?.department]?.color || '#1890ff'
+    }));
+
+    return (
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined />
+            Categories for {selectedDate?.format('MMMM D, YYYY')}
+          </Space>
+        }
+        open={visible}
+        onCancel={onClose}
+        width={600}
+        footer={[
+          <Button key="close" onClick={onClose} size="large">
+            Close
+          </Button>
+        ]}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Total Categories"
+                  value={categories.length}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Total Activities"
+                  value={Object.values(groupedActivities).reduce((sum, activities) => sum + activities.length, 0)}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Departments"
+                  value={new Set(categories.map(cat => cat.department)).size}
+                  valueStyle={{ color: '#fa8c16' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <List
+            dataSource={categories}
+            renderItem={item => (
+              <List.Item
+                actions={[
+                  <Button
+                    type="link"
+                    onClick={() => onCategorySelect(item.category, groupedActivities[item.category])}
+                  >
+                    View Events ({item.count})
+                  </Button>
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <div
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        backgroundColor: item.color,
+                        borderRadius: '3px'
+                      }}
+                    />
+                  }
+                  title={item.category}
+                  description={departments[item.department]?.name || item.department}
+                />
+                <Tag color="blue">{item.count} activities</Tag>
+              </List.Item>
+            )}
+            locale={{
+              emptyText: 'No categories found for this date'
+            }}
+          />
+        </Space>
+      </Modal>
+    );
+  };
+
+  // Category Events Modal Component
+  const CategoryEventsModal = ({
+    visible,
+    onClose,
+    selectedCategory,
+    categoryActivities,
+    onEventClick
+  }) => {
+    const columns = [
+      {
+        title: 'Type',
+        dataIndex: 'type',
+        key: 'type',
+        width: 80,
+        render: (type) => (
+          <Tag color={type === 'meeting' ? 'blue' : 'green'}>
+            {type === 'meeting' ? 'Meeting' : 'Task'}
+          </Tag>
+        )
+      },
+      {
+        title: 'Title',
+        dataIndex: 'title',
+        key: 'title',
+        render: (title, record) => (
+          <Button
+            type="link"
+            onClick={() => onEventClick(record)}
+            style={{ padding: 0, height: 'auto', textAlign: 'left', fontSize: '14px' }}
+          >
+            {title}
+          </Button>
+        )
+      },
+      {
+        title: 'Department',
+        dataIndex: 'department',
+        key: 'department',
+        width: 120,
+        render: (department) => (
+          <Tag color={departments[department]?.color || 'default'}>
+            {departments[department]?.name || department}
+          </Tag>
+        )
+      },
+      {
+        title: 'Priority',
+        dataIndex: 'priority',
+        key: 'priority',
+        width: 100,
+        render: (priority) => (
+          <Tag color={priorityColors[priority]}>
+            {priorityLabels[priority]}
+          </Tag>
+        )
+      }
+    ];
+
+    return (
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined />
+            {selectedCategory} ({categoryActivities.length} events)
+          </Space>
+        }
+        open={visible}
+        onCancel={onClose}
+        width={800}
+        footer={[
+          <Button key="close" onClick={onClose} size="large">
+            Close
+          </Button>
+        ]}
+      >
+        <Table
+          columns={columns}
+          dataSource={categoryActivities}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: false
+          }}
+          scroll={{ y: 400 }}
+          size="middle"
+          locale={{
+            emptyText: 'No events found for this category'
+          }}
+        />
+      </Modal>
+    );
   };
 
   const formatTimeSinceLastRefresh = () => {
@@ -2682,8 +2940,8 @@ const Dashboard = () => {
           </Col>
         </Row>
 
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={setActiveTab}
           items={[
             {
@@ -2754,7 +3012,24 @@ const Dashboard = () => {
           ]}
         />
 
-       
+        {/* Category Overview Modal */}
+        <CategoryOverviewModal
+          visible={categoryOverviewModalVisible}
+          onClose={() => setCategoryOverviewModalVisible(false)}
+          selectedDate={tempSelectedDate}
+          groupedActivities={tempGroupedActivities}
+          onCategorySelect={handleCategorySelect}
+        />
+
+        {/* Category Events Modal */}
+        <CategoryEventsModal
+          visible={categoryEventsModalVisible}
+          onClose={() => setCategoryEventsModalVisible(false)}
+          selectedCategory={selectedCategory}
+          categoryActivities={selectedCategoryActivities}
+          onEventClick={handleEventClick}
+        />
+
         {/* All Activities Modal */}
         <AllActivitiesModal
           visible={allActivitiesModalVisible}
