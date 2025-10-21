@@ -401,7 +401,7 @@ const CategoryEventsModal = ({
   );
 };
 
-// Simplified Calendar Component
+// Enhanced Calendar Component - Shows Meeting/Task Titles
 const SimplifiedCalendar = ({
   activities,
   onDateClick,
@@ -428,23 +428,64 @@ const SimplifiedCalendar = ({
     });
   };
 
-  // Group activities by category for a date
-  const getGroupedActivities = (date) => {
+  // Get activity titles for a date
+  const getActivityTitlesForDate = (date) => {
     const dateActivities = getActivitiesForDate(date);
-    const grouped = {};
-
-    dateActivities.forEach(activity => {
-      const category = activity.categoryName;
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(activity);
-    });
-
-    return grouped;
+    
+    return dateActivities.map(activity => ({
+      id: activity.id || `${activity.sourceTable}-${activity.title}`,
+      title: activity.title || getDefaultTitle(activity),
+      type: activity.type,
+      department: activity.department,
+      priority: activity.priority,
+      fullActivity: activity
+    }));
   };
 
-  // Render month view
+  // Get default title if activity title is missing
+  const getDefaultTitle = (activity) => {
+    const category = activity.categoryName;
+    
+    // Extract meaningful title from category name
+    if (category.includes(' - ')) {
+      return category.split(' - ')[1] || category;
+    }
+    
+    return category || 'Activity';
+  };
+
+  // Get color based on activity type and priority
+  const getActivityColor = (activity) => {
+    const { type, priority } = activity;
+    
+    // Color based on type and priority
+    const colorSchemes = {
+      meeting: {
+        1: { background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', text: '#1565c0', border: '#90caf9' },
+        2: { background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)', text: '#2e7d32', border: '#a5d6a7' },
+        3: { background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)', text: '#ef6c00', border: '#ffb74d' },
+        4: { background: 'linear-gradient(135deg, #fbe9e7 0%, #ffccbc 100%)', text: '#d84315', border: '#ff8a65' },
+        5: { background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', text: '#c62828', border: '#ef5350' }
+      },
+      task: {
+        1: { background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)', text: '#7b1fa2', border: '#ce93d8' },
+        2: { background: 'linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%)', text: '#303f9f', border: '#9fa8da' },
+        3: { background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)', text: '#00695c', border: '#80cbc4' },
+        4: { background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)', text: '#ff8f00', border: '#ffd54f' },
+        5: { background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%)', text: '#ad1457', border: '#f48fb1' }
+      }
+    };
+
+    return colorSchemes[type]?.[priority] || colorSchemes.meeting[3];
+  };
+
+  // Truncate title for display
+  const truncateTitle = (title, maxLength = 20) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength - 3) + '...';
+  };
+
+  // Render month view with activity titles
   const renderMonthView = () => {
     const daysInMonth = getDaysInMonth(currentMonth);
     const firstDay = currentMonth.startOf('month').day();
@@ -453,100 +494,140 @@ const SimplifiedCalendar = ({
 
     // Add empty cells for days before the first day of month
     for (let i = 0; i < firstDay; i++) {
-      currentWeek.push(<td key={`empty-${i}`} className="calendar-empty-cell"></td>);
+      currentWeek.push(
+        <td key={`empty-${i}`} className="calendar-empty-cell" style={{
+          background: 'linear-gradient(135deg, #fafafa 0%, #e0e0e0 100%)',
+          opacity: 0.6,
+          borderRadius: '4px'
+        }}></td>
+      );
     }
 
     // Add cells for each day of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = currentMonth.date(day);
       const dateActivities = getActivitiesForDate(date.toDate());
-      const groupedActivities = getGroupedActivities(date.toDate());
+      const activityTitles = getActivityTitlesForDate(date.toDate());
       const isToday = date.isSame(dayjs(), 'day');
       const isSelected = selectedDate && date.isSame(selectedDate, 'day');
-
-      const cellClassNames = [
-        'calendar-cell',
-        isToday ? 'calendar-cell-today' : '',
-        isSelected ? 'calendar-cell-selected' : '',
-        dateActivities.length > 0 ? 'calendar-cell-has-events' : ''
-      ].filter(Boolean).join(' ');
+      const isWeekend = date.day() === 0 || date.day() === 6;
 
       currentWeek.push(
-        <td key={day} className={cellClassNames}>
+        <td key={day} style={{
+          border: '1px solid #e8e8e8',
+          verticalAlign: 'top',
+          height: '120px',
+          backgroundColor: isToday ? '#e6f7ff' : (isWeekend ? '#fafafa' : 'white'),
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '4px',
+          borderWidth: isToday ? '2px' : '1px',
+          borderColor: isToday ? '#1890ff' : '#e8e8e8'
+        }}>
+          {/* Background pattern for days with events */}
+          {activityTitles.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '0',
+              height: '0',
+              borderStyle: 'solid',
+              borderWidth: '0 16px 16px 0',
+              borderColor: 'transparent #1890ff transparent transparent',
+              opacity: 0.3,
+              zIndex: 1
+            }}></div>
+          )}
+          
           <div
-            className="calendar-date"
             onClick={() => onDateClick(date, dateActivities)}
-            style={{ cursor: 'pointer', height: '100%' }}
+            style={{ 
+              cursor: 'pointer', 
+              height: '100%', 
+              padding: '4px',
+              position: 'relative',
+              zIndex: 2
+            }}
           >
-            <div className="calendar-date-number">{day}</div>
-            <div className="calendar-events">
-              {Object.entries(groupedActivities).slice(0, 3).map(([category, activities]) => (
-                <Tooltip
-                  key={category}
-                  title={
-                    <div>
-                      <div><strong>{category}</strong></div>
-                      <div>{activities.length} activities</div>
-                      <div>{departments[activities[0].department]?.name}</div>
-                    </div>
-                  }
-                >
+            <div style={{ 
+              textAlign: 'center', 
+              fontWeight: 'bold', 
+              marginBottom: '4px',
+              fontSize: isToday ? '14px' : '13px',
+              color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
+              background: isToday ? 'rgba(24, 144, 255, 0.1)' : 'transparent',
+              borderRadius: '10px',
+              padding: '2px 0'
+            }}>
+              {day}
+            </div>
+            
+            <div style={{ 
+              maxHeight: '80px', 
+              overflowY: 'auto',
+              fontSize: '9px',
+              lineHeight: '1.2'
+            }}>
+              {activityTitles.slice(0, 4).map((activity, index) => {
+                const colors = getActivityColor(activity);
+                return (
                   <div
-                    className="calendar-event-category"
+                    key={activity.id}
+                    style={{
+                      padding: '2px 3px',
+                      margin: '1px 0',
+                      background: colors.background,
+                      color: colors.text,
+                      borderRadius: '3px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      border: `1px solid ${colors.border}`,
+                      fontSize: '8px',
+                      lineHeight: '1.1',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (activities.length === 1) {
-                        onEventClick(activities[0]);
-                      } else {
-                        onShowAllCategories(date, groupedActivities);
-                      }
+                      onEventClick(activity.fullActivity);
                     }}
+                    title={activity.title} // Show full title on hover
                   >
-                    <div
-                      style={{
-                        backgroundColor: departments[activities[0].department]?.color || 'blue',
-                        color: 'white',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontSize: '10px',
-                        margin: '1px',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        lineHeight: '1.2',
-                        height: 'auto'
-                      }}
-                    >
-                      <div style={{ fontWeight: 'bold', fontSize: '9px' }}>
-                        {tableCategoryMapping[activities[0].sourceTable]?.shortName || category.substring(0, 8)}
-                      </div>
-                      <div style={{ fontSize: '8px' }}>
-                        {activities.length}
-                      </div>
-                    </div>
+                    {truncateTitle(activity.title, 18)}
                   </div>
-                </Tooltip>
-              ))}
-              {Object.keys(groupedActivities).length > 3 && (
+                );
+              })}
+              
+              {activityTitles.length > 4 && (
                 <div 
-                  className="calendar-more-events"
+                  style={{
+                    fontSize: '8px',
+                    padding: '1px 3px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '3px',
+                    textAlign: 'center',
+                    marginTop: '2px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onShowAllCategories(date, groupedActivities);
+                    onShowAllCategories(date, 
+                      Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
+                    );
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      padding: '1px 4px',
-                      backgroundColor: '#f0f0f0',
-                      borderRadius: '2px',
-                      textAlign: 'center',
-                      marginTop: '2px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    +{Object.keys(groupedActivities).length - 3} more categories
-                  </div>
+                  +{activityTitles.length - 4} more
                 </div>
               )}
             </div>
@@ -564,7 +645,13 @@ const SimplifiedCalendar = ({
     // Add empty cells for remaining days in the last week
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
-        currentWeek.push(<td key={`empty-end-${currentWeek.length}`} className="calendar-empty-cell"></td>);
+        currentWeek.push(
+          <td key={`empty-end-${currentWeek.length}`} style={{
+            background: 'linear-gradient(135deg, #fafafa 0%, #e0e0e0 100%)',
+            opacity: 0.6,
+            borderRadius: '4px'
+          }}></td>
+        );
       }
       weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
     }
@@ -572,7 +659,7 @@ const SimplifiedCalendar = ({
     return weeks;
   };
 
-  // Render week view
+  // Render week view with activity titles
   const renderWeekView = () => {
     const startOfWeek = currentMonth.startOf('week');
     const days = [];
@@ -580,97 +667,137 @@ const SimplifiedCalendar = ({
     for (let i = 0; i < 7; i++) {
       const date = startOfWeek.add(i, 'day');
       const dateActivities = getActivitiesForDate(date.toDate());
-      const groupedActivities = getGroupedActivities(date.toDate());
+      const activityTitles = getActivityTitlesForDate(date.toDate());
       const isToday = date.isSame(dayjs(), 'day');
       const isSelected = selectedDate && date.isSame(selectedDate, 'day');
-
-      const cellClassNames = [
-        'calendar-cell',
-        'calendar-cell-week',
-        isToday ? 'calendar-cell-today' : '',
-        isSelected ? 'calendar-cell-selected' : '',
-        dateActivities.length > 0 ? 'calendar-cell-has-events' : ''
-      ].filter(Boolean).join(' ');
+      const isWeekend = date.day() === 0 || date.day() === 6;
 
       days.push(
-        <td key={i} className={cellClassNames} style={{ width: '14.28%' }}>
+        <td key={i} style={{ 
+          width: '14.28%',
+          border: '1px solid #e8e8e8',
+          verticalAlign: 'top',
+          height: '400px',
+          backgroundColor: isToday ? '#e6f7ff' : (isWeekend ? '#fafafa' : 'white'),
+          position: 'relative',
+          borderRadius: '4px',
+          borderWidth: isToday ? '2px' : '1px',
+          borderColor: isToday ? '#1890ff' : '#e8e8e8'
+        }}>
           <div
-            className="calendar-date"
             onClick={() => onDateClick(date, dateActivities)}
-            style={{ cursor: 'pointer', height: '100%' }}
+            style={{ 
+              cursor: 'pointer', 
+              height: '100%', 
+              padding: '8px',
+              position: 'relative'
+            }}
           >
-            <div className="calendar-date-header">
-              <div className="calendar-week-day">{date.format('ddd')}</div>
-              <div className="calendar-date-number">{date.date()}</div>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '8px',
+              paddingBottom: '6px',
+              borderBottom: `1px solid ${isToday ? '#1890ff' : (isWeekend ? '#ffa39e' : '#f0f0f0')}`
+            }}>
+              <div style={{ 
+                fontSize: '12px', 
+                color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#666'),
+                fontWeight: 'bold'
+              }}>
+                {date.format('ddd')}
+              </div>
+              <div style={{ 
+                fontWeight: 'bold', 
+                fontSize: '14px',
+                color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
+                background: isToday ? 'rgba(24, 144, 255, 0.1)' : 'transparent',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {date.date()}
+              </div>
             </div>
-            <div className="calendar-events-week">
-              {Object.entries(groupedActivities).slice(0, 8).map(([category, activities]) => (
-                <Tooltip
-                  key={category}
-                  title={
-                    <div>
-                      <div><strong>{category}</strong></div>
-                      <div>{activities.length} activities</div>
-                      <div>{departments[activities[0].department]?.name}</div>
-                    </div>
-                  }
-                >
+            
+            <div style={{ 
+              maxHeight: '340px', 
+              overflowY: 'auto',
+              fontSize: '10px',
+              lineHeight: '1.3'
+            }}>
+              {activityTitles.slice(0, 10).map((activity, index) => {
+                const colors = getActivityColor(activity);
+                return (
                   <div
-                    className="calendar-event-category"
+                    key={activity.id}
+                    style={{
+                      padding: '4px 6px',
+                      margin: '3px 0',
+                      background: colors.background,
+                      color: colors.text,
+                      borderRadius: '4px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      border: `1px solid ${colors.border}`,
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateX(2px)';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateX(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (activities.length === 1) {
-                        onEventClick(activities[0]);
-                      } else {
-                        onShowAllCategories(date, groupedActivities);
-                      }
+                      onEventClick(activity.fullActivity);
                     }}
+                    title={`${activity.title} (${activity.type === 'meeting' ? 'Meeting' : 'Task'})`}
                   >
-                    <div
-                      style={{
-                        backgroundColor: departments[activities[0].department]?.color || 'blue',
-                        color: 'white',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontSize: '10px',
-                        margin: '1px',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        lineHeight: '1.2',
-                        height: 'auto'
-                      }}
-                    >
-                      <div style={{ fontWeight: 'bold', fontSize: '9px' }}>
-                        {tableCategoryMapping[activities[0].sourceTable]?.shortName || category.substring(0, 12)}
-                      </div>
-                      <div style={{ fontSize: '8px' }}>
-                        {activities.length}
-                      </div>
+                    {truncateTitle(activity.title, 25)}
+                    <div style={{
+                      fontSize: '8px',
+                      opacity: 0.8,
+                      marginTop: '1px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{activity.type === 'meeting' ? '📅' : '✅'}</span>
+                      <span>{priorityLabels[activity.priority]}</span>
                     </div>
                   </div>
-                </Tooltip>
-              ))}
-              {Object.keys(groupedActivities).length > 8 && (
+                );
+              })}
+              
+              {activityTitles.length > 10 && (
                 <div 
-                  className="calendar-more-events"
+                  style={{
+                    fontSize: '10px',
+                    padding: '6px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    marginTop: '6px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onShowAllCategories(date, groupedActivities);
+                    onShowAllCategories(date, 
+                      Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
+                    );
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      padding: '1px 4px',
-                      backgroundColor: '#f0f0f0',
-                      borderRadius: '2px',
-                      textAlign: 'center',
-                      marginTop: '2px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    +{Object.keys(groupedActivities).length - 8} more categories
-                  </div>
+                  +{activityTitles.length - 10} more activities
                 </div>
               )}
             </div>
@@ -682,95 +809,115 @@ const SimplifiedCalendar = ({
     return [<tr key="week">{days}</tr>];
   };
 
-  // Render day view
+  // Render day view with activity titles
   const renderDayView = () => {
     const date = selectedDate || currentMonth;
     const dateActivities = getActivitiesForDate(date.toDate());
-    const groupedActivities = getGroupedActivities(date.toDate());
+    const activityTitles = getActivityTitlesForDate(date.toDate());
     const isToday = date.isSame(dayjs(), 'day');
-
-    const cellClassNames = [
-      'calendar-cell',
-      'calendar-cell-day',
-      isToday ? 'calendar-cell-today' : '',
-      'calendar-cell-selected'
-    ].filter(Boolean).join(' ');
 
     return [
       <tr key="day">
-        <td className={cellClassNames} style={{ height: '500px' }}>
-          <div className="calendar-date-day">
-            <div className="calendar-date-header-day">
-              <div className="calendar-week-day">{date.format('dddd')}</div>
-              <div className="calendar-date-number-large">{date.format('MMMM D, YYYY')}</div>
+        <td style={{ 
+          height: '500px', 
+          padding: '0',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        }}>
+          <div style={{ 
+            padding: '20px',
+            height: '100%',
+            background: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            margin: '4px'
+          }}>
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '20px',
+              padding: '20px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              borderRadius: '8px'
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                {date.format('dddd')}
+              </div>
+              <div style={{ fontSize: '20px' }}>
+                {date.format('MMMM D, YYYY')}
+              </div>
+              {isToday && (
+                <div style={{
+                  fontSize: '12px',
+                  background: 'rgba(255,255,255,0.2)',
+                  borderRadius: '10px',
+                  padding: '2px 8px',
+                  marginTop: '6px',
+                  display: 'inline-block'
+                }}>
+                  Today
+                </div>
+              )}
             </div>
-            <div className="calendar-events-day">
-              {Object.keys(groupedActivities).length === 0 ? (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No activities for this day"
-                  style={{ margin: '40px 0' }}
-                />
+            
+            <div>
+              {activityTitles.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: '#666'
+                }}>
+                  <div style={{ fontSize: '36px', marginBottom: '12px' }}>📅</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>
+                    No activities scheduled
+                  </div>
+                </div>
               ) : (
-                Object.entries(groupedActivities).map(([category, activities]) => (
-                  <Card
-                    key={category}
-                    size="small"
-                    style={{
-                      marginBottom: '12px',
-                      borderLeft: `4px solid ${departments[activities[0].department]?.color || '#1890ff'}`
-                    }}
-                    title={
-                      <Space>
-                        <Text strong>{category}</Text>
-                        <Tag color="blue">{activities.length} events</Tag>
-                        <Tag color={departments[activities[0].department]?.color}>
-                          {departments[activities[0].department]?.name}
-                        </Tag>
-                      </Space>
-                    }
-                    extra={
-                      <Button 
-                        type="link" 
-                        onClick={() => onShowAllCategories(date, {[category]: activities})}
+                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  {activityTitles.map((activity, index) => {
+                    const colors = getActivityColor(activity);
+                    return (
+                      <Card
+                        key={activity.id}
+                        size="small"
+                        style={{
+                          cursor: 'pointer',
+                          marginBottom: '8px',
+                          background: colors.background,
+                          color: colors.text,
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: '6px'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                        onClick={() => onEventClick(activity.fullActivity)}
                       >
-                        View All
-                      </Button>
-                    }
-                  >
-                    <List
-                      size="small"
-                      dataSource={activities.slice(0, 3)}
-                      renderItem={activity => (
-                        <List.Item
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => onEventClick(activity)}
-                        >
-                          <List.Item.Meta
-                            title={activity.title}
-                            description={
-                              <Space>
-                                <Tag color={activity.type === 'meeting' ? 'blue' : 'green'}>
-                                  {activity.type === 'meeting' ? 'Meeting' : 'Task'}
-                                </Tag>
-                                <Tag color={priorityColors[activity.priority]}>
-                                  {priorityLabels[activity.priority]}
-                                </Tag>
-                              </Space>
-                            }
-                          />
-                        </List.Item>
-                      )}
-                    />
-                    {activities.length > 3 && (
-                      <div style={{ textAlign: 'center', marginTop: '8px' }}>
-                        <Text type="secondary">
-                          +{activities.length - 3} more events
-                        </Text>
-                      </div>
-                    )}
-                  </Card>
-                ))
+                        <div style={{ 
+                          fontSize: '14px', 
+                          fontWeight: 'bold',
+                          marginBottom: '4px'
+                        }}>
+                          {activity.title}
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '11px',
+                          opacity: 0.9
+                        }}>
+                          <span>
+                            {activity.type === 'meeting' ? '📅 Meeting' : '✅ Task'}
+                          </span>
+                          <span>
+                            Priority: {priorityLabels[activity.priority]}
+                          </span>
+                          <span>
+                            {departments[activity.department]?.name}
+                          </span>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
@@ -895,148 +1042,7 @@ const SimplifiedCalendar = ({
             </tbody>
           </table>
         )}
-
-        {/* Calendar Legend */}
-        <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-          <Text strong>Legend: </Text>
-          <Space wrap size={[8, 8]} style={{ marginTop: '8px' }}>
-            {Object.entries(departments).slice(0, 6).map(([key, dept]) => (
-              <Space key={key} size={4}>
-                <div
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    backgroundColor: dept.color,
-                    borderRadius: '2px'
-                  }}
-                />
-                <Text style={{ fontSize: '12px' }}>{dept.name}</Text>
-              </Space>
-            ))}
-            {Object.entries(departments).length > 6 && (
-              <Text style={{ fontSize: '12px' }}>+{Object.entries(departments).length - 6} more departments</Text>
-            )}
-          </Space>
-        </div>
       </div>
-
-      <style jsx>{`
-        .calendar-cell {
-          border: 1px solid #e8e8e8;
-          vertical-align: top;
-          height: 120px;
-          padding: 4px;
-          background-color: white;
-          transition: all 0.2s;
-        }
-        
-        .calendar-cell-week {
-          height: 400px;
-        }
-        
-        .calendar-cell-day {
-          height: auto;
-          min-height: 500px;
-        }
-        
-        .calendar-cell:hover {
-          background-color: #f5f5f5;
-        }
-        
-        .calendar-cell-today {
-          background-color: #e6f7ff;
-          border: 2px solid #1890ff;
-        }
-        
-        .calendar-cell-selected {
-          background-color: #f6ffed;
-          border: 2px solid #52c41a;
-        }
-        
-        .calendar-cell-has-events {
-          background-color: #fff7e6;
-        }
-        
-        .calendar-empty-cell {
-          border: 1px solid #f0f0f0;
-          background-color: #fafafa;
-        }
-        
-        .calendar-date-number {
-          font-weight: bold;
-          margin-bottom: 4px;
-          text-align: center;
-          font-size: 14px;
-        }
-        
-        .calendar-date-number-large {
-          font-weight: bold;
-          font-size: 18px;
-          color: #1890ff;
-        }
-        
-        .calendar-date-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-        
-        .calendar-date-header-day {
-          text-align: center;
-          margin-bottom: 16px;
-          padding: 16px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border-radius: 8px;
-        }
-        
-        .calendar-week-day {
-          font-size: 12px;
-          color: #666;
-          font-weight: normal;
-        }
-        
-        .calendar-date-header-day .calendar-week-day {
-          font-size: 16px;
-          color: white;
-          font-weight: bold;
-        }
-        
-        .calendar-events {
-          max-height: 80px;
-          overflow-y: auto;
-        }
-        
-        .calendar-events-week {
-          max-height: 340px;
-          overflow-y: auto;
-        }
-        
-        .calendar-events-day {
-          max-height: 400px;
-          overflow-y: auto;
-        }
-        
-        .calendar-event-category {
-          margin-bottom: 2px;
-          display: flex;
-          align-items: center;
-        }
-        
-        .calendar-event-item {
-          margin-bottom: 4px;
-        }
-        
-        .calendar-event-item-day {
-          margin-bottom: 8px;
-        }
-        
-        .calendar-more-events {
-          text-align: center;
-          margin-top: 4px;
-        }
-      `}</style>
     </Card>
   );
 };
