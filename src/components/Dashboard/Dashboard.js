@@ -113,270 +113,23 @@ const departments = {
   SURGI_SURGICARE: { name: 'Surgi Surgicare', color: '#8e44ad' }
 };
 
-// Complete table to category mapping matching database schema
+// Simplified table mapping for organizational_data
 const tableCategoryMapping = {
-  // BDM Department
-  'bdm_college_session': { type: 'meeting', categoryName: 'BDM - College Session', department: 'BDM', shortName: 'College' },
-  'bdm_meetings': { type: 'meeting', categoryName: 'BDM - Meeting Schedule', department: 'BDM', shortName: 'Meeting' },
-  'bdm_principle_visit': { type: 'task', categoryName: 'BDM - Principle Visit', department: 'BDM', shortName: 'Principle' },
-  'bdm_promotional_activities': { type: 'task', categoryName: 'BDM - Promotional Activities', department: 'BDM', shortName: 'Promo' },
-  'bdm_visit_plan': { type: 'task', categoryName: 'BDM - Visit Plan', department: 'BDM', shortName: 'Visit' },
-
-  // Cluster 1
-  'cluster_1_meetings': { type: 'meeting', categoryName: 'Cluster 1 - Meetings', department: 'CLUSTER_1', shortName: 'C1 Meet' },
-  'cluster_1_special_task': { type: 'task', categoryName: 'Cluster 1 - Special Tasks', department: 'CLUSTER_1', shortName: 'C1 Task' },
-  'cluster_1_visit_plan': { type: 'task', categoryName: 'Cluster 1 - Visit Plan', department: 'CLUSTER_1', shortName: 'C1 Visit' },
-
-  // Cluster 2
-  'cluster_2_meetings': { type: 'meeting', categoryName: 'Cluster 2 - Meetings', department: 'CLUSTER_2', shortName: 'C2 Meet' },
-  'cluster_2_special_task': { type: 'task', categoryName: 'Cluster 2 - Special Tasks', department: 'CLUSTER_2', shortName: 'C2 Task' },
-  'cluster_2_visit_plan': { type: 'task', categoryName: 'Cluster 2 - Visit Plan', department: 'CLUSTER_2', shortName: 'C2 Visit' },
-
-  // Cluster 3
-  'cluster_3_meetings': { type: 'meeting', categoryName: 'Cluster 3 - Meetings', department: 'CLUSTER_3', shortName: 'C3 Meet' },
-  'cluster_3_special_task': { type: 'task', categoryName: 'Cluster 3 - Special Tasks', department: 'CLUSTER_3', shortName: 'C3 Task' },
-  'cluster_3_visit_plan': { type: 'task', categoryName: 'Cluster 3 - Visit Plan', department: 'CLUSTER_3', shortName: 'C3 Visit' },
-
-  // Cluster 4
-  'cluster_4_meetings': { type: 'meeting', categoryName: 'Cluster 4 - Meetings', department: 'CLUSTER_4', shortName: 'C4 Meet' },
-  'cluster_4_special_task': { type: 'task', categoryName: 'Cluster 4 - Special Tasks', department: 'CLUSTER_4', shortName: 'C4 Task' },
-  'cluster_4_visit_plan': { type: 'task', categoryName: 'Cluster 4 - Visit Plan', department: 'CLUSTER_4', shortName: 'C4 Visit' },
-
-  // Cluster 5
-  'cluster_5_meetings': { type: 'meeting', categoryName: 'Cluster 5 - Meetings', department: 'CLUSTER_5', shortName: 'C5 Meet' },
-  'cluster_5_special_task': { type: 'task', categoryName: 'Cluster 5 - Special Tasks', department: 'CLUSTER_5', shortName: 'C5 Task' },
-  'cluster_5_visit_plan': { type: 'task', categoryName: 'Cluster 5 - Visit Plan', department: 'CLUSTER_5', shortName: 'C5 Visit' },
-
-  // Cluster 6
-  'cluster_6_meetings': { type: 'meeting', categoryName: 'Cluster 6 - Meetings', department: 'CLUSTER_6', shortName: 'C6 Meet' },
-  'cluster_6_special_task': { type: 'task', categoryName: 'Cluster 6 - Special Tasks', department: 'CLUSTER_6', shortName: 'C6 Task' },
-  'cluster_6_visit_plan': { type: 'task', categoryName: 'Cluster 6 - Visit Plan', department: 'CLUSTER_6', shortName: 'C6 Visit' },
-
-  // Customer Care
-  'customer_care_meetings': { type: 'meeting', categoryName: 'Customer Care - Meetings', department: 'CUSTOMER_CARE', shortName: 'CC Meet' },
-  'customer_care_special_tasks': { type: 'task', categoryName: 'Customer Care - Special Tasks', department: 'CUSTOMER_CARE', shortName: 'CC Task' },
-  'customer_care_delivery_schedule': { type: 'task', categoryName: 'Customer Care - Delivery Schedule', department: 'CUSTOMER_CARE', shortName: 'CC Delivery' },
-
-  // E-Healthcare
-  'ehealthcare_meetings': { type: 'meeting', categoryName: 'E-Healthcare Meetings', department: 'E_HEALTHCARE', shortName: 'E-Health Meet' },
-  'ehealthcare_visit_plan': { type: 'task', categoryName: 'E-Healthcare Visit Plan', department: 'E_HEALTHCARE', shortName: 'E-Health Visit' },
-
-  // Hi-Tech
-  'hitech_technical_discussions': { type: 'meeting', categoryName: 'Hi-Tech Technical Discussion', department: 'HI_TECH', shortName: 'Hi-Tech Tech' },
-  'hitech_tender_validation': { type: 'task', categoryName: 'Hi-Tech Tender Validation', department: 'HI_TECH', shortName: 'Hi-Tech Tender' },
-  'hitech_visit_plan': { type: 'task', categoryName: 'Hi-Tech Visit Plan', department: 'HI_TECH', shortName: 'Hi-Tech Visit' },
-  'hitech_page_generation': { type: 'task', categoryName: 'Hi-Tech Page Generation', department: 'HI_TECH', shortName: 'Hi-Tech Page' },
-
-  // HR
-  'hr_meetings': { type: 'meeting', categoryName: 'HR - Meetings', department: 'HR', shortName: 'HR Meet' },
-  'hr_special_events_n_tasks': { type: 'task', categoryName: 'HR - Special Events', department: 'HR', shortName: 'HR Event' },
-  'hr_training': { type: 'task', categoryName: 'HR - Trainings', department: 'HR', shortName: 'HR Training' },
-
-  // Imports
-  'imports_meetings': { type: 'meeting', categoryName: 'Imports - Meeting Schedules', department: 'IMPORTS', shortName: 'Imports Meet' },
-  'imports_upcoming_shipment_clearance_plan': { type: 'task', categoryName: 'Imports - Upcoming Shipments', department: 'IMPORTS', shortName: 'Imports Ship' },
-
-  // Regulatory
-  'regulatory_meetings': { type: 'meeting', categoryName: 'Regulatory - Meetings', department: 'REGULATORY', shortName: 'Regulatory Meet' },
-  'regulatory_submissions': { type: 'task', categoryName: 'Regulatory - Submissions', department: 'REGULATORY', shortName: 'Regulatory Sub' },
-
-  // Sales Operations
-  'sales_operations_meetings': { type: 'meeting', categoryName: 'Sales Operations Meetings', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Meet' },
-  'sales_operations_special_tasks': { type: 'task', categoryName: 'Sales Operations Special Tasks', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Task' },
-
-  // SOMT
-  'somt_meetings': { type: 'meeting', categoryName: 'SOMT - Meetings', department: 'SOMT', shortName: 'SOMT Meet' },
-  'somt_tender': { type: 'task', categoryName: 'SOMT - Tender', department: 'SOMT', shortName: 'SOMT Tender' },
-
-  // Stores
-  'stores_plan_loading': { type: 'task', categoryName: 'Stores - Plan Loading', department: 'STORES', shortName: 'Stores Load' },
-  'stores_vst': { type: 'task', categoryName: 'Stores - VST', department: 'STORES', shortName: 'Stores VST' },
-
-  // Surgi Imaging
-  'surgi_imaging_college_session': { type: 'meeting', categoryName: 'Surgi Imaging - College Session', department: 'SURGI_IMAGING', shortName: 'SI College' },
-  'surgi_imaging_meetings': { type: 'meeting', categoryName: 'Surgi Imaging - Meetings', department: 'SURGI_IMAGING', shortName: 'SI Meet' },
-  'surgi_imaging_principal_visit': { type: 'task', categoryName: 'Surgi Imaging - Principle Visit', department: 'SURGI_IMAGING', shortName: 'SI Principle' },
-  'surgi_imaging_promotional_activities': { type: 'task', categoryName: 'Surgi Imaging - Promotional Activities', department: 'SURGI_IMAGING', shortName: 'SI Promo' },
-  'surgi_imaging_special_tasks': { type: 'task', categoryName: 'Surgi Imaging - Special Tasks', department: 'SURGI_IMAGING', shortName: 'SI Task' },
-  'surgi_imaging_visit_plan': { type: 'task', categoryName: 'Surgi Imaging - Visit Plan', department: 'SURGI_IMAGING', shortName: 'SI Visit' },
-
-  // Surgi Surgicare
-  'surgi_surgicare_college_session': { type: 'meeting', categoryName: 'Surgi Surgicare - College Session', department: 'SURGI_SURGICARE', shortName: 'SS College' },
-  'surgi_surgicare_meetings': { type: 'meeting', categoryName: 'Surgi Surgicare - Meetings', department: 'SURGI_SURGICARE', shortName: 'SS Meet' },
-  'surgi_surgicare_principal_visit': { type: 'task', categoryName: 'Surgi Surgicare - Principle Visit', department: 'SURGI_SURGICARE', shortName: 'SS Principle' },
-  'surgi_surgicare_promotional_activities': { type: 'task', categoryName: 'Surgi Surgicare - Promotional Activities', department: 'SURGI_SURGICARE', shortName: 'SS Promo' },
-  'surgi_surgicare_special_task': { type: 'task', categoryName: 'Surgi Surgicare - Special Tasks', department: 'SURGI_SURGICARE', shortName: 'SS Task' },
-  'surgi_surgicare_visit_plan': { type: 'task', categoryName: 'Surgi Surgicare - Visit Plan', department: 'SURGI_SURGICARE', shortName: 'SS Visit' },
-
-  // Personal Meetings
-  'personal_meetings': { type: 'meeting', categoryName: 'Personal Meetings', department: 'PERSONAL', shortName: 'Personal' }
+  'organizational_data': { 
+    type: 'event', 
+    categoryName: 'Organizational Event', 
+    department: 'ORGANIZATION', 
+    shortName: 'Event' 
+  }
 };
 
-// COMPLETE FIXED helper function to get date field based on table with proper mapping
+// Simplified helper function to get date field
 const getDateFieldName = (tableName) => {
   const dateFields = {
-    // BDM Department
-    'bdm_college_session': 'start_date',
-    'bdm_meetings': 'date',
-    'bdm_principle_visit': 'visit_duration_start',
-    'bdm_promotional_activities': 'date',
-    'bdm_visit_plan': 'schedule_date',
-    
-    // Cluster 1
-    'cluster_1_meetings': 'date',
-    'cluster_1_special_task': 'date',
-    'cluster_1_visit_plan': 'date',
-    
-    // Cluster 2
-    'cluster_2_meetings': 'date',
-    'cluster_2_special_task': 'date',
-    'cluster_2_visit_plan': 'date',
-    
-    // Cluster 3
-    'cluster_3_meetings': 'date',
-    'cluster_3_special_task': 'date',
-    'cluster_3_visit_plan': 'date',
-    
-    // Cluster 4
-    'cluster_4_meetings': 'date',
-    'cluster_4_special_task': 'date',
-    'cluster_4_visit_plan': 'date',
-    
-    // Cluster 5
-    'cluster_5_meetings': 'date',
-    'cluster_5_special_task': 'date',
-    'cluster_5_visit_plan': 'date',
-    
-    // Cluster 6
-    'cluster_6_meetings': 'date',
-    'cluster_6_special_task': 'date',
-    'cluster_6_visit_plan': 'date',
-    
-    // Customer Care
-    'customer_care_delivery_schedule': 'delivery_date',
-    'customer_care_meetings': 'date',
-    'customer_care_special_tasks': 'date',
-    
-    // E-Healthcare - FIXED
-    'ehealthcare_meetings': 'date',
-    'ehealthcare_visit_plan': 'date',
-    
-    // Hi-Tech - FIXED: Some use created_at, some use date
-    'hitech_page_generation': 'created_at', // No date field, use created_at
-    'hitech_technical_discussions': 'created_at', // No date field, use created_at
-    'hitech_tender_validation': 'date',
-    'hitech_visit_plan': 'date',
-    
-    // HR - FIXED: All use date field
-    'hr_meetings': 'date',
-    'hr_special_events_n_tasks': 'date',
-    'hr_training': 'date',
-    
-    // Imports - FIXED
-    'imports_meetings': 'date',
-    'imports_upcoming_shipment_clearance_plan': 'eta', // Uses eta field
-    
-    // Regulatory - FIXED
-    'regulatory_meetings': 'date',
-    'regulatory_submissions': 'date',
-    
-    // Sales Operations - FIXED
-    'sales_operations_meetings': 'date',
-    'sales_operations_special_tasks': 'date',
-    
-    // SOMT - FIXED
-    'somt_meetings': 'date',
-    'somt_tender': 'close_date', // Uses close_date field
-    
-    // Stores - FIXED
-    'stores_plan_loading': 'date',
-    'stores_vst': 'date',
-    
-    // Surgi Imaging - FIXED
-    'surgi_imaging_college_session': 'date',
-    'surgi_imaging_meetings': 'date',
-    'surgi_imaging_principal_visit': 'start_time', // Uses start_time timestamp
-    'surgi_imaging_promotional_activities': 'date',
-    'surgi_imaging_special_tasks': 'date',
-    'surgi_imaging_visit_plan': 'schedule_date',
-    
-    // Surgi Surgicare - FIXED
-    'surgi_surgicare_college_session': 'date',
-    'surgi_surgicare_meetings': 'date',
-    'surgi_surgicare_principal_visit': 'visit_duration_start', // Uses visit_duration_start
-    'surgi_surgicare_promotional_activities': 'date',
-    'surgi_surgicare_special_task': 'date',
-    'surgi_surgicare_visit_plan': 'schedule_date',
-    
-    // Personal Meetings - FIXED
-    'personal_meetings': 'start_date'
+    'organizational_data': 'date'
   };
   
-  const field = dateFields[tableName];
-  if (!field) {
-    console.warn(`No date field mapping found for table: ${tableName}, defaulting to 'date'`);
-    return 'date';
-  }
-  
-  return field;
-};
-
-// Comprehensive debug component to check ALL tables
-const ComprehensiveDateDebug = ({ activities }) => {
-  const tableGroups = {};
-  
-  // Group activities by table
-  activities.forEach(activity => {
-    if (!tableGroups[activity.sourceTable]) {
-      tableGroups[activity.sourceTable] = [];
-    }
-    tableGroups[activity.sourceTable].push(activity);
-  });
-
-  return (
-    <Card size="small" style={{ marginBottom: 16 }} title="Date Field Debug - All Tables">
-      <Collapse>
-        {Object.entries(tableGroups).map(([tableName, tableActivities]) => (
-          <Collapse.Panel 
-            key={tableName} 
-            header={
-              <Space>
-                <Text strong>{tableName}</Text>
-                <Tag color="blue">{tableActivities.length} records</Tag>
-                <Text type="secondary">
-                  Date Field: {tableActivities[0]?._dateField || 'unknown'}
-                </Text>
-              </Space>
-            }
-          >
-            <List
-              size="small"
-              dataSource={tableActivities.slice(0, 5)} // Show first 5
-              renderItem={(activity, index) => (
-                <List.Item>
-                  <Space direction="vertical" size={0}>
-                    <Text>
-                      {index + 1}. {activity.title || 'No Title'}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      Date: {activity.date} | 
-                      Raw: {activity._rawDate} | 
-                      Field: {activity._dateField}
-                    </Text>
-                  </Space>
-                </List.Item>
-              )}
-            />
-            {tableActivities.length > 5 && (
-              <Text type="secondary" style={{ fontSize: '12px', marginTop: 8 }}>
-                ... and {tableActivities.length - 5} more records
-              </Text>
-            )}
-          </Collapse.Panel>
-        ))}
-      </Collapse>
-    </Card>
-  );
+  return dateFields[tableName] || 'date';
 };
 
 // Category Overview Modal Component
@@ -497,7 +250,7 @@ const CategoryEventsModal = ({
       width: 80,
       render: (type) => (
         <Tag color={type === 'meeting' ? 'blue' : 'green'}>
-          {type === 'meeting' ? 'Meeting' : 'Task'}
+          {type === 'meeting' ? 'Meeting' : 'Event'}
         </Tag>
       )
     },
@@ -516,14 +269,12 @@ const CategoryEventsModal = ({
       )
     },
     {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
       width: 120,
-      render: (department) => (
-        <Tag color={departments[department]?.color || 'default'}>
-          {departments[department]?.name || department}
-        </Tag>
+      render: (date) => (
+        <Text>{new Date(date).toLocaleDateString()}</Text>
       )
     },
     {
@@ -573,7 +324,7 @@ const CategoryEventsModal = ({
   );
 };
 
-// Enhanced Calendar Component - Shows Meeting/Task Titles
+// Enhanced Calendar Component - Shows Event Titles
 const SimplifiedCalendar = ({
   activities,
   onDateClick,
@@ -595,7 +346,7 @@ const SimplifiedCalendar = ({
   // Get activities for a specific date
   const getActivitiesForDate = (date) => {
     return activities.filter(activity => {
-      const activityDate = new Date(activity.start || activity.date || activity.created_at);
+      const activityDate = new Date(activity.date);
       return activityDate.toDateString() === date.toDateString();
     });
   };
@@ -605,25 +356,13 @@ const SimplifiedCalendar = ({
     const dateActivities = getActivitiesForDate(date);
     
     return dateActivities.map(activity => ({
-      id: activity.id || `${activity.sourceTable}-${activity.title}`,
-      title: activity.title || getDefaultTitle(activity),
+      id: activity.id,
+      title: activity.title || 'Untitled Event',
       type: activity.type,
       department: activity.department,
       priority: activity.priority,
       fullActivity: activity
     }));
-  };
-
-  // Get default title if activity title is missing
-  const getDefaultTitle = (activity) => {
-    const category = activity.categoryName;
-    
-    // Extract meaningful title from category name
-    if (category.includes(' - ')) {
-      return category.split(' - ')[1] || category;
-    }
-    
-    return category || 'Activity';
   };
 
   // Get color based on activity type and priority
@@ -632,23 +371,16 @@ const SimplifiedCalendar = ({
     
     // Color based on type and priority
     const colorSchemes = {
-      meeting: {
+      event: {
         1: { background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', text: '#1565c0', border: '#90caf9' },
         2: { background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)', text: '#2e7d32', border: '#a5d6a7' },
         3: { background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)', text: '#ef6c00', border: '#ffb74d' },
         4: { background: 'linear-gradient(135deg, #fbe9e7 0%, #ffccbc 100%)', text: '#d84315', border: '#ff8a65' },
         5: { background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', text: '#c62828', border: '#ef5350' }
-      },
-      task: {
-        1: { background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)', text: '#7b1fa2', border: '#ce93d8' },
-        2: { background: 'linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%)', text: '#303f9f', border: '#9fa8da' },
-        3: { background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)', text: '#00695c', border: '#80cbc4' },
-        4: { background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)', text: '#ff8f00', border: '#ffd54f' },
-        5: { background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%)', text: '#ad1457', border: '#f48fb1' }
       }
     };
 
-    return colorSchemes[type]?.[priority] || colorSchemes.meeting[3];
+    return colorSchemes[type]?.[priority] || colorSchemes.event[3];
   };
 
   // Truncate title for display
@@ -795,7 +527,7 @@ const SimplifiedCalendar = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     onShowAllCategories(date, 
-                      Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
+                      Object.groupBy(dateActivities, activity => activity.title || 'Untitled Event')
                     );
                   }}
                 >
@@ -931,7 +663,7 @@ const SimplifiedCalendar = ({
                       e.stopPropagation();
                       onEventClick(activity.fullActivity);
                     }}
-                    title={`${activity.title} (${activity.type === 'meeting' ? 'Meeting' : 'Task'})`}
+                    title={`${activity.title} (Event)`}
                   >
                     {truncateTitle(activity.title, 25)}
                     <div style={{
@@ -942,7 +674,7 @@ const SimplifiedCalendar = ({
                       justifyContent: 'space-between',
                       alignItems: 'center'
                     }}>
-                      <span>{activity.type === 'meeting' ? '📅' : '✅'}</span>
+                      <span>📅</span>
                       <span>{priorityLabels[activity.priority]}</span>
                     </div>
                   </div>
@@ -965,11 +697,11 @@ const SimplifiedCalendar = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     onShowAllCategories(date, 
-                      Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
+                      Object.groupBy(dateActivities, activity => activity.title || 'Untitled Event')
                     );
                   }}
                 >
-                  +{activityTitles.length - 10} more activities
+                  +{activityTitles.length - 10} more events
                 </div>
               )}
             </div>
@@ -1040,7 +772,7 @@ const SimplifiedCalendar = ({
                 }}>
                   <div style={{ fontSize: '36px', marginBottom: '12px' }}>📅</div>
                   <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>
-                    No activities scheduled
+                    No events scheduled
                   </div>
                 </div>
               ) : (
@@ -1077,13 +809,10 @@ const SimplifiedCalendar = ({
                           opacity: 0.9
                         }}>
                           <span>
-                            {activity.type === 'meeting' ? '📅 Meeting' : '✅ Task'}
+                            📅 Event
                           </span>
                           <span>
                             Priority: {priorityLabels[activity.priority]}
-                          </span>
-                          <span>
-                            {departments[activity.department]?.name}
                           </span>
                         </div>
                       </Card>
@@ -1248,7 +977,7 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
       title={
         <Space>
           <CalendarOutlined />
-          <Text strong>Recent Activities</Text>
+          <Text strong>Recent Events</Text>
         </Space>
       }
       bordered={false}
@@ -1274,7 +1003,7 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
         {currentActivities.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No activities found"
+            description="No events found"
           />
         ) : (
           <>
@@ -1307,19 +1036,13 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                           display: 'block'
                         }}
                       >
-                        {activity.title || 'Untitled Activity'}
+                        {activity.title || 'Untitled Event'}
                       </Text>
                     }
                     description={
                       <Space direction="vertical" size={0}>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {departments[activity.department]?.name} • {activity.categoryName}
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.hasTime ?
-                            new Date(activity.start).toLocaleString() :
-                            new Date(activity.date || activity.created_at).toLocaleDateString()
-                          }
+                          {new Date(activity.date).toLocaleDateString()}
                         </Text>
                       </Space>
                     }
@@ -1414,24 +1137,17 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
   const exportToExcel = () => {
     try {
       const dataForExport = activities.map(activity => ({
-        'Title': activity.title || 'Untitled Activity',
-        'Department': departments[activity.department]?.name || activity.department,
-        'Category': activity.categoryName,
-        'Type': activity.type === 'meeting' ? 'Meeting' : 'Task',
-        'Date': new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
-        'Time': activity.hasTime ? new Date(activity.start).toLocaleTimeString() : 'All Day',
+        'Title': activity.title || 'Untitled Event',
+        'Date': new Date(activity.date).toLocaleDateString(),
         'Priority': priorityLabels[activity.priority],
-        'Status': activity.status || 'scheduled',
-        'Remarks': activity.remarks || '',
-        'Responsible Person': activity.responsible_bdm || ''
+        'Status': activity.status || 'scheduled'
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(dataForExport);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Activities');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Events');
 
-      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
-      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+      const fileName = `calendar_export_${currentView}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
       toast.success('Excel file exported successfully!');
@@ -1449,24 +1165,20 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
       doc.setFontSize(16);
       doc.text('Organizational Calendar Export', 14, 15);
       doc.setFontSize(10);
-      const departmentText = selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : '';
-      doc.text(`View: ${currentView}${departmentText} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`, 14, 22);
+      doc.text(`View: ${currentView} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`, 14, 22);
 
       // Prepare table data manually without autoTable
-      const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
+      const headers = ['Title', 'Date', 'Priority'];
       const tableData = activities.map(activity => [
-        activity.title?.substring(0, 25) || 'Untitled Activity',
-        departments[activity.department]?.name || activity.department,
-        activity.categoryName.substring(0, 20),
-        activity.type === 'meeting' ? 'Meeting' : 'Task',
-        new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
+        activity.title?.substring(0, 25) || 'Untitled Event',
+        new Date(activity.date).toLocaleDateString(),
         priorityLabels[activity.priority]
       ]);
 
       // Simple table implementation
       let yPosition = 35;
       const lineHeight = 7;
-      const colWidths = [40, 25, 30, 20, 20, 20];
+      const colWidths = [60, 30, 20];
       const pageHeight = doc.internal.pageSize.height;
 
       // Draw headers
@@ -1504,8 +1216,7 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
         yPosition += lineHeight;
       });
 
-      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
-      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+      const fileName = `calendar_export_${currentView}_${dayjs().format('YYYY-MM-DD')}.pdf`;
       doc.save(fileName);
 
       toast.success('PDF file exported successfully!');
@@ -1553,9 +1264,7 @@ const AllActivitiesModal = ({
       key: 'type',
       width: 80,
       render: (type) => (
-        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
-          {type === 'meeting' ? 'Meeting' : 'Task'}
-        </Tag>
+        <Tag color="blue">Event</Tag>
       )
     },
     {
@@ -1568,40 +1277,18 @@ const AllActivitiesModal = ({
           onClick={() => onActivityClick(record)}
           style={{ padding: 0, height: 'auto', textAlign: 'left' }}
         >
-          {title || 'Untitled Activity'}
+          {title || 'Untitled Event'}
         </Button>
       )
     },
     {
       title: 'Date',
-      dataIndex: 'start',
-      key: 'time',
+      dataIndex: 'date',
+      key: 'date',
       width: 120,
-      render: (start, record) => (
-        <Text>
-          {record.hasTime ?
-            new Date(start).toLocaleString() :
-            new Date(start).toLocaleDateString()
-          }
-        </Text>
+      render: (date) => (
+        <Text>{new Date(date).toLocaleDateString()}</Text>
       )
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      width: 120,
-      render: (department) => (
-        <Tag color={departments[department]?.color || 'default'}>
-          {departments[department]?.name || department}
-        </Tag>
-      )
-    },
-    {
-      title: 'Category',
-      dataIndex: 'categoryName',
-      key: 'categoryName',
-      width: 150
     },
     {
       title: 'Priority',
@@ -1621,12 +1308,12 @@ const AllActivitiesModal = ({
       title={
         <Space>
           <CalendarOutlined />
-          All Activities ({activities.length})
+          All Events ({activities.length})
         </Space>
       }
       open={visible}
       onCancel={onClose}
-      width={1200}
+      width={800}
       footer={[
         <Button key="close" onClick={onClose} size="large">
           Close
@@ -1644,7 +1331,7 @@ const AllActivitiesModal = ({
         scroll={{ y: 600 }}
         size="middle"
         locale={{
-          emptyText: 'No activities found'
+          emptyText: 'No events found'
         }}
       />
     </Modal>
@@ -1671,7 +1358,7 @@ const ActivityDetailModal = ({
 
   return (
     <Modal
-      title="Activity Details"
+      title="Event Details"
       open={visible}
       onCancel={onClose}
       footer={[
@@ -1679,13 +1366,13 @@ const ActivityDetailModal = ({
           Close
         </Button>
       ]}
-      width={700}
+      width={600}
     >
       <div style={{ fontSize: '16px' }}>
         <Row gutter={[16, 16]}>
           <Col span={24}>
             <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-              {selectedActivity.title || selectedActivity.categoryName}
+              {selectedActivity.title || 'Untitled Event'}
             </Title>
           </Col>
         </Row>
@@ -1695,19 +1382,9 @@ const ActivityDetailModal = ({
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12}>
             <Text strong>Type: </Text>
-            <Tag color={selectedActivity.type === 'meeting' ? 'blue' : 'green'} style={{ fontSize: '14px' }}>
-              {selectedActivity.type === 'meeting' ? 'Meeting' : 'Task'}
+            <Tag color="blue" style={{ fontSize: '14px' }}>
+              Event
             </Tag>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Text strong>Department: </Text>
-            <Tag color={departments[selectedActivity.department]?.color} style={{ fontSize: '14px' }}>
-              {departments[selectedActivity.department]?.name}
-            </Tag>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Text strong>Category: </Text>
-            <Text>{selectedActivity.categoryName}</Text>
           </Col>
           <Col xs={24} sm={12}>
             <Text strong>Priority: </Text>
@@ -1717,7 +1394,7 @@ const ActivityDetailModal = ({
           </Col>
           <Col xs={24}>
             <Text strong>Date: </Text>
-            <Text>{formatDate(selectedActivity.date || selectedActivity.start || selectedActivity.created_at)}</Text>
+            <Text>{formatDate(selectedActivity.date)}</Text>
           </Col>
           {selectedActivity.status && (
             <Col xs={24} sm={12}>
@@ -1742,20 +1419,6 @@ const ActivityDetailModal = ({
             </Row>
           </>
         )}
-
-        {selectedActivity.remarks && (
-          <>
-            <Divider />
-            <Row>
-              <Col span={24}>
-                <Text strong>Remarks: </Text>
-                <Text style={{ display: 'block', marginTop: '8px' }}>
-                  {selectedActivity.remarks}
-                </Text>
-              </Col>
-            </Row>
-          </>
-        )}
       </div>
     </Modal>
   );
@@ -1767,149 +1430,6 @@ const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
     <Spin size="large" tip={tip} />
   </div>
 );
-
-// Helper function to get activity title
-const getActivityTitle = (item, tableName, categoryName) => {
-  if (!item) return 'Unknown Activity';
-
-  const department = tableCategoryMapping[tableName]?.department;
-
-  // Department-specific title mappings
-  const titleMappings = {
-    // BDM Department
-    'BDM': {
-      'Meeting Schedule': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit',
-      'Principle Visit': item.principle_name || 'Principle Visit',
-      'College Session': item.session || 'College Session',
-      'Promotional Activities': item.promotional_activity || 'Promotional Activity'
-    },
-    // Clusters (1-6)
-    'CLUSTER_1': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit'
-    },
-    'CLUSTER_2': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit'
-    },
-    'CLUSTER_3': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit'
-    },
-    'CLUSTER_4': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit'
-    },
-    'CLUSTER_5': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit'
-    },
-    'CLUSTER_6': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting',
-      'Visit Plan': item.area || 'Visit'
-    },
-    // Customer Care
-    'CUSTOMER_CARE': {
-      'Delivery Schedule': item.area || 'Delivery',
-      'Meetings': item.subject || 'Meeting',
-      'Special Tasks': item.subject || 'Task'
-    },
-    // E-Healthcare
-    'E_HEALTHCARE': {
-      'Visit Plan': item.area || 'Visit',
-      'Meetings': item.subject || 'Meeting'
-    },
-    // Hi-Tech
-    'HI_TECH': {
-      'Visit Plan':  item.institute || 'Visit',
-      'Technical Discussion': item.sp_name || 'Technical Discussion',
-      'Tender Validation': item.sp_name || 'Tender Validation',
-      'Page Generation': item.sp_name || 'Page Generation'
-    },
-    // HR
-    'HR': {
-      'Meetings': item.subject || 'Meeting',
-      'Training': item.training_program || 'Training',
-      'Special Events': item.task || 'Special Event'
-    },
-    // Imports
-    'IMPORTS': {
-      'Upcoming Shipments': item.company || item.pord_number || 'Shipment',
-      'Meeting Schedules': item.subject || 'Meeting'
-    },
-    // Regulatory
-    'REGULATORY': {
-      'Meetings': item.subject || 'Meeting',
-      'Submissions': item.company || item.product || 'Submission'
-    },
-    // Sales Operations
-    'SALES_OPERATIONS': {
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.meeting || 'Meeting'
-    },
-    // SOMT
-    'SOMT': {
-      'Tender': item.customer || item.instrument || 'Tender',
-      'Meetings': item.subject || 'Meeting'
-    },
-    // Stores
-    'STORES': {
-      'Plan Loading': item.cluster || item.area || 'Loading',
-      'VST': item.cluster || item.area || 'VST'
-    },
-    // Surgi Imaging
-    'SURGI_IMAGING': {
-      'Promotional Activities': item.promotional_activity || 'Promotional Activity',
-      'Principal Visit': item.principle_name || 'Principle Visit',
-      'College Session': item.session || 'College Session',
-      'Visit Plan': item.area || 'Visit',
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting'
-    },
-    // Surgi Surgicare
-    'SURGI_SURGICARE': {
-      'Promotional Activities': item.promotional_activity || 'Promotional Activity',
-      'Principal Visit': item.principle_name || 'Principle Visit',
-      'College Session': item.session || 'College Session',
-      'Visit Plan':  item.area || 'Visit',
-      'Special Tasks': item.task || 'Task',
-      'Meetings': item.subject || 'Meeting'
-    },
-    // Personal
-    'PERSONAL': {
-      'Personal Meetings': item.topic || 'Personal Meeting'
-    }
-  };
-
-  // Try to get department-specific title
-  if (department && titleMappings[department] && titleMappings[department][categoryName]) {
-    const title = titleMappings[department][categoryName];
-    return typeof title === 'function' ? title(item) : title;
-  }
-
-  // Fallback to generic field names
-  if (item.meeting) return item.meeting;
-  if (item.subject) return item.subject;
-  if (item.task) return item.task;
-  if (item.name) return item.name;
-  if (item.topic) return item.topic;
-  if (item.principle_name) return `Principle: ${item.principle_name}`;
-  if (item.promotional_activity) return item.promotional_activity;
-  if (item.area) return `Area: ${item.area}`;
-  if (item.session) return `Session: ${item.session}`;
-  if (item.sp_name) return item.sp_name;
-  if (item.training_program) return item.training_program;
-  if (item.company) return `Company: ${item.company}`;
-
-  return `${categoryName} Activity`;
-};
 
 // Main Dashboard Component
 const Dashboard = () => {
@@ -1937,8 +1457,6 @@ const Dashboard = () => {
   // Stats state
   const [stats, setStats] = useState({
     totalActivities: 0,
-    totalMeetings: 0,
-    totalTasks: 0,
     thisWeekActivities: 0,
     highPriorityActivities: 0,
     completedActivities: 0,
@@ -1997,101 +1515,39 @@ const Dashboard = () => {
     }
   };
 
-const fetchAllActivities = async () => {
-  const allActivitiesData = [];
+  const fetchAllActivities = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('organizational_data')
+        .select('*')
+        .order('date', { ascending: false });
 
-  try {
-    const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
-      try {
-        const dateField = getDateFieldName(tableName);
-        
-        console.log(`Fetching from ${tableName} using date field: ${dateField}`);
-        
-        const { data, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .order(dateField, { ascending: false })
-          .limit(100);
-
-        if (error) {
-          console.warn(`Error fetching from ${tableName}:`, error);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          let validRecords = 0;
-          let invalidRecords = 0;
-          
-          data.forEach(item => {
-            // Get the actual date field value
-            const baseDate = item[dateField];
-            
-            if (!baseDate) {
-              console.warn(`No date found for ${tableName} record ${item.id} in field ${dateField}`);
-              invalidRecords++;
-              return;
-            }
-
-            const itemWithMetadata = {
-              ...item,
-              sourceTable: tableName,
-              type: tableInfo.type,
-              categoryName: tableInfo.categoryName,
-              department: tableInfo.department,
-              date: baseDate, // Use the actual date field
-              start: baseDate, // Use the actual date field
-              title: getActivityTitle(item, tableName, tableInfo.categoryName),
-              priority: item.priority || 3,
-              status: item.status || 'scheduled',
-              hasTime: !!(item.start_time || item.end_time),
-              // Store the actual date field used for debugging
-              _dateField: dateField,
-              _rawDate: baseDate
-            };
-
-            allActivitiesData.push(itemWithMetadata);
-            validRecords++;
-          });
-          
-          console.log(`Fetched from ${tableName}: ${validRecords} valid, ${invalidRecords} invalid dates`);
-          
-          if (validRecords > 0) {
-            console.log(`First date in ${tableName}: ${data[0]?.[dateField]}`);
-          }
-        } else {
-          console.log(`No data found in table: ${tableName}`);
-        }
-      } catch (tableError) {
-        console.warn(`Failed to fetch from table ${tableName}:`, tableError);
+      if (error) {
+        console.error('Error fetching organizational data:', error);
+        throw error;
       }
-    });
 
-    await Promise.allSettled(fetchPromises);
-    
-    // Sort activities by actual date (not created_at)
-    const sortedActivities = allActivitiesData.sort((a, b) => {
-      const dateA = new Date(a.date || a.start || a.created_at);
-      const dateB = new Date(b.date || b.start || b.created_at);
-      return dateB - dateA; // Descending order (newest first)
-    });
-    
-    // Comprehensive debug log
-    console.log('=== COMPREHENSIVE DATE DEBUG ===');
-    Object.entries(Object.groupBy(sortedActivities, a => a.sourceTable)).forEach(([table, activities]) => {
-      console.log(`${table}: ${activities.length} activities`);
-      if (activities.length > 0) {
-        console.log(`  First date: ${activities[0].date}, Field: ${activities[0]._dateField}`);
-      }
-    });
-    console.log('=== END DEBUG ===');
-    
-    setAllActivities(sortedActivities);
-    calculateStats(sortedActivities);
-  } catch (error) {
-    console.error('Error fetching all activities:', error);
-    throw error;
-  }
-};
+      const activitiesData = data.map(item => ({
+        ...item,
+        sourceTable: 'organizational_data',
+        type: 'event',
+        categoryName: 'Organizational Event',
+        department: 'ORGANIZATION',
+        start: item.date,
+        title: item.title || 'Untitled Event',
+        priority: item.priority || 3,
+        status: item.status || 'scheduled',
+        hasTime: false
+      }));
+
+      setAllActivities(activitiesData);
+      calculateStats(activitiesData);
+      
+    } catch (error) {
+      console.error('Error fetching all activities:', error);
+      throw error;
+    }
+  };
 
   const calculateStats = (activitiesData) => {
     const now = new Date();
@@ -2104,20 +1560,16 @@ const fetchAllActivities = async () => {
     endOfWeek.setHours(23, 59, 59, 999);
 
     const thisWeekActivities = activitiesData.filter(activity => {
-      const activityDate = new Date(activity.start || activity.date || activity.created_at);
+      const activityDate = new Date(activity.date);
       return activityDate >= startOfWeek && activityDate <= endOfWeek;
     });
 
     const highPriorityActivities = activitiesData.filter(activity => activity.priority >= 4);
     const completedActivities = activitiesData.filter(activity => activity.status === 'completed');
     const pendingActivities = activitiesData.filter(activity => activity.status === 'pending');
-    const meetings = activitiesData.filter(activity => activity.type === 'meeting');
-    const tasks = activitiesData.filter(activity => activity.type === 'task');
 
     setStats({
       totalActivities: activitiesData.length,
-      totalMeetings: meetings.length,
-      totalTasks: tasks.length,
       thisWeekActivities: thisWeekActivities.length,
       highPriorityActivities: highPriorityActivities.length,
       completedActivities: completedActivities.length,
@@ -2127,6 +1579,8 @@ const fetchAllActivities = async () => {
 
   // Get filtered activities based on department
   const getFilteredActivities = () => {
+    // Since we only have one table now, department filter might not be relevant
+    // but keeping it for consistency
     if (!selectedDepartment) {
       return allActivities;
     }
@@ -2268,30 +1722,10 @@ const fetchAllActivities = async () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Total Activities"
+                title="Total Events"
                 value={stats.totalActivities}
                 prefix={<CalendarOutlined />}
                 valueStyle={{ color: '#1890ff', fontSize: '20px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ textAlign: 'center' }}>
-              <Statistic
-                title="Meetings"
-                value={stats.totalMeetings}
-                prefix={<TeamOutlined />}
-                valueStyle={{ color: '#52c41a', fontSize: '20px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ textAlign: 'center' }}>
-              <Statistic
-                title="Tasks"
-                value={stats.totalTasks}
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
               />
             </Card>
           </Col>
@@ -2318,6 +1752,16 @@ const fetchAllActivities = async () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
+                title="Completed"
+                value={stats.completedActivities}
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: '#52c41a', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Statistic
                 title="Pending"
                 value={stats.pendingActivities}
                 prefix={<ClockCircleOutlined />}
@@ -2326,11 +1770,6 @@ const fetchAllActivities = async () => {
             </Card>
           </Col>
         </Row>
-
-        <DepartmentFilter
-          selectedDepartment={selectedDepartment}
-          onDepartmentChange={setSelectedDepartment}
-        />
 
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={16}>
