@@ -410,6 +410,7 @@ const getDateFieldName = (tableName) => {
 };
 
 // Create Organizational Event Modal
+// Create Organizational Event Modal with Legend Selection
 const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -421,8 +422,8 @@ const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) =>
         .from('organizational_data')
         .insert([
           {
-            title: values.title,
-            date: values.date.format('YYYY-MM-DD')
+            title: values.legend_type,
+            date: values.date.format('YYYY-MM-DD'),
           }
         ])
         .select();
@@ -454,12 +455,28 @@ const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) =>
         layout="vertical"
         onFinish={handleSubmit}
       >
-        <Form.Item
-          name="title"
-          label="Event Title"
-          rules={[{ required: true, message: 'Please enter event title' }]}
+      <Form.Item
+          name="legend_type"
+          label="Legend Type"
+          rules={[{ required: true, message: 'Please select legend type' }]}
         >
-          <Input placeholder="Enter event title (e.g., VST, End Month, BMPL)" />
+          <Select placeholder="Select legend type">
+            {Object.entries(organizationalLegends).map(([key, legend]) => (
+              <Option key={key} value={key}>
+                <Space>
+                  <div
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: legend.color,
+                      borderRadius: '2px'
+                    }}
+                  />
+                  {legend.name}
+                </Space>
+              </Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item
@@ -473,6 +490,7 @@ const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) =>
           />
         </Form.Item>
 
+        
         <Form.Item>
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button onClick={onClose}>
@@ -528,7 +546,22 @@ const OrganizationalCalendar = ({
   };
 
   // Get color based on legend type from title
+  // Get color based on legend type from title or stored legend_type
   const getActivityColor = (activity) => {
+    // First check if there's a stored legend_type
+    if (activity.legend_type && organizationalLegends[activity.legend_type]) {
+      const legend = organizationalLegends[activity.legend_type];
+      const textColor = getTextColorBasedOnBackground(legend.color);
+
+      return {
+        background: legend.color,
+        text: textColor,
+        border: legend.color,
+        legendName: legend.name
+      };
+    }
+
+    // Fall back to automatic detection from title
     const match = findMatchingLegend(activity.title);
 
     if (match) {
