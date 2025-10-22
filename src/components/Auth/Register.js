@@ -38,25 +38,17 @@ const Register = () => {
 
   // Email validation regex
   const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@(aipl|biomedica)\.[a-z]{2,}$/i;
     return emailRegex.test(email);
   };
-
-  // Password validation rules
-  const validatePassword = (password) => {
-    if (password.length < 6) {
-      return 'Password must be at least 6 characters long';
-    }
-    return null;
-  };
-
+  
   const onFinish = async (values) => {
     setLoading(true);
     setEmailError('');
-    
+
     try {
       console.log('Registration values:', values);
-      
+
       // Client-side validation
       if (!validateEmail(values.email)) {
         throw new Error('');
@@ -77,13 +69,12 @@ const Register = () => {
             role: values.role,
             department_id: values.department_id
           }
-          // Remove emailRedirectTo temporarily to test
         }
       });
 
       if (authError) {
         console.error('Auth error details:', authError);
-        
+
         // Handle specific auth errors
         if (authError.message.includes('User already registered')) {
           throw new Error('This email is already registered. Please try logging in or use a different email.');
@@ -97,7 +88,7 @@ const Register = () => {
           // This might be a configuration issue
           setEmailError('Email service temporarily unavailable. Your account was created but verification email failed. Please try logging in directly.');
           message.warning('Account created but email verification failed. Try logging in directly.');
-          
+
           // Still proceed with profile creation
           if (authData?.user) {
             await createUserProfile(authData.user, values);
@@ -121,7 +112,7 @@ const Register = () => {
         message.success(
           <span>
             Account created successfully! 🎉<br />
-            {authData.user.identities && authData.user.identities.length > 0 
+            {authData.user.identities && authData.user.identities.length > 0
               ? 'Check your email for verification link.'
               : 'You can now try logging in.'
             }
@@ -131,7 +122,7 @@ const Register = () => {
       } else {
         message.success('Account created successfully! You can now log in.', 5);
       }
-      
+
       // Redirect to login after delay
       setTimeout(() => {
         navigate('/login');
@@ -139,15 +130,15 @@ const Register = () => {
 
     } catch (error) {
       console.error('Registration error:', error);
-      
+
       let errorMessage = 'Registration failed. Please try again.';
-      
+
       if (error.message) {
         errorMessage = error.message;
       } else if (error instanceof TypeError) {
         errorMessage = 'Network error. Please check your connection.';
       }
-      
+
       message.error(errorMessage);
     } finally {
       setLoading(false);
@@ -173,7 +164,7 @@ const Register = () => {
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
-        
+
         // If profile creation fails, try to update existing profile
         const { error: updateError } = await supabase
           .from('profiles')
@@ -208,10 +199,10 @@ const Register = () => {
   };
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       minHeight: '100vh',
       backgroundColor: '#ACAC9B',
       backgroundImage: `
@@ -238,7 +229,7 @@ const Register = () => {
       >
         {/* Application Logo and Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ 
+          <div style={{
             marginBottom: 20,
             padding: '20px',
             backgroundColor: '#ffffff',
@@ -256,8 +247,8 @@ const Register = () => {
               }}
             />
           </div>
-          <Text style={{ 
-            fontSize: '16px', 
+          <Text style={{
+            fontSize: '16px',
             color: '#7f8c8d',
             fontWeight: '500'
           }}>
@@ -288,8 +279,8 @@ const Register = () => {
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           border: '2px solid #e74c3c'
         }}>
-          <Text strong style={{ 
-            display: 'block', 
+          <Text strong style={{
+            display: 'block',
             marginBottom: 8,
             fontSize: '14px',
             color: '#2c3e50'
@@ -308,8 +299,8 @@ const Register = () => {
           />
         </div>
 
-        <Divider style={{ 
-          margin: '24px 0', 
+        <Divider style={{
+          margin: '24px 0',
           borderColor: '#bdc3c7',
           color: '#34495e',
           fontSize: '15px',
@@ -333,15 +324,15 @@ const Register = () => {
           <Form.Item
             name="full_name"
             label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Full Name</Text>}
-            rules={[{ 
-              required: true, 
-              message: 'Please input your full name!' 
+            rules={[{
+              required: true,
+              message: 'Please input your full name!'
             }]}
             hasFeedback
           >
-            <Input 
-              prefix={<UserOutlined style={{ color: '#3498db' }} />} 
-              placeholder="Enter your full name" 
+            <Input
+              prefix={<UserOutlined style={{ color: '#3498db' }} />}
+              placeholder="Enter your full name"
               size="large"
               style={{
                 height: '48px',
@@ -357,20 +348,20 @@ const Register = () => {
             name="email"
             label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Email Address</Text>}
             rules={[
-              { 
-                required: true, 
-                message: 'Please input your email address!' 
+              {
+                required: true,
+                message: 'Please input your email address!'
               },
-              { 
-                type: 'email', 
-                message: 'Please enter a valid email address!' 
+              {
+                type: 'email',
+                message: 'Please enter a valid email address!'
               }
             ]}
             hasFeedback
           >
-            <Input 
-              prefix={<MailOutlined style={{ color: '#3498db' }} />} 
-              placeholder="Enter your email address" 
+            <Input
+              prefix={<MailOutlined style={{ color: '#3498db' }} />}
+              placeholder="Enter your email address"
               size="large"
               style={{
                 height: '48px',
@@ -386,13 +377,13 @@ const Register = () => {
             <Form.Item
               name="department_id"
               label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Department</Text>}
-              rules={[{ 
-                required: true, 
-                message: 'Please select your department!' 
+              rules={[{
+                required: true,
+                message: 'Please select your department!'
               }]}
             >
-              <Select 
-                placeholder="Select department" 
+              <Select
+                placeholder="Select department"
                 size="large"
                 suffixIcon={<TeamOutlined style={{ color: '#3498db' }} />}
                 showSearch
@@ -421,13 +412,13 @@ const Register = () => {
             name="password"
             label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Password</Text>}
             rules={[
-              { 
-                required: true, 
-                message: 'Please input your password!' 
+              {
+                required: true,
+                message: 'Please input your password!'
               },
-              { 
-                min: 6, 
-                message: 'Password must be at least 6 characters!' 
+              {
+                min: 6,
+                message: 'Password must be at least 6 characters!'
               }
             ]}
             hasFeedback
@@ -451,9 +442,9 @@ const Register = () => {
             label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Confirm Password</Text>}
             dependencies={['password']}
             rules={[
-              { 
-                required: true, 
-                message: 'Please confirm your password!' 
+              {
+                required: true,
+                message: 'Please confirm your password!'
               },
               ({ getFieldValue }) => ({
                 validator(_, value) {
@@ -523,16 +514,16 @@ const Register = () => {
 
         {/* Additional Links */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <Text style={{ 
-            fontSize: '14px', 
+          <Text style={{
+            fontSize: '14px',
             color: '#7f8c8d',
             fontWeight: '500'
           }}>
             Already have an account?{' '}
           </Text>
-          <Link 
-            to="/login" 
-            style={{ 
+          <Link
+            to="/login"
+            style={{
               fontSize: '14px',
               color: '#3498db',
               fontWeight: '600',
@@ -544,8 +535,8 @@ const Register = () => {
         </div>
 
         {/* Footer with eHealth Logo */}
-        <Divider style={{ 
-          margin: '24px 0', 
+        <Divider style={{
+          margin: '24px 0',
           borderColor: '#bdc3c7'
         }} />
         <div style={{
