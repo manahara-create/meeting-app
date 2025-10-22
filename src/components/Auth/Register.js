@@ -36,10 +36,40 @@ const Register = () => {
     }
   };
 
-  // Email validation function
+  // Enhanced email validation function
   const validateEmail = (email) => {
+    if (!email) return false;
+    
     const emailRegex = /^[^\s@]+@(aipl|biomedica)\.[a-z]{2,}$/i;
-    return emailRegex.test(email);
+    const isValid = emailRegex.test(email.trim().toLowerCase());
+    
+    if (!isValid) {
+      setEmailError('Only @aipl or @biomedica company emails are allowed for registration.');
+    } else {
+      setEmailError('');
+    }
+    
+    return isValid;
+  };
+
+  // Password validation function
+  const validatePassword = (password) => {
+    if (!password) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters';
+    return null;
+  };
+
+  // Email domain validator for Antd Form
+  const emailValidator = (_, value) => {
+    if (!value) {
+      return Promise.reject(new Error('Please input your email address!'));
+    }
+    
+    if (!validateEmail(value)) {
+      return Promise.reject(new Error('Only @aipl or @biomedica company emails are allowed!'));
+    }
+    
+    return Promise.resolve();
   };
 
   // Registration handler
@@ -50,25 +80,26 @@ const Register = () => {
     try {
       console.log('Registration values:', values);
 
-      // --- Client-side validation ---
+      // Final email validation check
       if (!validateEmail(values.email)) {
-        setEmailError('Please enter a valid company email (aipl or biomedica).');
-        message.error('Invalid email: Only aipl or biomedica company emails are allowed.');
+        message.error('Invalid email: Only @aipl or @biomedica company emails are allowed.');
         setLoading(false);
         return;
       }
 
       const passwordError = validatePassword(values.password);
       if (passwordError) {
-        setEmailError(passwordError);
         message.error(passwordError);
         setLoading(false);
         return;
       }
 
+      // Normalize email to lowercase
+      const normalizedEmail = values.email.trim().toLowerCase();
+
       // --- Supabase Auth Sign-Up ---
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: values.email.trim().toLowerCase(),
+        email: normalizedEmail,
         password: values.password,
         options: {
           data: {
@@ -155,7 +186,6 @@ const Register = () => {
     }
   };
 
-
   // Separate function for profile creation
   const createUserProfile = async (user, values) => {
     try {
@@ -164,7 +194,7 @@ const Register = () => {
         .insert([
           {
             id: user.id,
-            email: values.email,
+            email: values.email.trim().toLowerCase(),
             full_name: values.full_name,
             role: values.role,
             department_id: values.department_id,
@@ -267,14 +297,24 @@ const Register = () => {
           </Text>
         </div>
 
+        {/* Email Domain Restriction Alert */}
+        <Alert
+          message="Domain Restriction"
+          description="Only @aipl or @biomedica company emails are allowed for registration."
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          style={{ marginBottom: 24 }}
+          closable
+        />
+
         {/* Email Error Alert */}
         {emailError && (
           <Alert
-            message="Email Service Notice"
+            message="Registration Error"
             description={emailError}
-            type="warning"
+            type="error"
             showIcon
-            icon={<InfoCircleOutlined />}
             style={{ marginBottom: 24 }}
             closable
           />
@@ -361,18 +401,14 @@ const Register = () => {
             rules={[
               {
                 required: true,
-                message: 'Please input your email address!'
-              },
-              {
-                type: 'email',
-                message: 'Please enter a valid email address!'
+                validator: emailValidator
               }
             ]}
             hasFeedback
           >
             <Input
               prefix={<MailOutlined style={{ color: '#3498db' }} />}
-              placeholder="Enter your email address"
+              placeholder="Enter Your Email Address"
               size="large"
               style={{
                 height: '48px',
