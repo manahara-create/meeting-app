@@ -3,6 +3,7 @@ import { Form, Input, Button, Card, message, Typography, Select, Divider, Image,
 import { UserOutlined, LockOutlined, MailOutlined, TeamOutlined, SafetyOutlined, IdcardOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -39,16 +40,16 @@ const Register = () => {
   // Enhanced email validation function
   const validateEmail = (email) => {
     if (!email) return false;
-    
+
     const emailRegex = /^[^\s@]+@(aipl|biomedica)\.[a-z]{2,}$/i;
     const isValid = emailRegex.test(email.trim().toLowerCase());
-    
+
     if (!isValid) {
       setEmailError('Only @aipl or @biomedica company emails are allowed for registration.');
     } else {
       setEmailError('');
     }
-    
+
     return isValid;
   };
 
@@ -64,11 +65,11 @@ const Register = () => {
     if (!value) {
       return Promise.reject(new Error('Please input your email address!'));
     }
-    
+
     if (!validateEmail(value)) {
       return Promise.reject(new Error('Only @aipl or @biomedica company emails are allowed!'));
     }
-    
+
     return Promise.resolve();
   };
 
@@ -133,7 +134,7 @@ const Register = () => {
           if (authData?.user) {
             await createUserProfile(authData.user, values);
           }
-          alert("✅ Boom! You’re almost there — open your email and hit ‘Confirm’ to activate your account!");
+
           navigate('/login');
           return;
         } else {
@@ -152,21 +153,18 @@ const Register = () => {
 
       // --- Success Messages ---
       if (authData.user && !authData.user.email_confirmed_at) {
-        message.success(
-          <span>
-            Account created successfully! 🎉<br />
-            {authData.user.identities && authData.user.identities.length > 0
-              ? 'Check your email for the verification link.'
-              : 'You can now try logging in.'}
-          </span>,
-          8
-        );
+        toast.success("🎉 Your account has been registered! Check your mailbox and confirm your email to activate your account.", {
+          position: "top-center",
+          autoClose: 6000,
+          theme: "colored",
+        });
       } else {
         message.success('Account created successfully! You can now log in.', 5);
       }
 
       // --- Redirect ---
-      setTimeout(() => navigate('/login'), 3000);
+
+      setTimeout(() => navigate('/login'), 5000);
 
     } catch (error) {
       console.error('Registration error:', error);
@@ -196,7 +194,7 @@ const Register = () => {
             id: user.id,
             email: values.email.trim().toLowerCase(),
             full_name: values.full_name,
-            role:  'User',
+            role: 'User',
             department_id: values.department_id,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -517,6 +515,16 @@ const Register = () => {
               }}
             />
           </Form.Item>
+
+          <Alert
+            message="Guideline"
+            description="Once You Registered, You Will Get An Confrimation Email."
+            type="warning"
+            showIcon
+            icon={<InfoCircleOutlined />}
+            style={{ marginBottom: 16 }}
+            closable
+          />
 
           <Form.Item style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', gap: '12px' }}>
