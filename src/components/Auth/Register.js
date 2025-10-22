@@ -133,7 +133,7 @@ const Register = () => {
           if (authData?.user) {
             await createUserProfile(authData.user, values);
           }
-
+          alert("✅ Boom! You’re almost there — open your email and hit ‘Confirm’ to activate your account!");
           navigate('/login');
           return;
         } else {
@@ -204,7 +204,7 @@ const Register = () => {
         ]);
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
+        alert('Profile creation error:', profileError);
 
         // If profile creation fails, try to update existing profile
         const { error: updateError } = await supabase
