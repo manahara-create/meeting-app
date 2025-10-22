@@ -36,12 +36,13 @@ const Register = () => {
     }
   };
 
-  // Email validation regex
+  // Email validation function
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@(aipl|biomedica)\.[a-z]{2,}$/i;
     return emailRegex.test(email);
   };
-  
+
+  // Registration handler
   const onFinish = async (values) => {
     setLoading(true);
     setEmailError('');
@@ -49,17 +50,23 @@ const Register = () => {
     try {
       console.log('Registration values:', values);
 
-      // Client-side validation
+      // --- Client-side validation ---
       if (!validateEmail(values.email)) {
-        throw new Error('');
+        setEmailError('Please enter a valid company email (aipl or biomedica).');
+        message.error('Invalid email: Only aipl or biomedica company emails are allowed.');
+        setLoading(false);
+        return;
       }
 
       const passwordError = validatePassword(values.password);
       if (passwordError) {
-        throw new Error(passwordError);
+        setEmailError(passwordError);
+        message.error(passwordError);
+        setLoading(false);
+        return;
       }
 
-      // Register user with Supabase Auth - SIMPLIFIED APPROACH
+      // --- Supabase Auth Sign-Up ---
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email.trim().toLowerCase(),
         password: values.password,
@@ -67,55 +74,59 @@ const Register = () => {
           data: {
             full_name: values.full_name,
             role: values.role,
-            department_id: values.department_id
-          }
-        }
+            department_id: values.department_id,
+          },
+        },
       });
 
+      // --- Handle Auth Errors ---
       if (authError) {
         console.error('Auth error details:', authError);
 
-        // Handle specific auth errors
-        if (authError.message.includes('User already registered')) {
-          throw new Error('This email is already registered. Please try logging in or use a different email.');
-        } else if (authError.message.includes('Email not allowed')) {
-          throw new Error('This email domain is not allowed for registration.');
-        } else if (authError.message.includes('Password should be at least')) {
-          throw new Error('Password does not meet security requirements.');
-        } else if (authError.message.includes('Invalid email')) {
-          throw new Error('Please enter a valid email address.');
-        } else if (authError.message.includes('confirmation email')) {
-          // This might be a configuration issue
-          setEmailError('Email service temporarily unavailable. Your account was created but verification email failed. Please try logging in directly.');
-          message.warning('Account created but email verification failed. Try logging in directly.');
+        let msg = '';
+        const errorText = authError.message?.toLowerCase() || '';
 
-          // Still proceed with profile creation
+        if (errorText.includes('user already registered')) {
+          msg = 'This email is already registered. Please log in or use another email.';
+        } else if (errorText.includes('email not allowed')) {
+          msg = 'This email domain is not allowed for registration.';
+        } else if (errorText.includes('invalid email')) {
+          msg = 'Please enter a valid email address.';
+        } else if (errorText.includes('password should be at least')) {
+          msg = 'Password does not meet security requirements.';
+        } else if (errorText.includes('confirmation email')) {
+          msg = 'Email service unavailable. Account created but verification email failed. Please try logging in.';
+          message.warning(msg);
+
+          // Continue to profile creation
           if (authData?.user) {
             await createUserProfile(authData.user, values);
           }
+
           navigate('/login');
           return;
         } else {
-          throw authError;
+          msg = authError.message || 'Unknown error during registration.';
         }
+
+        throw new Error(msg);
       }
 
       console.log('Auth data received:', authData);
 
-      // Create user profile
+      // --- Create User Profile ---
       if (authData.user) {
         await createUserProfile(authData.user, values);
       }
 
-      // Check if email confirmation was sent
+      // --- Success Messages ---
       if (authData.user && !authData.user.email_confirmed_at) {
         message.success(
           <span>
             Account created successfully! 🎉<br />
             {authData.user.identities && authData.user.identities.length > 0
-              ? 'Check your email for verification link.'
-              : 'You can now try logging in.'
-            }
+              ? 'Check your email for the verification link.'
+              : 'You can now try logging in.'}
           </span>,
           8
         );
@@ -123,10 +134,8 @@ const Register = () => {
         message.success('Account created successfully! You can now log in.', 5);
       }
 
-      // Redirect to login after delay
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
+      // --- Redirect ---
+      setTimeout(() => navigate('/login'), 3000);
 
     } catch (error) {
       console.error('Registration error:', error);
@@ -136,14 +145,16 @@ const Register = () => {
       if (error.message) {
         errorMessage = error.message;
       } else if (error instanceof TypeError) {
-        errorMessage = 'Network error. Please check your connection.';
+        errorMessage = 'Network error. Please check your internet connection.';
       }
 
+      setEmailError(errorMessage);
       message.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
 
   // Separate function for profile creation
   const createUserProfile = async (user, values) => {
