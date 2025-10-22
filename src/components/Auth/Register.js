@@ -104,7 +104,7 @@ const Register = () => {
         options: {
           data: {
             full_name: values.full_name,
-            role: values.role,
+            role: 'User',
             department_id: values.department_id,
           },
         },
@@ -196,7 +196,7 @@ const Register = () => {
             id: user.id,
             email: values.email.trim().toLowerCase(),
             full_name: values.full_name,
-            role: values.role,
+            role:  'User',
             department_id: values.department_id,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
