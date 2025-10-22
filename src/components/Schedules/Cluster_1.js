@@ -37,21 +37,11 @@ const { TextArea } = Input;
 const { Option } = Select;
 const { TabPane } = Tabs;
 
-// Department and Category IDs from your database
-const BDM_DEPARTMENT_ID = '4755d627-64ad-4a03-81f2-fd867084cef7';
-const CATEGORY_IDS = {
-    COLLEGE_SESSION: 'd37bbf9e-2c66-4e7e-bc32-fa1af48e4300',
-    MEETINGS: 'b21e53e2-a5ea-4351-829b-ad1e90d35f65',
-    PRINCIPLE_VISIT: '99e6d59b-bd19-4666-bf06-156a3dab43ff',
-    PROMOTIONAL_ACTIVITIES: '6e717e47-171d-4cb4-8bef-1a5527129cab',
-    VISIT_PLAN: 'e0cbbaf0-940d-48d3-b403-e345f4c5e333'
-};
-
 // Error boundary component
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
     <Result
         status="error"
-        title="Something went wrong in BDM Module"
+        title="Something went wrong in Cluster 1 Module"
         subTitle={error?.message || "An unexpected error occurred"}
         extra={
             <Button type="primary" onClick={resetErrorBoundary} size="large">
@@ -62,7 +52,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => (
 );
 
 // Loading component
-const LoadingSpinner = ({ tip = "Loading BDM data..." }) => (
+const LoadingSpinner = ({ tip = "Loading Cluster 1 data..." }) => (
     <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" tip={tip} />
     </div>
@@ -101,7 +91,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 // Statistics Cards Component
-const BDMStatistics = ({ stats, loading = false }) => (
+const Cluster1Statistics = ({ stats, loading = false }) => (
     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8} md={6}>
             <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
@@ -236,16 +226,14 @@ const DiscussionModal = React.memo(({
     const [sending, setSending] = useState(false);
     const [subscription, setSubscription] = useState(null);
 
-    // Get the correct feedback table name
+    // Get the correct feedback table name for Cluster 1
     const getFeedbackTable = useCallback(() => {
         if (!category) return null;
 
         const tableMap = {
-            'visit_plan': 'bdm_visit_plan_fb',
-            'principle_visit': 'bdm_principle_visit_fb',
-            'meetings': 'bdm_meetings_fb',
-            'college_session': 'bdm_college_session_fb',
-            'promotional_activities': 'bdm_promotional_activities_fb'
+            'visit_plan': 'cluster_1_visit_plan_fb',
+            'meetings': 'cluster_1_meetings_fb',
+            'special_task': 'cluster_1_special_task_fb'
         };
 
         return tableMap[category.id] || null;
@@ -323,7 +311,7 @@ const DiscussionModal = React.memo(({
             if (error) throw error;
 
             await notifyDepartmentOperation(
-                'bdm',
+                'cluster_1',
                 category.name,
                 NOTIFICATION_TYPES.DISCUSSION,
                 record,
@@ -415,10 +403,8 @@ const DiscussionModal = React.memo(({
             title={
                 <Space>
                     <WechatOutlined />
-                    Discussion: {record?.subject || record?.name || record?.college_name || record?.principle_name || record?.promotional_activity || 'Record'}
+                    Discussion: {record?.subject || record?.name || record?.task || 'Record'}
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
-                    {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
-                    {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
                     <PriorityBadge priority={record.priority} />
                 </Space>
             }
@@ -494,7 +480,7 @@ const UserScheduleModal = React.memo(({
             switch (item.type) {
                 case 'personal_meeting':
                     return 'blue';
-                case 'bdm_activity':
+                case 'cluster_1_activity':
                     return 'green';
                 default:
                     return 'gray';
@@ -509,7 +495,7 @@ const UserScheduleModal = React.memo(({
             switch (item.type) {
                 case 'personal_meeting':
                     return <UserOutlined />;
-                case 'bdm_activity':
+                case 'cluster_1_activity':
                     return <CalendarOutlined />;
                 default:
                     return <ScheduleOutlined />;
@@ -522,7 +508,7 @@ const UserScheduleModal = React.memo(({
     const getActivityType = (item) => {
         try {
             if (item.type === 'personal_meeting') return 'Personal Meeting';
-            if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
+            if (item.type === 'cluster_1_activity') return `Cluster 1 ${item.activity_type}`;
             return 'Unknown Activity';
         } catch (error) {
             return 'Unknown Activity';
@@ -534,7 +520,7 @@ const UserScheduleModal = React.memo(({
             if (item.type === 'personal_meeting') {
                 return item.description || 'No description available';
             }
-            if (item.type === 'bdm_activity') {
+            if (item.type === 'cluster_1_activity') {
                 return item.remarks || item.purpose || 'No description available';
             }
             return 'No description available';
@@ -602,13 +588,13 @@ const UserScheduleModal = React.memo(({
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.subject || item.name || item.college_name || item.principle_name || item.promotional_activity || 'Unknown Activity'}
+                                                {item.subject || item.name || item.task || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Date">
                                             <Space>
                                                 <CalendarOutlined />
-                                                {safeDayjs(item.start_date || item.date || item.schedule_date || item.visit_duration_start).format('DD/MM/YYYY')}
+                                                {safeDayjs(item.date).format('DD/MM/YYYY')}
                                             </Space>
                                         </Descriptions.Item>
 
@@ -618,24 +604,19 @@ const UserScheduleModal = React.memo(({
                                             </Text>
                                         </Descriptions.Item>
 
-                                        {item.company && (
-                                            <Descriptions.Item label="Company">
-                                                {item.company}
-                                            </Descriptions.Item>
-                                        )}
                                         {item.area && (
                                             <Descriptions.Item label="Area">
                                                 <Tag color="blue">{item.area}</Tag>
                                             </Descriptions.Item>
                                         )}
-                                        {item.remarks && (
-                                            <Descriptions.Item label="Remarks">
-                                                {item.remarks}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.purpose && (
-                                            <Descriptions.Item label="Purpose">
-                                                {item.purpose}
+                                        {item.status && (
+                                            <Descriptions.Item label="Status">
+                                                <Tag color={
+                                                    item.status.toLowerCase() === 'completed' ? 'green' : 
+                                                    item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
+                                                }>
+                                                    {item.status}
+                                                </Tag>
                                             </Descriptions.Item>
                                         )}
                                     </Descriptions>
@@ -692,15 +673,14 @@ const ExportButton = ({
     const exportToExcel = () => {
         try {
             const dataForExport = activities.map(activity => {
-                // Common structure shared by BDM modules
+                // Common structure for Cluster 1 modules
                 const base = {
-                    'Company': activity.company || '',
                     'Category': selectedCategory?.name || '',
                     'Priority': getPriorityLabel(activity.priority),
-                    'Responsible BDM(s)': Array.isArray(activity.responsible_bdm_names)
-                        ? activity.responsible_bdm_names.join(', ')
-                        : activity.responsible_bdm_names || '',
-                    'Remarks': activity.remarks || '',
+                    'Date': activity.date
+                        ? dayjs(activity.date).format('YYYY-MM-DD')
+                        : '',
+                    'Status': activity.status || '',
                     'Created Date': activity.created_at
                         ? dayjs(activity.created_at).format('YYYY-MM-DD')
                         : ''
@@ -708,63 +688,23 @@ const ExportButton = ({
 
                 // Extend base based on table type
                 switch (selectedCategory?.id) {
-                    case 'college_session':
-                        return {
-                            ...base,
-                            'College Name': activity.college_name || '',
-                            'Session': activity.session || '',
-                            'Start Date': activity.start_date
-                                ? dayjs(activity.start_date).format('YYYY-MM-DD')
-                                : ''
-                        };
-
                     case 'meetings':
                         return {
                             ...base,
                             'Subject': activity.subject || '',
-                            'Date': activity.date
-                                ? dayjs(activity.date).format('YYYY-MM-DD')
-                                : '',
-                            'Status': activity.status || ''
                         };
 
-                    case 'principle_visit':
+                    case 'special_task':
                         return {
                             ...base,
-                            'Principle Name': activity.principle_name || '',
-                            'Visitors Name': activity.visitors_name || '',
-                            'Visitors Job': activity.visitors_job || '',
-                            'Purpose': activity.purpose || '',
-                            'Visit Start': activity.visit_duration_start
-                                ? dayjs(activity.visit_duration_start).format('YYYY-MM-DD HH:mm')
-                                : '',
-                            'Visit End': activity.visit_duration_end
-                                ? dayjs(activity.visit_duration_end).format('YYYY-MM-DD HH:mm')
-                                : ''
-                        };
-
-                    case 'promotional_activities':
-                        return {
-                            ...base,
-                            'Promotional Activity': activity.promotional_activity || '',
-                            'Type': activity.type || '',
-                            'Date': activity.date
-                                ? dayjs(activity.date).format('YYYY-MM-DD')
-                                : ''
+                            'Task': activity.task || '',
                         };
 
                     case 'visit_plan':
                         return {
                             ...base,
-                            'Schedule Date': activity.schedule_date
-                                ? dayjs(activity.schedule_date).format('YYYY-MM-DD')
-                                : '',
                             'Name': activity.name || '',
                             'Area': activity.area || '',
-                            'Customer': activity.customer || '',
-                            'Purpose': activity.purpose || '',
-                            'ROI': activity.roi || '',
-                            'Status': activity.status || ''
                         };
 
                     default:
@@ -774,7 +714,7 @@ const ExportButton = ({
 
             const worksheet = XLSX.utils.json_to_sheet(dataForExport);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'BDM Export');
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Cluster 1 Export');
 
             // Auto-size columns
             const colWidths = [];
@@ -789,7 +729,7 @@ const ExportButton = ({
                 worksheet['!cols'] = colWidths;
             }
 
-            const fileName = `${selectedCategory?.name || 'bdm_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+            const fileName = `${selectedCategory?.name || 'cluster_1_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
 
             XLSX.writeFile(workbook, fileName);
 
@@ -807,27 +747,22 @@ const ExportButton = ({
         try {
             const doc = new jsPDF();
             doc.setFontSize(16);
-            doc.text('BDM Export Summary', 14, 15);
+            doc.text('Cluster 1 Export Summary', 14, 15);
             doc.setFontSize(10);
             const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
             doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
 
-            const headers = ['Company', 'Category', 'Priority', 'Responsible BDMs', 'Date'];
+            const headers = ['Category', 'Priority', 'Date', 'Status'];
             const tableData = activities.map(a => [
-                a.company || '',
                 selectedCategory?.name || '',
                 getPriorityLabel(a.priority),
-                Array.isArray(a.responsible_bdm_names)
-                    ? a.responsible_bdm_names.join(', ')
-                    : a.responsible_bdm_names || '',
-                a[selectedCategory?.dateField] 
-                    ? dayjs(a[selectedCategory?.dateField]).format('YYYY-MM-DD')
-                    : ''
+                a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
+                a.status || ''
             ]);
 
             let y = 35;
             const xStart = 14;
-            const colWidths = [40, 30, 20, 50, 25];
+            const colWidths = [40, 30, 30, 30];
             const lineHeight = 7;
             const pageHeight = doc.internal.pageSize.height;
 
@@ -858,7 +793,7 @@ const ExportButton = ({
                 y += lineHeight;
             });
 
-            const fileName = `${selectedCategory?.name || 'bdm_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            const fileName = `${selectedCategory?.name || 'cluster_1_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
 
             doc.save(fileName);
             toast.success('PDF file exported successfully!');
@@ -904,7 +839,7 @@ const ExportButton = ({
     );
 };
 
-const BDM = () => {
+const Cluster1 = () => {
     // Error handling states
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -929,7 +864,7 @@ const BDM = () => {
 
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-    const [bdmUsers, setBdmUsers] = useState([]);
+    const [cluster1Users, setCluster1Users] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [userSchedule, setUserSchedule] = useState([]);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -946,62 +881,37 @@ const BDM = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Updated BDM Categories configuration with proper category IDs
-    const bdmCategories = [
+    // Updated Cluster 1 Categories configuration to match your database structure
+    const cluster1Categories = [
         {
             id: 'visit_plan',
             name: 'Visit Plan',
-            table: 'bdm_visit_plan',
+            table: 'cluster_1_visit_plan',
             type: 'Task',
             icon: <CheckCircleOutlined />,
-            dateField: 'schedule_date',
+            dateField: 'date',
             color: '#1890ff',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.VISIT_PLAN
-        },
-        {
-            id: 'principle_visit',
-            name: 'Principle Visit',
-            table: 'bdm_principle_visit',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
-            dateField: 'visit_duration_start',
-            color: '#52c41a',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.PRINCIPLE_VISIT
+            hasTimeFields: false
         },
         {
             id: 'meetings',
             name: 'Meetings',
-            table: 'bdm_meetings',
+            table: 'cluster_1_meetings',
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#fa8c16',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.MEETINGS
+            hasTimeFields: false
         },
         {
-            id: 'college_session',
-            name: 'College Sessions',
-            table: 'bdm_college_session',
-            type: 'Meeting',
-            icon: <CalendarOutlined />,
-            dateField: 'start_date',
-            color: '#722ed1',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.COLLEGE_SESSION
-        },
-        {
-            id: 'promotional_activities',
-            name: 'Promotional Activities',
-            table: 'bdm_promotional_activities',
+            id: 'special_task',
+            name: 'Special Task',
+            table: 'cluster_1_special_task',
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'date',
-            color: '#eb2f96',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.PROMOTIONAL_ACTIVITIES
+            color: '#52c41a',
+            hasTimeFields: false
         }
     ];
 
@@ -1086,7 +996,7 @@ const BDM = () => {
     const resetErrorBoundary = useCallback(() => {
         setError(null);
         setRetryCount(prev => prev + 1);
-        initializeBDM();
+        initializeCluster1();
     }, []);
 
     // Auto-refresh setup
@@ -1094,7 +1004,7 @@ const BDM = () => {
         try {
             if (autoRefresh) {
                 const interval = setInterval(() => {
-                    refreshBDMData();
+                    refreshCluster1Data();
                 }, 2 * 60 * 1000); // 2 minutes
 
                 return () => clearInterval(interval);
@@ -1104,14 +1014,14 @@ const BDM = () => {
         }
     }, [autoRefresh, handleError]);
 
-    const refreshBDMData = async () => {
+    const refreshCluster1Data = async () => {
         if (isRefreshing) return;
 
         setIsRefreshing(true);
         try {
             await fetchTableData();
             safeSetState(setLastRefresh, new Date());
-            toast.info('BDM data updated automatically');
+            toast.info('Cluster 1 data updated automatically');
         } catch (error) {
             handleError(error, 'auto-refresh');
         } finally {
@@ -1124,7 +1034,7 @@ const BDM = () => {
         try {
             await fetchTableData();
             safeSetState(setLastRefresh, new Date());
-            toast.success('BDM data refreshed successfully');
+            toast.success('Cluster 1 data refreshed successfully');
         } catch (error) {
             handleError(error, 'manual refresh');
         } finally {
@@ -1161,28 +1071,28 @@ const BDM = () => {
         }
     };
 
-    // Initialize BDM module
-    const initializeBDM = async () => {
+    // Initialize Cluster 1 module
+    const initializeCluster1 = async () => {
         setLoading(true);
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
                 fetchProfiles(),
-                fetchBDMUsers()
+                fetchCluster1Users()
             ]);
 
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
         } catch (error) {
-            handleError(error, 'initializing BDM module');
+            handleError(error, 'initializing Cluster 1 module');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        initializeBDM();
+        initializeCluster1();
     }, [retryCount]);
 
     useEffect(() => {
@@ -1223,20 +1133,59 @@ const BDM = () => {
         }
     };
 
-    const fetchBDMUsers = async () => {
+    const fetchCluster1Users = async () => {
         try {
-            // Get all users in BDM department
+            // First get the Cluster 1 department ID
+            const { data: deptData, error: deptError } = await supabase
+                .from('departments')
+                .select('id')
+                .eq('name', 'Cluster 1')
+                .single();
+
+            if (deptError) {
+                // If Cluster 1 department doesn't exist, try case-insensitive search
+                const { data: deptDataAlt, error: deptErrorAlt } = await supabase
+                    .from('departments')
+                    .select('id')
+                    .ilike('name', '%cluster 1%')
+                    .single();
+
+                if (deptErrorAlt) throw deptErrorAlt;
+                if (!deptDataAlt) {
+                    toast.warning('Cluster 1 department not found. Using all users as fallback.');
+                    // Fallback to all users
+                    const { data: allUsers, error: usersError } = await supabase
+                        .from('profiles')
+                        .select('id, full_name, email, department_id')
+                        .order('full_name');
+
+                    if (usersError) throw usersError;
+                    safeSetState(setCluster1Users, allUsers || []);
+                    return;
+                }
+
+                safeSetState(setCluster1Users, []);
+                return;
+            }
+
+            if (!deptData) {
+                toast.warning('Cluster 1 department not found');
+                safeSetState(setCluster1Users, []);
+                return;
+            }
+
+            // Then get all users in Cluster 1 department
             const { data: usersData, error: usersError } = await supabase
                 .from('profiles')
                 .select('id, full_name, email, department_id')
-                .eq('department_id', BDM_DEPARTMENT_ID)
+                .eq('department_id', deptData.id)
                 .order('full_name');
 
             if (usersError) throw usersError;
-            safeSetState(setBdmUsers, usersData || []);
+            safeSetState(setCluster1Users, usersData || []);
         } catch (error) {
-            handleError(error, 'fetching BDM users');
-            safeSetState(setBdmUsers, []);
+            handleError(error, 'fetching Cluster 1 users');
+            safeSetState(setCluster1Users, []);
         }
     };
 
@@ -1255,8 +1204,6 @@ const BDM = () => {
             let query = supabase
                 .from(selectedCategory.table)
                 .select('*')
-                .eq('department_id', BDM_DEPARTMENT_ID)
-                .eq('category_id', selectedCategory.categoryId)
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
                 .order('priority', { ascending: false }) // Sort by priority (high to low)
@@ -1289,11 +1236,9 @@ const BDM = () => {
 
         try {
             const tableMap = {
-                'visit_plan': 'bdm_visit_plan_fb',
-                'principle_visit': 'bdm_principle_visit_fb',
-                'meetings': 'bdm_meetings_fb',
-                'college_session': 'bdm_college_session_fb',
-                'promotional_activities': 'bdm_promotional_activities_fb'
+                'visit_plan': 'cluster_1_visit_plan_fb',
+                'meetings': 'cluster_1_meetings_fb',
+                'special_task': 'cluster_1_special_task_fb'
             };
 
             const feedbackTable = tableMap[category.id];
@@ -1329,9 +1274,9 @@ const BDM = () => {
             let allActivities = [];
 
             // Get user details
-            const user = bdmUsers.find(u => u.id === userId);
+            const user = cluster1Users.find(u => u.id === userId);
             if (!user) {
-                console.warn('User not found in BDM users list');
+                console.warn('User not found in Cluster 1 users list');
                 safeSetState(setUserSchedule, []);
                 return;
             }
@@ -1351,15 +1296,13 @@ const BDM = () => {
 
             if (personalError) console.error('Personal meetings error:', personalError);
 
-            // 2. BDM activities - Updated for new table structure
-            for (const category of bdmCategories) {
+            // 2. Cluster 1 activities
+            for (const category of cluster1Categories) {
                 console.log(`Checking category: ${category.name}`);
 
                 let query = supabase
                     .from(category.table)
                     .select('*')
-                    .eq('department_id', BDM_DEPARTMENT_ID)
-                    .eq('category_id', category.categoryId)
                     .gte(category.dateField, formattedStart)
                     .lte(category.dateField, formattedEnd)
                     .order('priority', { ascending: false })
@@ -1368,48 +1311,12 @@ const BDM = () => {
                 let categoryActivities = [];
 
                 try {
-                    // Different filtering strategies for each category based on new structure
-                    switch (category.id) {
-                        case 'visit_plan':
-                        case 'college_session':
-                        case 'promotional_activities':
-                            // These use responsible_bdm_names field (text array)
-                            const { data: textArrayData } = await query;
-                            if (textArrayData) {
-                                categoryActivities = textArrayData.filter(item => {
-                                    const responsibleUsers = item.responsible_bdm_names;
-                                    if (!responsibleUsers) return false;
-
-                                    // Handle both string arrays and comma-separated strings
-                                    if (Array.isArray(responsibleUsers)) {
-                                        return responsibleUsers.some(name =>
-                                            name && name.toLowerCase().includes(userName.toLowerCase())
-                                        );
-                                    } else if (typeof responsibleUsers === 'string') {
-                                        return responsibleUsers.toLowerCase().includes(userName.toLowerCase());
-                                    }
-                                    return false;
-                                });
-                            }
-                            break;
-
-                        case 'principle_visit':
-                            // This uses responsible_bdm_ids field (uuid array)
-                            const { data: uuidArrayData } = await query.contains('responsible_bdm_ids', [userId]);
-                            categoryActivities = uuidArrayData || [];
-                            break;
-
-                        case 'meetings':
-                            // This table doesn't have specific responsible field in new structure
-                            // We'll include all meetings for now, or you can add specific logic
-                            const { data: meetingsData } = await query;
-                            categoryActivities = meetingsData || [];
-                            break;
-
-                        default:
-                            const { data: defaultData } = await query;
-                            categoryActivities = defaultData || [];
-                            break;
+                    // Get all activities for this category
+                    const { data } = await query;
+                    if (data) {
+                        // For Cluster 1, we'll include all activities since there's no specific user assignment
+                        // You can modify this logic based on your user assignment requirements
+                        categoryActivities = data;
                     }
 
                     console.log(`Category ${category.name} activities:`, categoryActivities.length);
@@ -1418,7 +1325,7 @@ const BDM = () => {
                     if (categoryActivities.length > 0) {
                         allActivities.push(...categoryActivities.map(activity => ({
                             ...activity,
-                            type: 'bdm_activity',
+                            type: 'cluster_1_activity',
                             activity_type: category.name,
                             source_table: category.table,
                             category_id: category.id
@@ -1506,24 +1413,8 @@ const BDM = () => {
 
             // Format date fields based on category with error handling
             try {
-                if (selectedCategory.id === 'visit_plan' && record.schedule_date) {
-                    formattedRecord.schedule_date = safeDayjs(record.schedule_date);
-                }
-                if (selectedCategory.id === 'principle_visit') {
-                    if (record.visit_duration_start) {
-                        formattedRecord.visit_duration_start = safeDayjs(record.visit_duration_start);
-                    }
-                    if (record.visit_duration_end) {
-                        formattedRecord.visit_duration_end = safeDayjs(record.visit_duration_end);
-                    }
-                }
-                if ((selectedCategory.id === 'meetings' || selectedCategory.id === 'promotional_activities') && record.date) {
+                if (record.date) {
                     formattedRecord.date = safeDayjs(record.date);
-                }
-                if (selectedCategory.id === 'college_session') {
-                    if (record.start_date) {
-                        formattedRecord.start_date = safeDayjs(record.start_date);
-                    }
                 }
             } catch (dateError) {
                 console.warn('Error formatting dates for editing:', dateError);
@@ -1549,7 +1440,7 @@ const BDM = () => {
             if (error) throw error;
 
             await notifyDepartmentOperation(
-                'bdm',
+                'cluster_1',
                 selectedCategory.name,
                 NOTIFICATION_TYPES.DELETE,
                 record,
@@ -1623,12 +1514,8 @@ const BDM = () => {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission with proper department_id and category_id
-            const submitData = {
-                ...values,
-                department_id: BDM_DEPARTMENT_ID,
-                category_id: selectedCategory.categoryId
-            };
+            // Prepare data for submission
+            const submitData = { ...values };
 
             // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
@@ -1657,7 +1544,7 @@ const BDM = () => {
                 result = data[0];
 
                 await notifyDepartmentOperation(
-                    'bdm',
+                    'cluster_1',
                     selectedCategory.name,
                     NOTIFICATION_TYPES.UPDATE,
                     result,
@@ -1679,7 +1566,7 @@ const BDM = () => {
                 result = data[0];
 
                 await notifyDepartmentOperation(
-                    'bdm',
+                    'cluster_1',
                     selectedCategory.name,
                     NOTIFICATION_TYPES.CREATE,
                     result,
@@ -1760,67 +1647,39 @@ const BDM = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
+
+
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return [
-                        { title: 'Schedule Date', dataIndex: 'schedule_date', key: 'schedule_date', width: 120 },
+
+                        { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
-                        { title: 'Customer', dataIndex: 'customer', key: 'customer', width: 150 },
-                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
-                        { title: 'ROI', dataIndex: 'roi', key: 'roi', width: 100 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
-                        priorityColumn,
-                        actionColumn
-                    ];
-
-                case 'principle_visit':
-                    return [
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Principle Name', dataIndex: 'principle_name', key: 'principle_name', width: 150 },
-                        { title: 'Visitors Name', dataIndex: 'visitors_name', key: 'visitors_name', width: 150 },
-                        { title: 'Visitors Job', dataIndex: 'visitors_job', key: 'visitors_job', width: 120 },
-                        { title: 'Visit Start', dataIndex: 'visit_duration_start', key: 'visit_duration_start', width: 120 },
-                        { title: 'Visit End', dataIndex: 'visit_duration_end', key: 'visit_duration_end', width: 120 },
-                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
-                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'meetings':
                     return [
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
-                        priorityColumn,
                         actionColumn
                     ];
 
-                case 'college_session':
+                case 'special_task':
                     return [
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'College Name', dataIndex: 'college_name', key: 'college_name', width: 150 },
-                        { title: 'Session', dataIndex: 'session', key: 'session', width: 150 },
-                        { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        priorityColumn,
-                        actionColumn
-                    ];
 
-                case 'promotional_activities':
-                    return [
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
-                        { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        priorityColumn,
+                        { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
                         actionColumn
                     ];
 
                 default:
-                    return [priorityColumn, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1835,18 +1694,22 @@ const BDM = () => {
             const commonFields = (
                 <>
                     <Form.Item
-                        name="company"
-                        label="Company"
-                        rules={[{ required: true, message: 'Please enter company name' }]}
+                        name="date"
+                        label="Date"
+                        rules={[{ required: true, message: 'Please select date' }]}
                     >
-                        <Input placeholder="Enter company name" />
+                        <DatePicker
+                            style={{ width: '100%' }}
+                            format="DD/MM/YYYY"
+                            placeholder="Select date"
+                        />
                     </Form.Item>
 
                     <Form.Item
-                        name="remarks"
-                        label="Remarks"
+                        name="status"
+                        label="Status"
                     >
-                        <TextArea rows={3} placeholder="Enter any remarks or notes" />
+                        <Input placeholder="Enter status" />
                     </Form.Item>
 
                     <Form.Item
@@ -1866,28 +1729,6 @@ const BDM = () => {
                             ))}
                         </Select>
                     </Form.Item>
-
-                    {/* Responsible BDMs Selection */}
-                    <Form.Item
-                        name="responsible_bdm_ids"
-                        label="Responsible BDMs"
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select responsible BDMs"
-                            style={{ width: '100%' }}
-                            optionFilterProp="children"
-                            filterOption={(input, option) =>
-                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                            }
-                        >
-                            {bdmUsers.map(user => (
-                                <Option key={user.id} value={user.id}>
-                                    {user.full_name || user.email}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
                 </>
             );
 
@@ -1895,17 +1736,6 @@ const BDM = () => {
                 case 'visit_plan':
                     return (
                         <>
-                            <Form.Item
-                                name="schedule_date"
-                                label="Schedule Date"
-                                rules={[{ required: true, message: 'Please select schedule date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select schedule date"
-                                />
-                            </Form.Item>
                             {commonFields}
                             <Form.Item
                                 name="name"
@@ -1920,102 +1750,12 @@ const BDM = () => {
                             >
                                 <Input placeholder="Enter area" />
                             </Form.Item>
-                            <Form.Item
-                                name="customer"
-                                label="Customer"
-                            >
-                                <Input placeholder="Enter customer" />
-                            </Form.Item>
-                            <Form.Item
-                                name="purpose"
-                                label="Purpose"
-                                rules={[{ required: true, message: 'Please enter purpose' }]}
-                            >
-                                <TextArea rows={3} placeholder="Enter purpose" />
-                            </Form.Item>
-                            <Form.Item
-                                name="roi"
-                                label="ROI"
-                            >
-                                <Input placeholder="Enter ROI" />
-                            </Form.Item>
-                            <Form.Item
-                                name="status"
-                                label="Status"
-                            >
-                                <Input placeholder="Enter status" />
-                            </Form.Item>
-                        </>
-                    );
-
-                case 'principle_visit':
-                    return (
-                        <>
-                            {commonFields}
-                            <Form.Item
-                                name="principle_name"
-                                label="Principle Name"
-                                rules={[{ required: true, message: 'Please enter principle name' }]}
-                            >
-                                <Input placeholder="Enter principle name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="visitors_name"
-                                label="Visitors Name"
-                            >
-                                <Input placeholder="Enter visitors name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="visitors_job"
-                                label="Visitors Job"
-                            >
-                                <Input placeholder="Enter visitors job title" />
-                            </Form.Item>
-                            <Form.Item
-                                name="visit_duration_start"
-                                label="Visit Start Date"
-                                rules={[{ required: true, message: 'Please select start date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select visit start date"
-                                />
-                            </Form.Item>
-                            <Form.Item
-                                name="visit_duration_end"
-                                label="Visit End Date"
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select visit end date"
-                                />
-                            </Form.Item>
-                            <Form.Item
-                                name="purpose"
-                                label="Purpose"
-                                rules={[{ required: true, message: 'Please enter purpose' }]}
-                            >
-                                <TextArea rows={3} placeholder="Enter visit purpose" />
-                            </Form.Item>
                         </>
                     );
 
                 case 'meetings':
                     return (
                         <>
-                            <Form.Item
-                                name="date"
-                                label="Meeting Date"
-                                rules={[{ required: true, message: 'Please select meeting date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select meeting date"
-                                />
-                            </Form.Item>
                             {commonFields}
                             <Form.Item
                                 name="subject"
@@ -2024,73 +1764,19 @@ const BDM = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter meeting subject" />
                             </Form.Item>
-                            <Form.Item
-                                name="status"
-                                label="Status"
-                            >
-                                <Input placeholder="Enter status" />
-                            </Form.Item>
                         </>
                     );
 
-                case 'college_session':
+                case 'special_task':
                     return (
                         <>
                             {commonFields}
                             <Form.Item
-                                name="college_name"
-                                label="College Name"
-                                rules={[{ required: true, message: 'Please enter college name' }]}
+                                name="task"
+                                label="Task"
+                                rules={[{ required: true, message: 'Please enter task' }]}
                             >
-                                <Input placeholder="Enter college name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="session"
-                                label="Session"
-                            >
-                                <TextArea rows={3} placeholder="Enter session details" />
-                            </Form.Item>
-                            <Form.Item
-                                name="start_date"
-                                label="Start Date"
-                                rules={[{ required: true, message: 'Please select start date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select session start date"
-                                />
-                            </Form.Item>
-                        </>
-                    );
-
-                case 'promotional_activities':
-                    return (
-                        <>
-                            <Form.Item
-                                name="date"
-                                label="Activity Date"
-                                rules={[{ required: true, message: 'Please select activity date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select activity date"
-                                />
-                            </Form.Item>
-                            {commonFields}
-                            <Form.Item
-                                name="promotional_activity"
-                                label="Promotional Activity"
-                                rules={[{ required: true, message: 'Please enter promotional activity' }]}
-                            >
-                                <Input placeholder="Enter promotional activity" />
-                            </Form.Item>
-                            <Form.Item
-                                name="type"
-                                label="Activity Type"
-                            >
-                                <Input placeholder="Enter activity type" />
+                                <TextArea rows={3} placeholder="Enter task details" />
                             </Form.Item>
                         </>
                     );
@@ -2149,7 +1835,7 @@ const BDM = () => {
 
     // Render loading state
     if (loading && !selectedCategory) {
-        return <LoadingSpinner tip="Loading BDM module..." />;
+        return <LoadingSpinner tip="Loading Cluster 1 module..." />;
     }
 
     const stats = getStats();
@@ -2161,7 +1847,7 @@ const BDM = () => {
             {/* Error Alert */}
             {error && (
                 <Alert
-                    message="BDM Module Error"
+                    message="Cluster 1 Module Error"
                     description={`${error.context}: ${error.message}`}
                     type="error"
                     showIcon
@@ -2190,7 +1876,7 @@ const BDM = () => {
                 <Row justify="space-between" align="middle" gutter={[16, 16]}>
                     <Col xs={24} sm={12} md={8}>
                         <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-                            <TeamOutlined /> BDM Department
+                            <TeamOutlined /> Cluster 1 Department
                         </Title>
                     </Col>
                     <Col xs={24} sm={12} md={8}>
@@ -2234,7 +1920,7 @@ const BDM = () => {
             {autoRefresh && (
                 <Alert
                     message="Auto-refresh Enabled"
-                    description="BDM data will automatically update every 2 minutes."
+                    description="Cluster 1 data will automatically update every 2 minutes."
                     type="info"
                     showIcon
                     closable
@@ -2244,16 +1930,16 @@ const BDM = () => {
 
             {/* Category Cards */}
             <Card
-                title="BDM Categories"
+                title="Cluster 1 Categories"
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
-                        {bdmCategories.length} Categories Available
+                        {cluster1Categories.length} Categories Available
                     </Tag>
                 }
             >
                 <Row gutter={[16, 16]}>
-                    {bdmCategories.map((category) => (
+                    {cluster1Categories.map((category) => (
                         <Col xs={24} sm={12} md={8} lg={6} key={category.id}>
                             <CategoryCard
                                 category={category}
@@ -2353,7 +2039,7 @@ const BDM = () => {
             {/* Statistics */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <>
-                    <BDMStatistics stats={stats} loading={loading} />
+                    <Cluster1Statistics stats={stats} loading={loading} />
 
                     {/* Progress Bar for Completion Rate */}
                     <Card style={{ marginBottom: 24 }}>
@@ -2504,7 +2190,7 @@ const BDM = () => {
                 title={
                     <Space>
                         <UserOutlined />
-                        Check BDM Team Availability
+                        Check Cluster 1 Team Availability
                         <Tag color="blue">
                             Default: {availabilityDateRange[0] ? safeDayjs(availabilityDateRange[0]).format('DD/MM/YYYY') : ''} - {availabilityDateRange[1] ? safeDayjs(availabilityDateRange[1]).format('DD/MM/YYYY') : ''}
                         </Tag>
@@ -2530,16 +2216,16 @@ const BDM = () => {
                         </Text>
                     </Card>
 
-                    {/* BDM Users List */}
-                    <Card size="small" title="BDM Team Members">
-                        {bdmUsers.length === 0 ? (
+                    {/* Cluster 1 Users List */}
+                    <Card size="small" title="Cluster 1 Team Members">
+                        {cluster1Users.length === 0 ? (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="No BDM team members found"
+                                description="No Cluster 1 team members found"
                             />
                         ) : (
                             <List
-                                dataSource={bdmUsers}
+                                dataSource={cluster1Users}
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
@@ -2565,7 +2251,7 @@ const BDM = () => {
                                             description={
                                                 <Badge
                                                     status="success"
-                                                    text="BDM Team Member"
+                                                    text="Cluster 1 Team Member"
                                                 />
                                             }
                                         />
@@ -2615,9 +2301,9 @@ const BDM = () => {
 
             {/* Instructions */}
             {!selectedCategory && (
-                <Card title="How to Use BDM Module" style={{ borderRadius: '12px' }}>
+                <Card title="How to Use Cluster 1 Module" style={{ borderRadius: '12px' }}>
                     <Alert
-                        message="Manage BDM Department Data"
+                        message="Manage Cluster 1 Department Data"
                         description={
                             <div>
                                 <Text strong>Follow these steps:</Text>
@@ -2633,7 +2319,7 @@ const BDM = () => {
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
                                 </ol>
                                 <Text type="secondary">
-                                    Each category represents different BDM activities recorded in the system.
+                                    Each category represents different Cluster 1 activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
                                 </Text>
                             </div>
@@ -2647,4 +2333,4 @@ const BDM = () => {
     );
 };
 
-export default BDM;
+export default Cluster1;

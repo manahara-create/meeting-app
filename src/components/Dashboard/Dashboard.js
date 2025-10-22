@@ -20,45 +20,139 @@ import {
   Empty,
   Result,
   Table,
-  Segmented,
   Divider,
   DatePicker,
   Tooltip,
-  ConfigProvider
+  ConfigProvider,
+  Select,
+  Dropdown,
+  Collapse,
+  Form,
+  Input
 } from 'antd';
 import {
   CalendarOutlined,
   TeamOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  UserOutlined,
   SearchOutlined,
   SyncOutlined,
   ClockCircleOutlined,
-  WarningOutlined,
   ReloadOutlined,
   FrownOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
   FilterOutlined,
   EyeOutlined,
   LeftOutlined,
   RightOutlined,
-  IdcardOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  UserOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import timeGridPlugin from '@fullcalendar/timegrid';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+
+dayjs.extend(weekOfYear);
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
+const { Option } = Select;
+const { TextArea } = Input;
+
+// Organizational Legends Configuration
+const organizationalLegends = {
+  BMPL: { name: 'BMPL', color: '#3498db' },
+  AIPL: { name: 'AIPL', color: '#e74c3c' },
+  Cash: { name: 'Cash', color: '#2ecc71' },
+  'End Month': { name: 'End Month', color: '#f39c12' },
+  VST: { name: 'VST', color: '#9b59b6' },
+  'Rolle-Over': { name: 'Rolle-Over', color: '#1abc9c' },
+  'College Session': { name: 'College Session', color: '#34495e' },
+  'Hi-Tech': { name: 'Hi-Tech', color: '#e67e22' },
+  'Exco OP': { name: 'Exco OP', color: '#27ae60' },
+  'Exco FIN': { name: 'Exco FIN', color: '#8e44ad' },
+  'PRE EXCO SCMT': { name: 'PRE EXCO SCMT', color: '#d35400' },
+  'PRE EXCO ASSD': { name: 'PRE EXCO ASSD', color: '#c0392b' },
+  'PRE EXCO HR': { name: 'PRE EXCO HR', color: '#16a085' },
+  'PRE EXCO SALES': { name: 'PRE EXCO SALES', color: '#2980b9' },
+  'PRE EXCO IT': { name: 'PRE EXCO IT', color: '#f1c40f' },
+  'Monthly Meeting BDM': { name: 'Monthly Meeting BDM', color: '#7f8c8d' },
+  'Monthly Meeting EHPL': { name: 'Monthly Meeting EHPL', color: '#2c3e50' },
+  'Monthly Meeting SCPL': { name: 'Monthly Meeting SCPL', color: '#e84393' }
+};
+
+// Function to calculate luminance and determine text color
+const getTextColorBasedOnBackground = (backgroundColor) => {
+  // Convert hex to RGB
+  const hex = backgroundColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Return black for light colors, white for dark colors
+  return luminance > 0.5 ? '#000000' : '#FFFFFF';
+};
+
+// Function to find matching legend from title
+const findMatchingLegend = (title) => {
+  if (!title) return null;
+
+  const normalizedTitle = title.trim().toLowerCase();
+
+  // Exact matches first
+  for (const [key, legend] of Object.entries(organizationalLegends)) {
+    if (normalizedTitle === legend.name.toLowerCase()) {
+      return { key, legend };
+    }
+  }
+
+  // Partial matches
+  for (const [key, legend] of Object.entries(organizationalLegends)) {
+    if (normalizedTitle.includes(legend.name.toLowerCase()) ||
+      legend.name.toLowerCase().includes(normalizedTitle)) {
+      return { key, legend };
+    }
+  }
+
+  // Special case for variations
+  const variations = {
+    'monthly meeting bdm': 'Monthly Meeting BDM',
+    'monthly meeting ehpl': 'Monthly Meeting EHPL',
+    'monthly meeting scpl': 'Monthly Meeting SCLP',
+    'monthly meeting scpl': 'Monthly Meeting SCLP',
+    'rolle over': 'Rolle-Over',
+    'rolle-over': 'Rolle-Over',
+    'college': 'College Session',
+    'exco': 'Exco OP',
+    'pre exco': 'PRE EXCO SCMT',
+    'end': 'End Month',
+    'hi tech': 'Hi-Tech',
+    'hi-tech': 'Hi-Tech'
+  };
+
+  for (const [variation, legendName] of Object.entries(variations)) {
+    if (normalizedTitle.includes(variation)) {
+      const legend = organizationalLegends[legendName];
+      return { key: legendName, legend };
+    }
+  }
+
+  return null;
+};
 
 // Priority and status configurations
 const priorityColors = {
@@ -85,213 +179,1351 @@ const statusColors = {
   in_progress: '#3498db'
 };
 
-// Department configuration
+// Departments configuration
 const departments = {
   BDM: { name: 'BDM', color: '#3498db' },
-  SCMT: { name: 'SCMT', color: '#27ae60' },
-  SALES_OPERATIONS: { name: 'Sales Operations', color: '#f39c12' }
+  CLUSTER_1: { name: 'Cluster 1', color: '#e74c3c' },
+  CLUSTER_2: { name: 'Cluster 2', color: '#9b59b6' },
+  CLUSTER_3: { name: 'Cluster 3', color: '#34495e' },
+  CLUSTER_4: { name: 'Cluster 4', color: '#e67e22' },
+  CLUSTER_5: { name: 'Cluster 5', color: '#1abc9c' },
+  CLUSTER_6: { name: 'Cluster 6', color: '#d35400' },
+  CUSTOMER_CARE: { name: 'Customer Care', color: '#27ae60' },
+  E_HEALTHCARE: { name: 'E-Healthcare', color: '#8e44ad' },
+  HI_TECH: { name: 'Hi-Tech', color: '#f39c12' },
+  HR: { name: 'HR', color: '#16a085' },
+  IMPORTS: { name: 'Imports', color: '#c0392b' },
+  REGULATORY: { name: 'Regulatory', color: '#7f8c8d' },
+  SALES_OPERATIONS: { name: 'Sales Operations', color: '#2c3e50' },
+  SOMT: { name: 'SOMT', color: '#d35400' },
+  STORES: { name: 'Stores', color: '#27ae60' },
+  SURGI_IMAGING: { name: 'Surgi Imaging', color: '#2980b9' },
+  SURGI_SURGICARE: { name: 'Surgi Surgicare', color: '#8e44ad' }
 };
 
-// Table to category mapping
+// Complete table to category mapping matching database schema
 const tableCategoryMapping = {
-  // BDM Department Tables
-  'bdm_customer_visit': { type: 'task', categoryName: 'Customer Visit', department: 'BDM' },
-  'bdm_principle_visit': { type: 'task', categoryName: 'Principle Visit', department: 'BDM' },
-  'bdm_weekly_meetings': { type: 'meeting', categoryName: 'Weekly Meetings', department: 'BDM' },
-  'bdm_college_session': { type: 'meeting', categoryName: 'College Session', department: 'BDM' },
-  'bdm_promotional_activities': { type: 'task', categoryName: 'Promotional Activities', department: 'BDM' },
-  
-  // Sales Operations Department Tables
-  'sales_operations_meetings': { type: 'meeting', categoryName: 'Meetings', department: 'SALES_OPERATIONS' },
-  'sales_operations_tasks': { type: 'task', categoryName: 'Special Tasks', department: 'SALES_OPERATIONS' },
-  
-  // SCMT Department Tables
-  'scmt_d_n_d': { type: 'task', categoryName: 'Delivery and Distributions', department: 'SCMT' },
-  'scmt_meetings_and_sessions': { type: 'meeting', categoryName: 'Meetings and Sessions', department: 'SCMT' },
-  'scmt_others': { type: 'task', categoryName: 'Other Operation Activities', department: 'SCMT' },
-  'scmt_weekly_meetings': { type: 'task', categoryName: 'Upcoming Shipments', department: 'SCMT' }
+  // BDM Department
+  'bdm_college_session': { type: 'meeting', categoryName: 'BDM - College Session', department: 'BDM', shortName: 'College' },
+  'bdm_meetings': { type: 'meeting', categoryName: 'BDM - Meeting Schedule', department: 'BDM', shortName: 'Meeting' },
+  'bdm_principle_visit': { type: 'task', categoryName: 'BDM - Principle Visit', department: 'BDM', shortName: 'Principle' },
+  'bdm_promotional_activities': { type: 'task', categoryName: 'BDM - Promotional Activities', department: 'BDM', shortName: 'Promo' },
+  'bdm_visit_plan': { type: 'task', categoryName: 'BDM - Visit Plan', department: 'BDM', shortName: 'Visit' },
+
+  // Cluster 1
+  'cluster_1_meetings': { type: 'meeting', categoryName: 'Cluster 1 - Meetings', department: 'CLUSTER_1', shortName: 'C1 Meet' },
+  'cluster_1_special_task': { type: 'task', categoryName: 'Cluster 1 - Special Tasks', department: 'CLUSTER_1', shortName: 'C1 Task' },
+  'cluster_1_visit_plan': { type: 'task', categoryName: 'Cluster 1 - Visit Plan', department: 'CLUSTER_1', shortName: 'C1 Visit' },
+
+  // Cluster 2
+  'cluster_2_meetings': { type: 'meeting', categoryName: 'Cluster 2 - Meetings', department: 'CLUSTER_2', shortName: 'C2 Meet' },
+  'cluster_2_special_task': { type: 'task', categoryName: 'Cluster 2 - Special Tasks', department: 'CLUSTER_2', shortName: 'C2 Task' },
+  'cluster_2_visit_plan': { type: 'task', categoryName: 'Cluster 2 - Visit Plan', department: 'CLUSTER_2', shortName: 'C2 Visit' },
+
+  // Cluster 3
+  'cluster_3_meetings': { type: 'meeting', categoryName: 'Cluster 3 - Meetings', department: 'CLUSTER_3', shortName: 'C3 Meet' },
+  'cluster_3_special_task': { type: 'task', categoryName: 'Cluster 3 - Special Tasks', department: 'CLUSTER_3', shortName: 'C3 Task' },
+  'cluster_3_visit_plan': { type: 'task', categoryName: 'Cluster 3 - Visit Plan', department: 'CLUSTER_3', shortName: 'C3 Visit' },
+
+  // Cluster 4
+  'cluster_4_meetings': { type: 'meeting', categoryName: 'Cluster 4 - Meetings', department: 'CLUSTER_4', shortName: 'C4 Meet' },
+  'cluster_4_special_task': { type: 'task', categoryName: 'Cluster 4 - Special Tasks', department: 'CLUSTER_4', shortName: 'C4 Task' },
+  'cluster_4_visit_plan': { type: 'task', categoryName: 'Cluster 4 - Visit Plan', department: 'CLUSTER_4', shortName: 'C4 Visit' },
+
+  // Cluster 5
+  'cluster_5_meetings': { type: 'meeting', categoryName: 'Cluster 5 - Meetings', department: 'CLUSTER_5', shortName: 'C5 Meet' },
+  'cluster_5_special_task': { type: 'task', categoryName: 'Cluster 5 - Special Tasks', department: 'CLUSTER_5', shortName: 'C5 Task' },
+  'cluster_5_visit_plan': { type: 'task', categoryName: 'Cluster 5 - Visit Plan', department: 'CLUSTER_5', shortName: 'C5 Visit' },
+
+  // Cluster 6
+  'cluster_6_meetings': { type: 'meeting', categoryName: 'Cluster 6 - Meetings', department: 'CLUSTER_6', shortName: 'C6 Meet' },
+  'cluster_6_special_task': { type: 'task', categoryName: 'Cluster 6 - Special Tasks', department: 'CLUSTER_6', shortName: 'C6 Task' },
+  'cluster_6_visit_plan': { type: 'task', categoryName: 'Cluster 6 - Visit Plan', department: 'CLUSTER_6', shortName: 'C6 Visit' },
+
+  // Customer Care
+  'customer_care_meetings': { type: 'meeting', categoryName: 'Customer Care - Meetings', department: 'CUSTOMER_CARE', shortName: 'CC Meet' },
+  'customer_care_special_tasks': { type: 'task', categoryName: 'Customer Care - Special Tasks', department: 'CUSTOMER_CARE', shortName: 'CC Task' },
+  'customer_care_delivery_schedule': { type: 'task', categoryName: 'Customer Care - Delivery Schedule', department: 'CUSTOMER_CARE', shortName: 'CC Delivery' },
+
+  // E-Healthcare
+  'ehealthcare_meetings': { type: 'meeting', categoryName: 'E-Healthcare Meetings', department: 'E_HEALTHCARE', shortName: 'E-Health Meet' },
+  'ehealthcare_visit_plan': { type: 'task', categoryName: 'E-Healthcare Visit Plan', department: 'E_HEALTHCARE', shortName: 'E-Health Visit' },
+
+  // Hi-Tech
+  'hitech_technical_discussions': { type: 'meeting', categoryName: 'Hi-Tech Technical Discussion', department: 'HI_TECH', shortName: 'Hi-Tech Tech' },
+  'hitech_tender_validation': { type: 'task', categoryName: 'Hi-Tech Tender Validation', department: 'HI_TECH', shortName: 'Hi-Tech Tender' },
+  'hitech_visit_plan': { type: 'task', categoryName: 'Hi-Tech Visit Plan', department: 'HI_TECH', shortName: 'Hi-Tech Visit' },
+  'hitech_page_generation': { type: 'task', categoryName: 'Hi-Tech Page Generation', department: 'HI_TECH', shortName: 'Hi-Tech Page' },
+
+  // HR
+  'hr_meetings': { type: 'meeting', categoryName: 'HR - Meetings', department: 'HR', shortName: 'HR Meet' },
+  'hr_special_events_n_tasks': { type: 'task', categoryName: 'HR - Special Events', department: 'HR', shortName: 'HR Event' },
+  'hr_training': { type: 'task', categoryName: 'HR - Trainings', department: 'HR', shortName: 'HR Training' },
+
+  // Imports
+  'imports_meetings': { type: 'meeting', categoryName: 'Imports - Meeting Schedules', department: 'IMPORTS', shortName: 'Imports Meet' },
+  'imports_upcoming_shipment_clearance_plan': { type: 'task', categoryName: 'Imports - Upcoming Shipments', department: 'IMPORTS', shortName: 'Imports Ship' },
+
+  // Regulatory
+  'regulatory_meetings': { type: 'meeting', categoryName: 'Regulatory - Meetings', department: 'REGULATORY', shortName: 'Regulatory Meet' },
+  'regulatory_submissions': { type: 'task', categoryName: 'Regulatory - Submissions', department: 'REGULATORY', shortName: 'Regulatory Sub' },
+
+  // Sales Operations
+  'sales_operations_meetings': { type: 'meeting', categoryName: 'Sales Operations Meetings', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Meet' },
+  'sales_operations_special_tasks': { type: 'task', categoryName: 'Sales Operations Special Tasks', department: 'SALES_OPERATIONS', shortName: 'Sales Ops Task' },
+
+  // SOMT
+  'somt_meetings': { type: 'meeting', categoryName: 'SOMT - Meetings', department: 'SOMT', shortName: 'SOMT Meet' },
+  'somt_tender': { type: 'task', categoryName: 'SOMT - Tender', department: 'SOMT', shortName: 'SOMT Tender' },
+
+  // Stores
+  'stores_plan_loading': { type: 'task', categoryName: 'Stores - Plan Loading', department: 'STORES', shortName: 'Stores Load' },
+  'stores_vst': { type: 'task', categoryName: 'Stores - VST', department: 'STORES', shortName: 'Stores VST' },
+
+  // Surgi Imaging
+  'surgi_imaging_college_session': { type: 'meeting', categoryName: 'Surgi Imaging - College Session', department: 'SURGI_IMAGING', shortName: 'SI College' },
+  'surgi_imaging_meetings': { type: 'meeting', categoryName: 'Surgi Imaging - Meetings', department: 'SURGI_IMAGING', shortName: 'SI Meet' },
+  'surgi_imaging_principal_visit': { type: 'task', categoryName: 'Surgi Imaging - Principle Visit', department: 'SURGI_IMAGING', shortName: 'SI Principle' },
+  'surgi_imaging_promotional_activities': { type: 'task', categoryName: 'Surgi Imaging - Promotional Activities', department: 'SURGI_IMAGING', shortName: 'SI Promo' },
+  'surgi_imaging_special_tasks': { type: 'task', categoryName: 'Surgi Imaging - Special Tasks', department: 'SURGI_IMAGING', shortName: 'SI Task' },
+  'surgi_imaging_visit_plan': { type: 'task', categoryName: 'Surgi Imaging - Visit Plan', department: 'SURGI_IMAGING', shortName: 'SI Visit' },
+
+  // Surgi Surgicare
+  'surgi_surgicare_college_session': { type: 'meeting', categoryName: 'Surgi Surgicare - College Session', department: 'SURGI_SURGICARE', shortName: 'SS College' },
+  'surgi_surgicare_meetings': { type: 'meeting', categoryName: 'Surgi Surgicare - Meetings', department: 'SURGI_SURGICARE', shortName: 'SS Meet' },
+  'surgi_surgicare_principal_visit': { type: 'task', categoryName: 'Surgi Surgicare - Principle Visit', department: 'SURGI_SURGICARE', shortName: 'SS Principle' },
+  'surgi_surgicare_promotional_activities': { type: 'task', categoryName: 'Surgi Surgicare - Promotional Activities', department: 'SURGI_SURGICARE', shortName: 'SS Promo' },
+  'surgi_surgicare_special_task': { type: 'task', categoryName: 'Surgi Surgicare - Special Tasks', department: 'SURGI_SURGICARE', shortName: 'SS Task' },
+  'surgi_surgicare_visit_plan': { type: 'task', categoryName: 'Surgi Surgicare - Visit Plan', department: 'SURGI_SURGICARE', shortName: 'SS Visit' },
+
+  // Personal Meetings
+  'personal_meetings': { type: 'meeting', categoryName: 'Personal Meetings', department: 'PERSONAL', shortName: 'Personal' }
 };
 
-// Enhanced FullCalendar Component with proper time support
-const EnhancedFullCalendar = React.memo(({ 
-  events, 
-  onDateClick, 
-  onEventClick,
-  view = 'dayGridMonth',
-  height = '600px',
-  dateRange = null
-}) => {
-  const calendarRef = useRef(null);
+// COMPLETE FIXED helper function to get date field based on table with proper mapping
+const getDateFieldName = (tableName) => {
+  const dateFields = {
+    // BDM Department
+    'bdm_college_session': 'start_date',
+    'bdm_meetings': 'date',
+    'bdm_principle_visit': 'visit_duration_start',
+    'bdm_promotional_activities': 'date',
+    'bdm_visit_plan': 'schedule_date',
 
-  // Calculate activity count per day for coloring
-  const getActivityCountColor = (date) => {
-    const dayEvents = events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate.toDateString() === date.toDateString();
-    });
-    
-    const count = dayEvents.length;
-    
-    if (count === 0) return 'transparent';
-    if (count <= 3) return '#27ae60'; // Green
-    if (count <= 6) return '#f39c12'; // Orange
-    return '#e74c3c'; // Red
+    // Cluster 1
+    'cluster_1_meetings': 'date',
+    'cluster_1_special_task': 'date',
+    'cluster_1_visit_plan': 'date',
+
+    // Cluster 2
+    'cluster_2_meetings': 'date',
+    'cluster_2_special_task': 'date',
+    'cluster_2_visit_plan': 'date',
+
+    // Cluster 3
+    'cluster_3_meetings': 'date',
+    'cluster_3_special_task': 'date',
+    'cluster_3_visit_plan': 'date',
+
+    // Cluster 4
+    'cluster_4_meetings': 'date',
+    'cluster_4_special_task': 'date',
+    'cluster_4_visit_plan': 'date',
+
+    // Cluster 5
+    'cluster_5_meetings': 'date',
+    'cluster_5_special_task': 'date',
+    'cluster_5_visit_plan': 'date',
+
+    // Cluster 6
+    'cluster_6_meetings': 'date',
+    'cluster_6_special_task': 'date',
+    'cluster_6_visit_plan': 'date',
+
+    // Customer Care
+    'customer_care_delivery_schedule': 'delivery_date',
+    'customer_care_meetings': 'date',
+    'customer_care_special_tasks': 'date',
+
+    // E-Healthcare - FIXED
+    'ehealthcare_meetings': 'date',
+    'ehealthcare_visit_plan': 'date',
+
+    // Hi-Tech - FIXED: Some use created_at, some use date
+    'hitech_page_generation': 'created_at', // No date field, use created_at
+    'hitech_technical_discussions': 'created_at', // No date field, use created_at
+    'hitech_tender_validation': 'date',
+    'hitech_visit_plan': 'date',
+
+    // HR - FIXED: All use date field
+    'hr_meetings': 'date',
+    'hr_special_events_n_tasks': 'date',
+    'hr_training': 'date',
+
+    // Imports - FIXED
+    'imports_meetings': 'date',
+    'imports_upcoming_shipment_clearance_plan': 'eta', // Uses eta field
+
+    // Regulatory - FIXED
+    'regulatory_meetings': 'date',
+    'regulatory_submissions': 'date',
+
+    // Sales Operations - FIXED
+    'sales_operations_meetings': 'date',
+    'sales_operations_special_tasks': 'date',
+
+    // SOMT - FIXED
+    'somt_meetings': 'date',
+    'somt_tender': 'close_date', // Uses close_date field
+
+    // Stores - FIXED
+    'stores_plan_loading': 'date',
+    'stores_vst': 'date',
+
+    // Surgi Imaging - FIXED
+    'surgi_imaging_college_session': 'date',
+    'surgi_imaging_meetings': 'date',
+    'surgi_imaging_principal_visit': 'start_time', // Uses start_time timestamp
+    'surgi_imaging_promotional_activities': 'date',
+    'surgi_imaging_special_tasks': 'date',
+    'surgi_imaging_visit_plan': 'schedule_date',
+
+    // Surgi Surgicare - FIXED
+    'surgi_surgicare_college_session': 'date',
+    'surgi_surgicare_meetings': 'date',
+    'surgi_surgicare_principal_visit': 'visit_duration_start', // Uses visit_duration_start
+    'surgi_surgicare_promotional_activities': 'date',
+    'surgi_surgicare_special_task': 'date',
+    'surgi_surgicare_visit_plan': 'schedule_date',
+
+    // Personal Meetings - FIXED
+    'personal_meetings': 'start_date'
   };
 
-  // Get event color based on activity count (overriding priority-based colors)
-  const getEventColor = (event) => {
-    const eventDate = new Date(event.start);
-    return getActivityCountColor(eventDate);
-  };
+  const field = dateFields[tableName];
+  if (!field) {
+    console.warn(`No date field mapping found for table: ${tableName}, defaulting to 'date'`);
+    return 'date';
+  }
 
-  // Get event text color based on background
-  const getEventTextColor = (backgroundColor) => {
-    if (backgroundColor === 'transparent') return '#000';
-    return '#ffffff'; // White text for colored backgrounds
-  };
+  return field;
+};
 
-  const handleDateClick = (arg) => {
-    if (onDateClick) {
-      onDateClick(arg.date, arg);
+// Create Organizational Event Modal
+// Create Organizational Event Modal with Legend Selection
+const CreateOrganizationalEventModal = ({ visible, onClose, onEventCreated }) => {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (values) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('organizational_data')
+        .insert([
+          {
+            title: values.legend_type,
+            date: values.date.format('YYYY-MM-DD'),
+          }
+        ])
+        .select();
+
+      if (error) throw error;
+
+      toast.success('Organizational event created successfully!');
+      form.resetFields();
+      onEventCreated();
+      onClose();
+    } catch (error) {
+      console.error('Error creating organizational event:', error);
+      toast.error('Failed to create organizational event');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleEventClick = (arg) => {
-    if (onEventClick) {
-      onEventClick(arg.event);
-    }
-  };
-
-  // Filter events based on date range
-  const getFilteredEvents = () => {
-    if (!dateRange || !dateRange[0] || !dateRange[1]) {
-      return events;
-    }
-    
-    const startDate = new Date(dateRange[0]);
-    const endDate = new Date(dateRange[1]);
-    endDate.setHours(23, 59, 59, 999);
-    
-    return events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate >= startDate && eventDate <= endDate;
-    });
-  };
-
-  const filteredEvents = getFilteredEvents();
 
   return (
-    <div style={{ 
-      border: '1px solid #e8e8e8', 
-      borderRadius: '8px', 
-      padding: '16px',
-      backgroundColor: '#fff'
-    }}>
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
-        initialView={view}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        }}
-        height={height}
-        events={filteredEvents}
-        dateClick={handleDateClick}
-        eventClick={handleEventClick}
-        eventColor={(event) => getEventColor(event)}
-        eventTextColor={(event) => getEventTextColor(getEventColor(event))}
-        eventDisplay="block"
-        eventTimeFormat={{
-          hour: '2-digit',
-          minute: '2-digit',
-          meridiem: 'short'
-        }}
-        dayMaxEvents={3}
-        moreLinkText={`more`}
-        views={{
-          dayGridMonth: {
-            dayMaxEventRows: 3,
-          },
-          timeGridWeek: {
-            dayMaxEventRows: 3,
-          },
-          timeGridDay: {
-            dayMaxEventRows: 6,
-          }
-        }}
-        eventContent={(eventInfo) => {
-          const eventDate = new Date(eventInfo.event.start);
-          const dayEvents = events.filter(event => {
-            const currentEventDate = new Date(event.start);
-            return currentEventDate.toDateString() === eventDate.toDateString();
-          });
-          const activityCount = dayEvents.length;
+    <Modal
+      title="Create Organizational Event"
+      open={visible}
+      onCancel={onClose}
+      footer={null}
+      width={500}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+      >
+      <Form.Item
+          name="legend_type"
+          label="Legend Type"
+          rules={[{ required: true, message: 'Please select legend type' }]}
+        >
+          <Select placeholder="Select legend type">
+            {Object.entries(organizationalLegends).map(([key, legend]) => (
+              <Option key={key} value={key}>
+                <Space>
+                  <div
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: legend.color,
+                      borderRadius: '2px'
+                    }}
+                  />
+                  {legend.name}
+                </Space>
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
 
-          return (
+        <Form.Item
+          name="date"
+          label="Event Date"
+          rules={[{ required: true, message: 'Please select event date' }]}
+        >
+          <DatePicker
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD"
+          />
+        </Form.Item>
+
+        
+        <Form.Item>
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" loading={loading}>
+              Create Event
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+};
+
+// Organizational Calendar Component
+const OrganizationalCalendar = ({
+  activities,
+  onDateClick,
+  selectedDate,
+  currentMonth,
+  onMonthChange,
+  onEventClick,
+  viewMode,
+  onViewModeChange,
+  onShowAllCategories,
+  onCreateEvent
+}) => {
+  // Get days in month
+  const getDaysInMonth = (date) => {
+    const year = date.year();
+    const month = date.month();
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  // Get activities for a specific date
+  const getActivitiesForDate = (date) => {
+    return activities.filter(activity => {
+      const activityDate = new Date(activity.date);
+      return activityDate.toDateString() === date.toDateString();
+    });
+  };
+
+  // Get activity titles for a date
+  const getActivityTitlesForDate = (date) => {
+    const dateActivities = getActivitiesForDate(date);
+
+    return dateActivities.map(activity => ({
+      id: activity.id,
+      title: activity.title || 'Untitled Event',
+      fullActivity: activity
+    }));
+  };
+
+  // Get color based on legend type from title
+  // Get color based on legend type from title or stored legend_type
+  const getActivityColor = (activity) => {
+    // First check if there's a stored legend_type
+    if (activity.legend_type && organizationalLegends[activity.legend_type]) {
+      const legend = organizationalLegends[activity.legend_type];
+      const textColor = getTextColorBasedOnBackground(legend.color);
+
+      return {
+        background: legend.color,
+        text: textColor,
+        border: legend.color,
+        legendName: legend.name
+      };
+    }
+
+    // Fall back to automatic detection from title
+    const match = findMatchingLegend(activity.title);
+
+    if (match) {
+      const { legend } = match;
+      const textColor = getTextColorBasedOnBackground(legend.color);
+
+      return {
+        background: legend.color,
+        text: textColor,
+        border: legend.color,
+        legendName: legend.name
+      };
+    }
+
+    // Default color if no match found
+    return {
+      background: '#e3f2fd',
+      text: '#1565c0',
+      border: '#90caf9',
+      legendName: 'Event'
+    };
+  };
+
+  // Truncate title for display
+  const truncateTitle = (title, maxLength = 20) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength - 3) + '...';
+  };
+
+  // Render month view with activity titles
+  const renderMonthView = () => {
+    const daysInMonth = getDaysInMonth(currentMonth);
+    const firstDay = currentMonth.startOf('month').day();
+    const weeks = [];
+    let currentWeek = [];
+
+    // Add empty cells for days before the first day of month
+    for (let i = 0; i < firstDay; i++) {
+      currentWeek.push(
+        <td key={`empty-${i}`} className="calendar-empty-cell" style={{
+          background: 'linear-gradient(135deg, #fafafa 0%, #e0e0e0 100%)',
+          opacity: 0.6,
+          borderRadius: '4px'
+        }}></td>
+      );
+    }
+
+    // Add cells for each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = currentMonth.date(day);
+      const dateActivities = getActivitiesForDate(date.toDate());
+      const activityTitles = getActivityTitlesForDate(date.toDate());
+      const isToday = date.isSame(dayjs(), 'day');
+      const isSelected = selectedDate && date.isSame(selectedDate, 'day');
+      const isWeekend = date.day() === 0 || date.day() === 6;
+
+      currentWeek.push(
+        <td key={day} style={{
+          border: '1px solid #e8e8e8',
+          verticalAlign: 'top',
+          height: '120px',
+          backgroundColor: isToday ? '#e6f7ff' : (isWeekend ? '#fafafa' : 'white'),
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '4px',
+          borderWidth: isToday ? '2px' : '1px',
+          borderColor: isToday ? '#1890ff' : '#e8e8e8'
+        }}>
+          {/* Background pattern for days with events */}
+          {activityTitles.length > 0 && (
             <div style={{
-              padding: '2px 4px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}>
-              <div>{eventInfo.event.title}</div>
-              <div style={{ 
-                fontSize: '10px', 
-                opacity: 0.9,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>{eventInfo.timeText}</span>
-                <Tooltip title={`${activityCount} activities on this day`}>
-                  <span style={{ 
-                    marginLeft: '4px',
-                    backgroundColor: 'rgba(255,255,255,0.3)',
-                    borderRadius: '8px',
-                    padding: '1px 4px',
-                    fontSize: '8px',
-                    fontWeight: 'bold'
-                  }}>
-                    {activityCount}
-                  </span>
-                </Tooltip>
-              </div>
-            </div>
-          );
-        }}
-        dayCellContent={(cellInfo) => {
-          const date = cellInfo.date;
-          const today = new Date();
-          const tenDaysFromYesterday = new Date();
-          tenDaysFromYesterday.setDate(today.getDate() - 1 + 10);
-          
-          const isDefaultRange = date >= today && date <= tenDaysFromYesterday;
-          const activityCountColor = getActivityCountColor(date);
-          const hasActivities = activityCountColor !== 'transparent';
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '0',
+              height: '0',
+              borderStyle: 'solid',
+              borderWidth: '0 16px 16px 0',
+              borderColor: 'transparent #1890ff transparent transparent',
+              opacity: 0.3,
+              zIndex: 1
+            }}></div>
+          )}
 
-          return (
+          <div
+            onClick={() => onDateClick(date, dateActivities)}
+            style={{
+              cursor: 'pointer',
+              height: '100%',
+              padding: '4px',
+              position: 'relative',
+              zIndex: 2
+            }}
+          >
             <div style={{
               textAlign: 'center',
-              fontWeight: isDefaultRange ? 'bold' : 'normal',
-              color: isDefaultRange ? '#1890ff' : 'inherit',
-              backgroundColor: hasActivities ? activityCountColor : (isDefaultRange ? '#e6f7ff' : 'transparent'),
-              borderRadius: '4px',
-              padding: '4px',
-              border: hasActivities ? '2px solid #fff' : 'none',
-              boxShadow: hasActivities ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+              fontWeight: 'bold',
+              marginBottom: '4px',
+              fontSize: isToday ? '14px' : '13px',
+              color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
+              background: isToday ? 'rgba(24, 144, 255, 0.1)' : 'transparent',
+              borderRadius: '10px',
+              padding: '2px 0'
             }}>
-              {date.getDate()}
+              {day}
             </div>
-          );
-        }}
-      />
-    </div>
+
+            <div style={{
+              maxHeight: '80px',
+              overflowY: 'auto',
+              fontSize: '9px',
+              lineHeight: '1.2'
+            }}>
+              {activityTitles.slice(0, 4).map((activity, index) => {
+                const colors = getActivityColor(activity);
+                return (
+                  <div
+                    key={activity.id}
+                    style={{
+                      padding: '2px 3px',
+                      margin: '1px 0',
+                      background: colors.background,
+                      color: colors.text,
+                      borderRadius: '3px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      border: `1px solid ${colors.border}`,
+                      fontSize: '8px',
+                      lineHeight: '1.1',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(activity.fullActivity);
+                    }}
+                    title={`${activity.title} (${colors.legendName})`}
+                  >
+                    {truncateTitle(activity.title, 18)}
+                  </div>
+                );
+              })}
+
+              {activityTitles.length > 4 && (
+                <div
+                  style={{
+                    fontSize: '8px',
+                    padding: '1px 3px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '3px',
+                    textAlign: 'center',
+                    marginTop: '2px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowAllCategories(date,
+                      Object.groupBy(dateActivities, activity => activity.title || 'Untitled Event')
+                    );
+                  }}
+                >
+                  +{activityTitles.length - 4} more
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      );
+
+      // Start new week when we reach Sunday
+      if ((firstDay + day) % 7 === 0) {
+        weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
+        currentWeek = [];
+      }
+    }
+
+    // Add empty cells for remaining days in the last week
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(
+          <td key={`empty-end-${currentWeek.length}`} style={{
+            background: 'linear-gradient(135deg, #fafafa 0%, #e0e0e0 100%)',
+            opacity: 0.6,
+            borderRadius: '4px'
+          }}></td>
+        );
+      }
+      weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
+    }
+
+    return weeks;
+  };
+
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const renderView = () => {
+    return renderMonthView();
+  };
+
+  const getHeaderText = () => {
+    return currentMonth.format('MMMM YYYY');
+  };
+
+  const navigateView = (direction) => {
+    onMonthChange(currentMonth.add(direction, 'month'));
+  };
+
+  return (
+    <Card
+      title={
+        <Space>
+          <CalendarOutlined />
+          <Text strong>Organizational Calendar</Text>
+        </Space>
+      }
+      extra={
+        <Space>
+          <Button
+            icon={<LeftOutlined />}
+            onClick={() => navigateView(-1)}
+            size="small"
+          />
+          <Text strong>{getHeaderText()}</Text>
+          <Button
+            icon={<RightOutlined />}
+            onClick={() => navigateView(1)}
+            size="small"
+          />
+          <Button
+            onClick={() => {
+              const now = dayjs();
+              onMonthChange(now);
+            }}
+            size="small"
+          >
+            Today
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onCreateEvent}
+            size="small"
+          >
+            Create Event
+          </Button>
+        </Space>
+      }
+      bordered={false}
+    >
+      {/* Legends */}
+      <div style={{ marginBottom: '16px', padding: '12px', background: '#fafafa', borderRadius: '6px' }}>
+        <Text strong style={{ marginBottom: '8px', display: 'block' }}>Legends:</Text>
+        <Space wrap size={[8, 8]}>
+          {Object.entries(organizationalLegends).map(([key, legend]) => {
+            const textColor = getTextColorBasedOnBackground(legend.color);
+            return (
+              <Space key={key} size={4}>
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: legend.color,
+                    borderRadius: '2px'
+                  }}
+                />
+                <Text style={{
+                  fontSize: '12px',
+                  color: textColor,
+                  padding: '2px 6px',
+                  backgroundColor: legend.color,
+                  borderRadius: '3px',
+                  fontWeight: '500'
+                }}>
+                  {legend.name}
+                </Text>
+              </Space>
+            );
+          })}
+        </Space>
+      </div>
+
+      <div className="organizational-calendar">
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {weekDays.map(day => (
+                <th key={day} style={{
+                  padding: '12px',
+                  textAlign: 'center',
+                  backgroundColor: '#fafafa',
+                  border: '1px solid #e8e8e8',
+                  fontWeight: 'bold'
+                }}>
+                  {day.substring(0, 1)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {renderView()}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
-});
+};
+
+// Enhanced Calendar Component - Shows Meeting/Task Titles (Department View)
+const DepartmentCalendar = ({
+  activities,
+  onDateClick,
+  selectedDate,
+  currentMonth,
+  onMonthChange,
+  onEventClick,
+  viewMode,
+  onViewModeChange,
+  onShowAllCategories
+}) => {
+  // Get days in month
+  const getDaysInMonth = (date) => {
+    const year = date.year();
+    const month = date.month();
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  // Get activities for a specific date
+  const getActivitiesForDate = (date) => {
+    return activities.filter(activity => {
+      const activityDate = new Date(activity.start || activity.date || activity.created_at);
+      return activityDate.toDateString() === date.toDateString();
+    });
+  };
+
+  // Get activity titles for a date
+  const getActivityTitlesForDate = (date) => {
+    const dateActivities = getActivitiesForDate(date);
+
+    return dateActivities.map(activity => ({
+      id: activity.id || `${activity.sourceTable}-${activity.title}`,
+      title: activity.title || getDefaultTitle(activity),
+      type: activity.type,
+      department: activity.department,
+      priority: activity.priority,
+      fullActivity: activity
+    }));
+  };
+
+  // Get default title if activity title is missing
+  const getDefaultTitle = (activity) => {
+    const category = activity.categoryName;
+
+    // Extract meaningful title from category name
+    if (category.includes(' - ')) {
+      return category.split(' - ')[1] || category;
+    }
+
+    return category || 'Activity';
+  };
+
+  // Get color based on activity type and priority
+  const getActivityColor = (activity) => {
+    const { type, priority } = activity;
+
+    // Color based on type and priority
+    const colorSchemes = {
+      meeting: {
+        1: { background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', text: '#1565c0', border: '#90caf9' },
+        2: { background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)', text: '#2e7d32', border: '#a5d6a7' },
+        3: { background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)', text: '#ef6c00', border: '#ffb74d' },
+        4: { background: 'linear-gradient(135deg, #fbe9e7 0%, #ffccbc 100%)', text: '#d84315', border: '#ff8a65' },
+        5: { background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', text: '#c62828', border: '#ef5350' }
+      },
+      task: {
+        1: { background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)', text: '#7b1fa2', border: '#ce93d8' },
+        2: { background: 'linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%)', text: '#303f9f', border: '#9fa8da' },
+        3: { background: 'linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%)', text: '#00695c', border: '#80cbc4' },
+        4: { background: 'linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)', text: '#ff8f00', border: '#ffd54f' },
+        5: { background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%)', text: '#ad1457', border: '#f48fb1' }
+      }
+    };
+
+    return colorSchemes[type]?.[priority] || colorSchemes.meeting[3];
+  };
+
+  // Truncate title for display
+  const truncateTitle = (title, maxLength = 20) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength - 3) + '...';
+  };
+
+  // Render month view with activity titles
+  const renderMonthView = () => {
+    const daysInMonth = getDaysInMonth(currentMonth);
+    const firstDay = currentMonth.startOf('month').day();
+    const weeks = [];
+    let currentWeek = [];
+
+    // Add empty cells for days before the first day of month
+    for (let i = 0; i < firstDay; i++) {
+      currentWeek.push(
+        <td key={`empty-${i}`} className="calendar-empty-cell" style={{
+          background: 'linear-gradient(135deg, #fafafa 0%, #e0e0e0 100%)',
+          opacity: 0.6,
+          borderRadius: '4px'
+        }}></td>
+      );
+    }
+
+    // Add cells for each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = currentMonth.date(day);
+      const dateActivities = getActivitiesForDate(date.toDate());
+      const activityTitles = getActivityTitlesForDate(date.toDate());
+      const isToday = date.isSame(dayjs(), 'day');
+      const isSelected = selectedDate && date.isSame(selectedDate, 'day');
+      const isWeekend = date.day() === 0 || date.day() === 6;
+
+      currentWeek.push(
+        <td key={day} style={{
+          border: '1px solid #e8e8e8',
+          verticalAlign: 'top',
+          height: '120px',
+          backgroundColor: isToday ? '#e6f7ff' : (isWeekend ? '#fafafa' : 'white'),
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '4px',
+          borderWidth: isToday ? '2px' : '1px',
+          borderColor: isToday ? '#1890ff' : '#e8e8e8'
+        }}>
+          {/* Background pattern for days with events */}
+          {activityTitles.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '0',
+              height: '0',
+              borderStyle: 'solid',
+              borderWidth: '0 16px 16px 0',
+              borderColor: 'transparent #1890ff transparent transparent',
+              opacity: 0.3,
+              zIndex: 1
+            }}></div>
+          )}
+
+          <div
+            onClick={() => onDateClick(date, dateActivities)}
+            style={{
+              cursor: 'pointer',
+              height: '100%',
+              padding: '4px',
+              position: 'relative',
+              zIndex: 2
+            }}
+          >
+            <div style={{
+              textAlign: 'center',
+              fontWeight: 'bold',
+              marginBottom: '4px',
+              fontSize: isToday ? '14px' : '13px',
+              color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
+              background: isToday ? 'rgba(24, 144, 255, 0.1)' : 'transparent',
+              borderRadius: '10px',
+              padding: '2px 0'
+            }}>
+              {day}
+            </div>
+
+            <div style={{
+              maxHeight: '80px',
+              overflowY: 'auto',
+              fontSize: '9px',
+              lineHeight: '1.2'
+            }}>
+              {activityTitles.slice(0, 4).map((activity, index) => {
+                const colors = getActivityColor(activity);
+                return (
+                  <div
+                    key={activity.id}
+                    style={{
+                      padding: '2px 3px',
+                      margin: '1px 0',
+                      background: colors.background,
+                      color: colors.text,
+                      borderRadius: '3px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      border: `1px solid ${colors.border}`,
+                      fontSize: '8px',
+                      lineHeight: '1.1',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(activity.fullActivity);
+                    }}
+                    title={activity.title} // Show full title on hover
+                  >
+                    {truncateTitle(activity.title, 18)}
+                  </div>
+                );
+              })}
+
+              {activityTitles.length > 4 && (
+                <div
+                  style={{
+                    fontSize: '8px',
+                    padding: '1px 3px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '3px',
+                    textAlign: 'center',
+                    marginTop: '2px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowAllCategories(date,
+                      Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
+                    );
+                  }}
+                >
+                  +{activityTitles.length - 4} more
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      );
+
+      // Start new week when we reach Sunday
+      if ((firstDay + day) % 7 === 0) {
+        weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
+        currentWeek = [];
+      }
+    }
+
+    // Add empty cells for remaining days in the last week
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(
+          <td key={`empty-end-${currentWeek.length}`} style={{
+            background: 'linear-gradient(135deg, #fafafa 0%, #e0e0e0 100%)',
+            opacity: 0.6,
+            borderRadius: '4px'
+          }}></td>
+        );
+      }
+      weeks.push(<tr key={weeks.length}>{currentWeek}</tr>);
+    }
+
+    return weeks;
+  };
+
+  // Render week view with activity titles
+  const renderWeekView = () => {
+    const startOfWeek = currentMonth.startOf('week');
+    const days = [];
+
+    for (let i = 0; i < 7; i++) {
+      const date = startOfWeek.add(i, 'day');
+      const dateActivities = getActivitiesForDate(date.toDate());
+      const activityTitles = getActivityTitlesForDate(date.toDate());
+      const isToday = date.isSame(dayjs(), 'day');
+      const isSelected = selectedDate && date.isSame(selectedDate, 'day');
+      const isWeekend = date.day() === 0 || date.day() === 6;
+
+      days.push(
+        <td key={i} style={{
+          width: '14.28%',
+          border: '1px solid #e8e8e8',
+          verticalAlign: 'top',
+          height: '400px',
+          backgroundColor: isToday ? '#e6f7ff' : (isWeekend ? '#fafafa' : 'white'),
+          position: 'relative',
+          borderRadius: '4px',
+          borderWidth: isToday ? '2px' : '1px',
+          borderColor: isToday ? '#1890ff' : '#e8e8e8'
+        }}>
+          <div
+            onClick={() => onDateClick(date, dateActivities)}
+            style={{
+              cursor: 'pointer',
+              height: '100%',
+              padding: '8px',
+              position: 'relative'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '8px',
+              paddingBottom: '6px',
+              borderBottom: `1px solid ${isToday ? '#1890ff' : (isWeekend ? '#ffa39e' : '#f0f0f0')}`
+            }}>
+              <div style={{
+                fontSize: '12px',
+                color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#666'),
+                fontWeight: 'bold'
+              }}>
+                {date.format('ddd')}
+              </div>
+              <div style={{
+                fontWeight: 'bold',
+                fontSize: '14px',
+                color: isToday ? '#1890ff' : (isWeekend ? '#ff4d4f' : '#333'),
+                background: isToday ? 'rgba(24, 144, 255, 0.1)' : 'transparent',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {date.date()}
+              </div>
+            </div>
+
+            <div style={{
+              maxHeight: '340px',
+              overflowY: 'auto',
+              fontSize: '10px',
+              lineHeight: '1.3'
+            }}>
+              {activityTitles.slice(0, 10).map((activity, index) => {
+                const colors = getActivityColor(activity);
+                return (
+                  <div
+                    key={activity.id}
+                    style={{
+                      padding: '4px 6px',
+                      margin: '3px 0',
+                      background: colors.background,
+                      color: colors.text,
+                      borderRadius: '4px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      border: `1px solid ${colors.border}`,
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateX(2px)';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateX(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(activity.fullActivity);
+                    }}
+                    title={`${activity.title} (${activity.type === 'meeting' ? 'Meeting' : 'Task'})`}
+                  >
+                    {truncateTitle(activity.title, 25)}
+                    <div style={{
+                      fontSize: '8px',
+                      opacity: 0.8,
+                      marginTop: '1px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{activity.type === 'meeting' ? '📅' : '✅'}</span>
+                      <span>{priorityLabels[activity.priority]}</span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {activityTitles.length > 10 && (
+                <div
+                  style={{
+                    fontSize: '10px',
+                    padding: '6px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    marginTop: '6px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowAllCategories(date,
+                      Object.groupBy(dateActivities, activity => activity.title || getDefaultTitle(activity))
+                    );
+                  }}
+                >
+                  +{activityTitles.length - 10} more activities
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      );
+    }
+
+    return [<tr key="week">{days}</tr>];
+  };
+
+  // Render day view with activity titles
+  const renderDayView = () => {
+    const date = selectedDate || currentMonth;
+    const dateActivities = getActivitiesForDate(date.toDate());
+    const activityTitles = getActivityTitlesForDate(date.toDate());
+    const isToday = date.isSame(dayjs(), 'day');
+
+    return [
+      <tr key="day">
+        <td style={{
+          height: '500px',
+          padding: '0',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        }}>
+          <div style={{
+            padding: '20px',
+            height: '100%',
+            background: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            margin: '4px'
+          }}>
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '20px',
+              padding: '20px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              borderRadius: '8px'
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+                {date.format('dddd')}
+              </div>
+              <div style={{ fontSize: '20px' }}>
+                {date.format('MMMM D, YYYY')}
+              </div>
+              {isToday && (
+                <div style={{
+                  fontSize: '12px',
+                  background: 'rgba(255,255,255,0.2)',
+                  borderRadius: '10px',
+                  padding: '2px 8px',
+                  marginTop: '6px',
+                  display: 'inline-block'
+                }}>
+                  Today
+                </div>
+              )}
+            </div>
+
+            <div>
+              {activityTitles.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: '#666'
+                }}>
+                  <div style={{ fontSize: '36px', marginBottom: '12px' }}>📅</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>
+                    No activities scheduled
+                  </div>
+                </div>
+              ) : (
+                <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                  {activityTitles.map((activity, index) => {
+                    const colors = getActivityColor(activity);
+                    return (
+                      <Card
+                        key={activity.id}
+                        size="small"
+                        style={{
+                          cursor: 'pointer',
+                          marginBottom: '8px',
+                          background: colors.background,
+                          color: colors.text,
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: '6px'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                        onClick={() => onEventClick(activity.fullActivity)}
+                      >
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          marginBottom: '4px'
+                        }}>
+                          {activity.title}
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '11px',
+                          opacity: 0.9
+                        }}>
+                          <span>
+                            {activity.type === 'meeting' ? '📅 Meeting' : '✅ Task'}
+                          </span>
+                          <span>
+                            Priority: {priorityLabels[activity.priority]}
+                          </span>
+                          <span>
+                            {departments[activity.department]?.name}
+                          </span>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+      </tr>
+    ];
+  };
+
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const renderView = () => {
+    switch (viewMode) {
+      case 'week':
+        return renderWeekView();
+      case 'day':
+        return renderDayView();
+      default:
+        return renderMonthView();
+    }
+  };
+
+  const getHeaderText = () => {
+    switch (viewMode) {
+      case 'week':
+        return `Week of ${currentMonth.startOf('week').format('MMM D')} - ${currentMonth.endOf('week').format('MMM D, YYYY')}`;
+      case 'day':
+        const date = selectedDate || currentMonth;
+        return date.format('dddd, MMMM D, YYYY');
+      default:
+        return currentMonth.format('MMMM YYYY');
+    }
+  };
+
+  const navigateView = (direction) => {
+    switch (viewMode) {
+      case 'week':
+        onMonthChange(currentMonth.add(direction, 'week'));
+        break;
+      case 'day':
+        onMonthChange(currentMonth.add(direction, 'day'));
+        break;
+      default:
+        onMonthChange(currentMonth.add(direction, 'month'));
+    }
+  };
+
+  return (
+    <Card
+      title={
+        <Space>
+          <CalendarOutlined />
+          <Text strong>Department Calendar</Text>
+          <Select
+            value={viewMode}
+            onChange={onViewModeChange}
+            size="small"
+            style={{ width: 120 }}
+          >
+            <Option value="month">Month View</Option>
+            <Option value="week">Week View</Option>
+            <Option value="day">Day View</Option>
+          </Select>
+        </Space>
+      }
+      extra={
+        <Space>
+          <Button
+            icon={<LeftOutlined />}
+            onClick={() => navigateView(-1)}
+            size="small"
+          />
+          <Text strong>{getHeaderText()}</Text>
+          <Button
+            icon={<RightOutlined />}
+            onClick={() => navigateView(1)}
+            size="small"
+          />
+          <Button
+            onClick={() => {
+              const now = dayjs();
+              onMonthChange(now);
+              if (viewMode === 'day') {
+                onDateClick(now, getActivitiesForDate(now.toDate()));
+              }
+            }}
+            size="small"
+          >
+            Today
+          </Button>
+        </Space>
+      }
+      bordered={false}
+    >
+      <div className="department-calendar">
+        {viewMode !== 'day' && (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {weekDays.map(day => (
+                  <th key={day} style={{
+                    padding: '12px',
+                    textAlign: 'center',
+                    backgroundColor: '#fafafa',
+                    border: '1px solid #e8e8e8',
+                    fontWeight: 'bold'
+                  }}>
+                    {viewMode === 'week' ? day : day.substring(0, 1)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {renderView()}
+            </tbody>
+          </table>
+        )}
+
+        {viewMode === 'day' && (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {renderView()}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </Card>
+  );
+};
 
 // Enhanced Recent Activities Component with Arrow Pagination
 const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
@@ -318,7 +1550,7 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
   };
 
   return (
-    <Card 
+    <Card
       title={
         <Space>
           <CalendarOutlined />
@@ -332,9 +1564,9 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
             {activities.length} Total
           </Tag>
           {activities.length > pageSize && (
-            <Button 
-              type="link" 
-              icon={<EyeOutlined />} 
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
               onClick={onViewAll}
               size="small"
             >
@@ -346,8 +1578,8 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
     >
       <div style={{ minHeight: '400px', position: 'relative' }}>
         {currentActivities.length === 0 ? (
-          <Empty 
-            image={Empty.PRESENTED_IMAGE_SIMPLE} 
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
             description="No activities found"
           />
         ) : (
@@ -356,14 +1588,14 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
               dataSource={currentActivities}
               renderItem={activity => (
                 <List.Item
-                  style={{ 
-                    padding: '12px 0', 
+                  style={{
+                    padding: '12px 0',
                     borderBottom: '1px solid #f0f0f0',
                     cursor: 'pointer'
                   }}
                   onClick={() => onActivityClick(activity)}
                   actions={[
-                    <Tag 
+                    <Tag
                       color={priorityColors[activity.priority] || 'blue'}
                       style={{ fontSize: '12px', padding: '2px 6px' }}
                     >
@@ -373,8 +1605,8 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                 >
                   <List.Item.Meta
                     title={
-                      <Text 
-                        style={{ 
+                      <Text
+                        style={{
                           fontSize: '14px',
                           fontWeight: '600',
                           lineHeight: '1.4',
@@ -387,11 +1619,11 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                     description={
                       <Space direction="vertical" size={0}>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.departmentName} • {activity.categoryName}
+                          {departments[activity.department]?.name} • {activity.categoryName}
                         </Text>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {activity.hasTime ? 
-                            new Date(activity.start).toLocaleString() : 
+                          {activity.hasTime ?
+                            new Date(activity.start).toLocaleString() :
                             new Date(activity.date || activity.created_at).toLocaleDateString()
                           }
                         </Text>
@@ -401,12 +1633,12 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                 </List.Item>
               )}
             />
-            
+
             {/* Enhanced Pagination with Arrows */}
             {activities.length > pageSize && (
-              <div style={{ 
-                marginTop: '16px', 
-                display: 'flex', 
+              <div style={{
+                marginTop: '16px',
+                display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 borderTop: '1px solid #f0f0f0',
@@ -420,11 +1652,11 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
                 >
                   Previous
                 </Button>
-                
+
                 <Text style={{ color: '#666' }}>
                   Page {currentPage} of {totalPages}
                 </Text>
-                
+
                 <Button
                   type="text"
                   onClick={handleNext}
@@ -442,204 +1674,183 @@ const RecentActivities = ({ activities, onActivityClick, onViewAll }) => {
   );
 };
 
-// Date Activities Modal Component
-const DateActivitiesModal = ({ 
-  visible, 
-  onClose, 
-  selectedDate, 
-  activities,
-  onActivityClick 
-}) => {
-  const columns = [
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      width: 80,
-      render: (type) => (
-        <Tag color={type === 'meeting' ? 'blue' : 'green'}>
-          {type === 'meeting' ? 'Meeting' : 'Task'}
-        </Tag>
-      )
-    },
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-      render: (title, record) => (
-        <Button 
-          type="link" 
-          onClick={() => onActivityClick(record)}
-          style={{ padding: 0, height: 'auto', textAlign: 'left', fontSize: '14px' }}
-        >
-          {title}
-        </Button>
-      )
-    },
-    {
-      title: 'Time',
-      dataIndex: 'start',
-      key: 'time',
-      width: 100,
-      render: (start, record) => (
-        <Text>
-          {record.hasTime ? 
-            new Date(start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-            'All Day'
-          }
-        </Text>
-      )
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      width: 120,
-      render: (department) => (
-        <Tag color={departments[department]?.color || 'default'}>
-          {departments[department]?.name || department}
-        </Tag>
-      )
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 100,
-      render: (priority) => (
-        <Tag color={priorityColors[priority]}>
-          {priorityLabels[priority]}
-        </Tag>
-      )
-    }
-  ];
-
-  return (
-    <Modal
-      title={
-        <Space>
-          <CalendarOutlined />
-          Activities for {selectedDate?.format('MMMM D, YYYY')}
-        </Space>
-      }
-      open={visible}
-      onCancel={onClose}
-      width={800}
-      footer={[
-        <Button key="close" onClick={onClose} size="large">
-          Close
-        </Button>
-      ]}
-      style={{ top: 20 }}
-      zIndex={1002}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <Row gutter={16}>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Total Activities"
-                value={activities.length}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Meetings"
-                value={activities.filter(a => a.type === 'meeting').length}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Tasks"
-                value={activities.filter(a => a.type === 'task').length}
-                valueStyle={{ color: '#fa8c16' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card size="small">
-              <Statistic
-                title="Timed Events"
-                value={activities.filter(a => a.hasTime).length}
-                valueStyle={{ color: '#722ed1' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        <Table
-          columns={columns}
-          dataSource={activities}
-          pagination={{ 
-            pageSize: 10,
-            showSizeChanger: false 
-          }}
-          scroll={{ y: 400 }}
-          size="middle"
-          locale={{
-            emptyText: 'No activities scheduled for this date'
-          }}
-        />
-      </Space>
-    </Modal>
-  );
-};
-
-// Department Filter Buttons
+// Department Filter Component
 const DepartmentFilter = ({ selectedDepartment, onDepartmentChange }) => {
   return (
     <Card size="small" style={{ marginBottom: 16 }}>
       <Space wrap>
         <Text strong style={{ fontSize: '16px' }}>Filter by Department:</Text>
-        {Object.entries(departments).map(([key, dept]) => (
-          <Button
-            key={key}
-            type={selectedDepartment === key ? 'primary' : 'default'}
-            size="large"
-            style={{
-              backgroundColor: selectedDepartment === key ? dept.color : '#f5f5f5',
-              borderColor: dept.color,
-              color: selectedDepartment === key ? '#fff' : dept.color,
-              fontSize: '14px',
-              fontWeight: 'bold',
-              padding: '8px 16px',
-              height: 'auto'
-            }}
-            onClick={() => onDepartmentChange(key)}
-          >
-            {dept.name}
-          </Button>
-        ))}
-        <Button
-          type={!selectedDepartment ? 'primary' : 'default'}
+        <Select
+          value={selectedDepartment}
+          onChange={onDepartmentChange}
+          style={{ width: 250 }}
+          placeholder="Select Department"
+          allowClear
           size="large"
-          style={{
-            fontSize: '14px',
-            fontWeight: 'bold',
-            padding: '8px 16px',
-            height: 'auto'
-          }}
-          onClick={() => onDepartmentChange(null)}
         >
-          All Departments
+          {Object.entries(departments).map(([key, dept]) => (
+            <Option key={key} value={key}>
+              <Space>
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: dept.color,
+                    borderRadius: '2px'
+                  }}
+                />
+                {dept.name}
+              </Space>
+            </Option>
+          ))}
+        </Select>
+        <Button
+          onClick={() => onDepartmentChange(null)}
+          size="large"
+        >
+          Show All Departments
         </Button>
       </Space>
     </Card>
   );
 };
 
+// Export functionality
+const ExportButton = ({ activities, currentView, currentDate, selectedDepartment }) => {
+  const exportToExcel = () => {
+    try {
+      const dataForExport = activities.map(activity => ({
+        'Title': activity.title || 'Untitled Activity',
+        'Department': departments[activity.department]?.name || activity.department,
+        'Category': activity.categoryName,
+        'Type': activity.type === 'meeting' ? 'Meeting' : 'Task',
+        'Date': new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
+        'Time': activity.hasTime ? new Date(activity.start).toLocaleTimeString() : 'All Day',
+        'Priority': priorityLabels[activity.priority],
+        'Status': activity.status || 'scheduled',
+        'Remarks': activity.remarks || '',
+        'Responsible Person': activity.responsible_bdm || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Activities');
+
+      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
+      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success('Excel file exported successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export Excel file');
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF();
+
+      // Title
+      doc.setFontSize(16);
+      doc.text('Organizational Calendar Export', 14, 15);
+      doc.setFontSize(10);
+      const departmentText = selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : '';
+      doc.text(`View: ${currentView}${departmentText} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`, 14, 22);
+
+      // Prepare table data manually without autoTable
+      const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
+      const tableData = activities.map(activity => [
+        activity.title?.substring(0, 25) || 'Untitled Activity',
+        departments[activity.department]?.name || activity.department,
+        activity.categoryName.substring(0, 20),
+        activity.type === 'meeting' ? 'Meeting' : 'Task',
+        new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
+        priorityLabels[activity.priority]
+      ]);
+
+      // Simple table implementation
+      let yPosition = 35;
+      const lineHeight = 7;
+      const colWidths = [40, 25, 30, 20, 20, 20];
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Draw headers
+      doc.setFillColor(52, 152, 219);
+      doc.setTextColor(255, 255, 255);
+      let xPosition = 14;
+
+      headers.forEach((header, index) => {
+        doc.rect(xPosition, yPosition - 5, colWidths[index], 8, 'F');
+        doc.text(header, xPosition + 2, yPosition);
+        xPosition += colWidths[index];
+      });
+
+      yPosition += 10;
+      doc.setTextColor(0, 0, 0);
+
+      // Draw rows
+      tableData.forEach((row, rowIndex) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        xPosition = 14;
+        row.forEach((cell, cellIndex) => {
+          doc.text(cell.toString(), xPosition + 2, yPosition);
+          xPosition += colWidths[cellIndex];
+        });
+
+        // Draw line separator
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, yPosition + 2, 14 + colWidths.reduce((a, b) => a + b, 0), yPosition + 2);
+
+        yPosition += lineHeight;
+      });
+
+      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
+      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+      doc.save(fileName);
+
+      toast.success('PDF file exported successfully!');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast.error('Failed to export PDF file');
+    }
+  };
+
+  const exportItems = [
+    {
+      key: 'excel',
+      icon: <FileExcelOutlined />,
+      label: 'Export to Excel',
+      onClick: exportToExcel
+    },
+    {
+      key: 'pdf',
+      icon: <FilePdfOutlined />,
+      label: 'Export to PDF',
+      onClick: exportToPDF
+    }
+  ];
+
+  return (
+    <Dropdown menu={{ items: exportItems }} placement="bottomRight">
+      <Button type="primary" icon={<DownloadOutlined />} size="large">
+        Export
+      </Button>
+    </Dropdown>
+  );
+};
+
 // All Activities Modal Component
-const AllActivitiesModal = ({ 
-  visible, 
-  onClose, 
+const AllActivitiesModal = ({
+  visible,
+  onClose,
   activities,
-  onActivityClick 
+  onActivityClick
 }) => {
   const columns = [
     {
@@ -658,8 +1869,8 @@ const AllActivitiesModal = ({
       dataIndex: 'title',
       key: 'title',
       render: (title, record) => (
-        <Button 
-          type="link" 
+        <Button
+          type="link"
           onClick={() => onActivityClick(record)}
           style={{ padding: 0, height: 'auto', textAlign: 'left' }}
         >
@@ -668,14 +1879,14 @@ const AllActivitiesModal = ({
       )
     },
     {
-      title: 'Time',
+      title: 'Date',
       dataIndex: 'start',
       key: 'time',
       width: 120,
       render: (start, record) => (
         <Text>
-          {record.hasTime ? 
-            new Date(start).toLocaleString() : 
+          {record.hasTime ?
+            new Date(start).toLocaleString() :
             new Date(start).toLocaleDateString()
           }
         </Text>
@@ -727,13 +1938,11 @@ const AllActivitiesModal = ({
           Close
         </Button>
       ]}
-      style={{ top: 20 }}
-      zIndex={1001}
     >
       <Table
         columns={columns}
         dataSource={activities}
-        pagination={{ 
+        pagination={{
           pageSize: 20,
           showSizeChanger: true,
           showQuickJumper: true
@@ -749,36 +1958,21 @@ const AllActivitiesModal = ({
 };
 
 // Activity Detail Modal Component
-const ActivityDetailModal = ({ 
-  visible, 
-  onClose, 
-  selectedActivity,
-  getDateFieldName,
-  getActivityTitle
+const ActivityDetailModal = ({
+  visible,
+  onClose,
+  selectedActivity
 }) => {
-  const formatDateTime = (activity) => {
-    if (!activity) return 'N/A';
-    
-    const dateField = getDateFieldName(activity.sourceTable);
-    const baseDate = activity[dateField] || activity.created_at;
-    
-    if (activity.hasTime && activity.start) {
-      return new Date(activity.start).toLocaleString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } else {
-      return new Date(baseDate).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    }
+  if (!selectedActivity) return null;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   return (
@@ -789,173 +1983,186 @@ const ActivityDetailModal = ({
       footer={[
         <Button key="close" onClick={onClose} size="large">
           Close
-        </Button>,
+        </Button>
       ]}
       width={700}
-      style={{ top: 20 }}
-      zIndex={1003}
     >
-      {selectedActivity ? (
-        <div style={{ fontSize: '16px' }}>
-          <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-                {getActivityTitle(selectedActivity)}
-              </Title>
-            </Col>
-          </Row>
-          
-          <Divider />
-          
-          <Row gutter={[16, 16]}>
+      <div style={{ fontSize: '16px' }}>
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+              {selectedActivity.title || selectedActivity.categoryName}
+            </Title>
+          </Col>
+        </Row>
+
+        <Divider />
+
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12}>
+            <Text strong>Type: </Text>
+            <Tag color={selectedActivity.type === 'meeting' ? 'blue' : 'green'} style={{ fontSize: '14px' }}>
+              {selectedActivity.type === 'meeting' ? 'Meeting' : 'Task'}
+            </Tag>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Department: </Text>
+            <Tag color={departments[selectedActivity.department]?.color} style={{ fontSize: '14px' }}>
+              {departments[selectedActivity.department]?.name}
+            </Tag>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Category: </Text>
+            <Text>{selectedActivity.categoryName}</Text>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Priority: </Text>
+            <Tag color={priorityColors[selectedActivity.priority]} style={{ fontSize: '14px' }}>
+              {priorityLabels[selectedActivity.priority]}
+            </Tag>
+          </Col>
+          <Col xs={24}>
+            <Text strong>Date: </Text>
+            <Text>{formatDate(selectedActivity.date || selectedActivity.start || selectedActivity.created_at)}</Text>
+          </Col>
+          {selectedActivity.status && (
             <Col xs={24} sm={12}>
-              <Text strong>Type: </Text>
-              <Tag color={selectedActivity.type === 'meeting' ? 'blue' : 'green'} style={{ fontSize: '14px' }}>
-                {selectedActivity.type === 'meeting' ? 'Meeting' : 'Task'}
+              <Text strong>Status: </Text>
+              <Tag color={statusColors[selectedActivity.status]} style={{ fontSize: '14px' }}>
+                {selectedActivity.status}
               </Tag>
             </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Department: </Text>
-              <Tag color={departments[selectedActivity.department]?.color} style={{ fontSize: '14px' }}>
-                {selectedActivity.departmentName || selectedActivity.department}
-              </Tag>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Category: </Text>
-              <Text>{selectedActivity.categoryName}</Text>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Text strong>Priority: </Text>
-              <Tag color={priorityColors[selectedActivity.priority]} style={{ fontSize: '14px' }}>
-                {priorityLabels[selectedActivity.priority]}
-              </Tag>
-            </Col>
-            <Col xs={24}>
-              <Text strong>Date & Time: </Text>
-              <Text>{formatDateTime(selectedActivity)}</Text>
-              {selectedActivity.hasTime && (
-                <Tag color="blue" style={{ marginLeft: '8px' }}>
-                  Timed Event
-                </Tag>
-              )}
-            </Col>
-            {selectedActivity.status && (
-              <Col xs={24} sm={12}>
-                <Text strong>Status: </Text>
-                <Tag color={statusColors[selectedActivity.status]} style={{ fontSize: '14px' }}>
-                  {selectedActivity.status}
-                </Tag>
+          )}
+        </Row>
+
+        {selectedActivity.description && (
+          <>
+            <Divider />
+            <Row>
+              <Col span={24}>
+                <Text strong>Description: </Text>
+                <Text style={{ display: 'block', marginTop: '8px' }}>
+                  {selectedActivity.description}
+                </Text>
               </Col>
+            </Row>
+          </>
+        )}
+
+        {selectedActivity.remarks && (
+          <>
+            <Divider />
+            <Row>
+              <Col span={24}>
+                <Text strong>Remarks: </Text>
+                <Text style={{ display: 'block', marginTop: '8px' }}>
+                  {selectedActivity.remarks}
+                </Text>
+              </Col>
+            </Row>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+};
+
+// Organizational Activity Detail Modal Component
+const OrganizationalActivityDetailModal = ({
+  visible,
+  onClose,
+  selectedActivity
+}) => {
+  if (!selectedActivity) return null;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const match = findMatchingLegend(selectedActivity.title);
+  const legend = match ? match.legend : null;
+  const textColor = legend ? getTextColorBasedOnBackground(legend.color) : '#000000';
+
+  return (
+    <Modal
+      title="Organizational Event Details"
+      open={visible}
+      onCancel={onClose}
+      footer={[
+        <Button key="close" onClick={onClose} size="large">
+          Close
+        </Button>
+      ]}
+      width={600}
+    >
+      <div style={{ fontSize: '16px' }}>
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+              {selectedActivity.title || 'Untitled Event'}
+            </Title>
+          </Col>
+        </Row>
+
+        <Divider />
+
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12}>
+            <Text strong>Type: </Text>
+            <Tag color="blue" style={{ fontSize: '14px' }}>
+              Organizational Event
+            </Tag>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Text strong>Legend: </Text>
+            {legend && (
+              <Space>
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: legend.color,
+                    borderRadius: '2px'
+                  }}
+                />
+                <Text style={{
+                  color: textColor,
+                  padding: '2px 8px',
+                  backgroundColor: legend.color,
+                  borderRadius: '4px',
+                  fontWeight: '500'
+                }}>
+                  {legend.name}
+                </Text>
+              </Space>
             )}
-          </Row>
+          </Col>
+          <Col xs={24}>
+            <Text strong>Date: </Text>
+            <Text>{formatDate(selectedActivity.date)}</Text>
+          </Col>
+        </Row>
 
-          {selectedActivity.description && (
-            <>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>Description: </Text>
-                  <Text style={{ display: 'block', marginTop: '8px' }}>
-                    {selectedActivity.description}
-                  </Text>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {selectedActivity.remarks && (
-            <>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>Remarks: </Text>
-                  <Text style={{ display: 'block', marginTop: '8px' }}>
-                    {selectedActivity.remarks}
-                  </Text>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {selectedActivity.objectives && (
-            <>
-              <Divider />
-              <Row>
-                <Col span={24}>
-                  <Text strong>Objectives: </Text>
-                  <Text style={{ display: 'block', marginTop: '8px' }}>
-                    {selectedActivity.objectives}
-                  </Text>
-                </Col>
-              </Row>
-            </>
-          )}
-
-          {/* Special handling for SCMT Weekly Meetings (Upcoming Shipments) */}
-          {selectedActivity.sourceTable === 'scmt_weekly_meetings' && (
-            <>
-              <Divider />
-              <Row gutter={[16, 16]}>
-                <Col span={24}>
-                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>Shipment Details:</Text>
-                </Col>
-                {selectedActivity.supplier && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>Supplier: </Text>
-                    <Text>{selectedActivity.supplier}</Text>
-                  </Col>
-                )}
-                {selectedActivity.pord_no && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>PO Number: </Text>
-                    <Text>{selectedActivity.pord_no}</Text>
-                  </Col>
-                )}
-                {selectedActivity.date_of_arrival && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>Date of Arrival: </Text>
-                    <Text>
-                      {new Date(selectedActivity.date_of_arrival).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </Text>
-                  </Col>
-                )}
-                {selectedActivity.mode && (
-                  <Col xs={24} sm={12}>
-                    <Text strong>Mode: </Text>
-                    <Text>{selectedActivity.mode}</Text>
-                  </Col>
-                )}
-                {(selectedActivity.reagent || selectedActivity.spare_part || selectedActivity.instruments) && (
-                  <Col span={24}>
-                    <Text strong>Item Types: </Text>
-                    <Space style={{ marginTop: '8px' }}>
-                      {selectedActivity.reagent && <Tag color="blue">Reagent</Tag>}
-                      {selectedActivity.spare_part && <Tag color="green">Spare Part</Tag>}
-                      {selectedActivity.instruments && <Tag color="orange">Instruments</Tag>}
-                    </Space>
-                  </Col>
-                )}
-                {selectedActivity.main_item_list && (
-                  <Col span={24}>
-                    <Text strong style={{ display: 'block', marginBottom: '8px' }}>Main Item List:</Text>
-                    <Text style={{ display: 'block' }}>{selectedActivity.main_item_list}</Text>
-                  </Col>
-                )}
-              </Row>
-            </>
-          )}
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <FrownOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }} />
-          <div style={{ fontSize: '16px' }}>Activity details not available</div>
-        </div>
-      )}
+        {selectedActivity.description && (
+          <>
+            <Divider />
+            <Row>
+              <Col span={24}>
+                <Text strong>Description: </Text>
+                <Text style={{ display: 'block', marginTop: '8px' }}>
+                  {selectedActivity.description}
+                </Text>
+              </Col>
+            </Row>
+          </>
+        )}
+      </div>
     </Modal>
   );
 };
@@ -967,198 +2174,226 @@ const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
   </div>
 );
 
-// Error boundary component
-const ErrorFallback = ({ error, resetErrorBoundary }) => (
-  <Result
-    status="error"
-    title="Something went wrong"
-    subTitle={error?.message || "An unexpected error occurred"}
-    extra={
-      <Button type="primary" onClick={resetErrorBoundary} size="large">
-        Try Again
-      </Button>
+// Helper function to get activity title
+const getActivityTitle = (item, tableName, categoryName) => {
+  if (!item) return 'Unknown Activity';
+
+  const department = tableCategoryMapping[tableName]?.department;
+
+  // Department-specific title mappings
+  const titleMappings = {
+    // BDM Department
+    'BDM': {
+      'Meeting Schedule': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit',
+      'Principle Visit': item.principle_name || 'Principle Visit',
+      'College Session': item.session || 'College Session',
+      'Promotional Activities': item.promotional_activity || 'Promotional Activity'
+    },
+    // Clusters (1-6)
+    'CLUSTER_1': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_2': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_3': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_4': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_5': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    'CLUSTER_6': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting',
+      'Visit Plan': item.area || 'Visit'
+    },
+    // Customer Care
+    'CUSTOMER_CARE': {
+      'Delivery Schedule': item.area || 'Delivery',
+      'Meetings': item.subject || 'Meeting',
+      'Special Tasks': item.subject || 'Task'
+    },
+    // E-Healthcare
+    'E_HEALTHCARE': {
+      'Visit Plan': item.area || 'Visit',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Hi-Tech
+    'HI_TECH': {
+      'Visit Plan': item.institute || 'Visit',
+      'Technical Discussion': item.sp_name || 'Technical Discussion',
+      'Tender Validation': item.sp_name || 'Tender Validation',
+      'Page Generation': item.sp_name || 'Page Generation'
+    },
+    // HR
+    'HR': {
+      'Meetings': item.subject || 'Meeting',
+      'Training': item.training_program || 'Training',
+      'Special Events': item.task || 'Special Event'
+    },
+    // Imports
+    'IMPORTS': {
+      'Upcoming Shipments': item.company || item.pord_number || 'Shipment',
+      'Meeting Schedules': item.subject || 'Meeting'
+    },
+    // Regulatory
+    'REGULATORY': {
+      'Meetings': item.subject || 'Meeting',
+      'Submissions': item.company || item.product || 'Submission'
+    },
+    // Sales Operations
+    'SALES_OPERATIONS': {
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.meeting || 'Meeting'
+    },
+    // SOMT
+    'SOMT': {
+      'Tender': item.customer || item.instrument || 'Tender',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Stores
+    'STORES': {
+      'Plan Loading': item.cluster || item.area || 'Loading',
+      'VST': item.cluster || item.area || 'VST'
+    },
+    // Surgi Imaging
+    'SURGI_IMAGING': {
+      'Promotional Activities': item.promotional_activity || 'Promotional Activity',
+      'Principal Visit': item.principle_name || 'Principle Visit',
+      'College Session': item.session || 'College Session',
+      'Visit Plan': item.area || 'Visit',
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Surgi Surgicare
+    'SURGI_SURGICARE': {
+      'Promotional Activities': item.promotional_activity || 'Promotional Activity',
+      'Principal Visit': item.principle_name || 'Principle Visit',
+      'College Session': item.session || 'College Session',
+      'Visit Plan': item.area || 'Visit',
+      'Special Tasks': item.task || 'Task',
+      'Meetings': item.subject || 'Meeting'
+    },
+    // Personal
+    'PERSONAL': {
+      'Personal Meetings': item.topic || 'Personal Meeting'
     }
-  />
-);
+  };
 
+  // Try to get department-specific title
+  if (department && titleMappings[department] && titleMappings[department][categoryName]) {
+    const title = titleMappings[department][categoryName];
+    return typeof title === 'function' ? title(item) : title;
+  }
+
+  // Fallback to generic field names
+  if (item.meeting) return item.meeting;
+  if (item.subject) return item.subject;
+  if (item.task) return item.task;
+  if (item.name) return item.name;
+  if (item.topic) return item.topic;
+  if (item.principle_name) return `Principle: ${item.principle_name}`;
+  if (item.promotional_activity) return item.promotional_activity;
+  if (item.area) return `Area: ${item.area}`;
+  if (item.session) return `Session: ${item.session}`;
+  if (item.sp_name) return item.sp_name;
+  if (item.training_program) return item.training_program;
+  if (item.company) return `Company: ${item.company}`;
+
+  return `${categoryName} Activity`;
+};
+
+// Main Dashboard Component
 const Dashboard = () => {
-  // State for error handling
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
-
-  const [activeTab, setActiveTab] = useState('organizational');
-  const [allMeetings, setAllMeetings] = useState([]);
-  const [allTasks, setAllTasks] = useState([]);
+  const [allActivities, setAllActivities] = useState([]);
+  const [organizationalActivities, setOrganizationalActivities] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-
-  // Stats state
-  const [stats, setStats] = useState({
-    totalMeetings: 0,
-    totalTasks: 0,
-    thisWeekMeetings: 0,
-    highPriorityMeetings: 0,
-    completedMeetings: 0,
-    pendingTasks: 0,
-    timedEvents: 0
-  });
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [currentMonth, setCurrentMonth] = useState(dayjs());
+  const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'day'
+  const [activeTab, setActiveTab] = useState('organizational'); // 'organizational', 'department'
 
   // Modal states
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [isActivityModalVisible, setIsActivityModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [dateActivitiesModalVisible, setDateActivitiesModalVisible] = useState(false);
-  const [dateActivities, setDateActivities] = useState([]);
+  const [isOrganizationalActivityModalVisible, setIsOrganizationalActivityModalVisible] = useState(false);
   const [allActivitiesModalVisible, setAllActivitiesModalVisible] = useState(false);
+  const [createEventModalVisible, setCreateEventModalVisible] = useState(false);
+
+  // New modal states for layered approach
+  const [categoryOverviewModalVisible, setCategoryOverviewModalVisible] = useState(false);
+  const [categoryEventsModalVisible, setCategoryEventsModalVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategoryActivities, setSelectedCategoryActivities] = useState([]);
+  const [tempGroupedActivities, setTempGroupedActivities] = useState({});
+  const [tempSelectedDate, setTempSelectedDate] = useState(null);
+
+  // Stats state
+  const [stats, setStats] = useState({
+    totalActivities: 0,
+    totalMeetings: 0,
+    totalTasks: 0,
+    thisWeekActivities: 0,
+    highPriorityActivities: 0,
+    completedActivities: 0,
+    pendingActivities: 0
+  });
 
   // Auto-refresh states
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshIntervalRef = useRef(null);
-
-  // Calendar view state
-  const [calendarView, setCalendarView] = useState('dayGridMonth');
-
-  // Date range state
-  const [dateRange, setDateRange] = useState(null);
-
-  // Error boundary reset function
-  const resetErrorBoundary = () => {
-    setError(null);
-    setRetryCount(prev => prev + 1);
-    fetchDashboardData();
-  };
-
-  // Global error handler
-  const handleError = (error, context = 'Unknown operation') => {
-    console.error(`Error in ${context}:`, error);
-    
-    const errorMessage = error?.message || 'An unexpected error occurred';
-    
-    if (!context.includes('auto-refresh')) {
-      toast.error(`Error in ${context}: ${errorMessage}`);
-    }
-    
-    setError({
-      message: errorMessage,
-      context,
-      timestamp: new Date().toISOString()
-    });
-    
-    return error;
-  };
-
-  // Safe state update wrapper
-  const safeSetState = (setter, value) => {
-    try {
-      setter(value);
-    } catch (err) {
-      handleError(err, 'state update');
-    }
-  };
-
-  // Enhanced modal handlers
-  const showActivityModal = (activity) => {
-    setDateActivitiesModalVisible(false);
-    setAllActivitiesModalVisible(false);
-    
-    setTimeout(() => {
-      setSelectedActivity(activity);
-      setIsActivityModalVisible(true);
-    }, 10);
-  };
-
-  const showDateActivitiesModal = (date, activities) => {
-    setIsActivityModalVisible(false);
-    setAllActivitiesModalVisible(false);
-    
-    setTimeout(() => {
-      setSelectedDate(date);
-      setDateActivities(activities);
-      setDateActivitiesModalVisible(true);
-    }, 10);
-  };
-
-  const showAllActivitiesModal = () => {
-    setIsActivityModalVisible(false);
-    setDateActivitiesModalVisible(false);
-    
-    setTimeout(() => {
-      setAllActivitiesModalVisible(true);
-    }, 10);
-  };
 
   useEffect(() => {
     fetchCurrentUser();
     fetchDashboardData();
-    setupAutoRefresh();
-
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, [retryCount]);
+  }, []);
 
   const fetchCurrentUser = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        throw new Error(`Authentication failed: ${authError.message}`);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setCurrentUser({ ...user, ...profile });
       }
-
-      if (!user) {
-        safeSetState(setCurrentUser, null);
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        throw new Error(`Profile fetch failed: ${profileError.message}`);
-      }
-
-      safeSetState(setCurrentUser, { ...user, ...profile });
     } catch (error) {
-      handleError(error, 'fetching current user');
+      console.error('Error fetching current user:', error);
     }
   };
 
-  const setupAutoRefresh = () => {
+  const fetchDashboardData = async () => {
+    setLoading(true);
     try {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-
-      if (autoRefresh) {
-        refreshIntervalRef.current = setInterval(() => {
-          refreshDashboardData();
-        }, 1 * 60 * 1000);
-      }
+      await Promise.all([
+        fetchAllActivities(),
+        fetchOrganizationalActivities()
+      ]);
+      setLastRefresh(new Date());
     } catch (error) {
-      handleError(error, 'setting up auto-refresh');
-    }
-  };
-
-  const refreshDashboardData = async () => {
-    if (isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      await fetchDashboardData();
-      safeSetState(setLastRefresh, new Date());
-      toast.info('Dashboard data updated automatically');
-    } catch (error) {
-      handleError(error, 'auto-refresh');
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
-      setIsRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -1166,176 +2401,109 @@ const Dashboard = () => {
     setIsRefreshing(true);
     try {
       await fetchDashboardData();
-      safeSetState(setLastRefresh, new Date());
       toast.success('Dashboard refreshed successfully');
     } catch (error) {
-      handleError(error, 'manual refresh');
+      console.error('Error refreshing dashboard:', error);
+      toast.error('Failed to refresh dashboard');
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const handleAutoRefreshToggle = (checked) => {
+  const fetchOrganizationalActivities = async () => {
     try {
-      safeSetState(setAutoRefresh, checked);
-      if (checked) {
-        setupAutoRefresh();
-        toast.info('Auto-refresh enabled (every 1 minute)');
-      } else {
-        if (refreshIntervalRef.current) {
-          clearInterval(refreshIntervalRef.current);
-          refreshIntervalRef.current = null;
-        }
-        toast.info('Auto-refresh disabled');
+      const { data, error } = await supabase
+        .from('organizational_data')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching organizational data:', error);
+        throw error;
       }
+
+      const activitiesData = data.map(item => ({
+        ...item,
+        sourceTable: 'organizational_data',
+        type: 'event',
+        categoryName: 'Organizational Event',
+        department: 'ORGANIZATION',
+        start: item.date,
+        title: item.title || 'Untitled Event',
+        hasTime: false
+      }));
+
+      setOrganizationalActivities(activitiesData);
+
     } catch (error) {
-      handleError(error, 'toggle auto-refresh');
+      console.error('Error fetching organizational activities:', error);
+      throw error;
     }
   };
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      await fetchAllData();
-    } catch (error) {
-      handleError(error, 'fetching dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Helper function to get date field based on table
-  const getDateFieldName = (tableName) => {
-    const dateFields = {
-      'bdm_customer_visit': 'schedule_date',
-      'bdm_principle_visit': 'visit_duration_start',
-      'bdm_weekly_meetings': 'date',
-      'bdm_college_session': 'start_date',
-      'bdm_promotional_activities': 'date',
-      'sales_operations_meetings': 'date',
-      'sales_operations_tasks': 'start_date',
-      'scmt_d_n_d': 'start_date',
-      'scmt_meetings_and_sessions': 'date',
-      'scmt_others': 'date',
-      'scmt_weekly_meetings': 'date_of_arrival'
-    };
-    return dateFields[tableName] || 'created_at';
-  };
-
-  // Helper function to get time fields based on table
-  const getTimeFields = (tableName) => {
-    const timeFields = {
-      'bdm_customer_visit': { start: 'start_time', end: 'end_time' },
-      'bdm_weekly_meetings': { start: 'start_time', end: 'end_time' },
-      'bdm_college_session': { start: 'start_time', end: 'end_time' },
-      'sales_operations_meetings': { start: 'start_time', end: 'end_time' },
-      'sales_operations_tasks': { start: 'start_time', end: 'end_time' },
-      'scmt_meetings_and_sessions': { start: 'start_time', end: 'end_time' },
-      'scmt_others': { start: 'start_time', end: 'end_time' }
-    };
-    return timeFields[tableName] || null;
-  };
-
-  // Helper function to get activity title
-  const getActivityTitle = (item) => {
-    if (!item) return 'Unknown Activity';
-    
-    if (item.title) return item.title;
-    if (item.meeting) return item.meeting;
-    if (item.college_name) return `${item.college_name} Session`;
-    if (item.customer_name) return `Visit: ${item.customer_name}`;
-    if (item.principle_name) return `Principle: ${item.principle_name}`;
-    if (item.promotional_activity) return item.promotional_activity;
-    if (item.supplier) return `Shipment: ${item.supplier} - ${item.pord_no || ''}`;
-    if (item.type) return item.type;
-    return `${item.categoryName} Activity`;
-  };
-
-  // Helper function to create datetime string from date and time
-  const createDateTime = (dateString, timeString) => {
-    if (!dateString || !timeString) return null;
-    
-    try {
-      const date = new Date(dateString);
-      const timeParts = timeString.split(':');
-      
-      if (timeParts.length >= 2) {
-        date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
-        return date.toISOString();
-      }
-    } catch (error) {
-      console.warn('Error creating datetime:', error);
-    }
-    
-    return null;
-  };
-
-  const fetchAllData = async () => {
-    const allMeetingsData = [];
-    const allTasksData = [];
+  const fetchAllActivities = async () => {
+    const allActivitiesData = [];
 
     try {
       const fetchPromises = Object.entries(tableCategoryMapping).map(async ([tableName, tableInfo]) => {
         try {
-          let query = supabase
+          const dateField = getDateFieldName(tableName);
+
+          console.log(`Fetching from ${tableName} using date field: ${dateField}`);
+
+          const { data, error } = await supabase
             .from(tableName)
             .select('*')
-            .order('created_at', { ascending: false });
-
-          const { data, error } = await query;
+            .order(dateField, { ascending: false })
+            .limit(100);
 
           if (error) {
             console.warn(`Error fetching from ${tableName}:`, error);
             return;
           }
 
-          if (data) {
+          if (data && data.length > 0) {
+            let validRecords = 0;
+            let invalidRecords = 0;
+
             data.forEach(item => {
-              try {
-                const dateField = getDateFieldName(tableName);
-                const timeFields = getTimeFields(tableName);
-                
-                const baseDate = item[dateField] || item.created_at;
-                let startDateTime = baseDate;
-                let endDateTime = null;
-                let hasTime = false;
+              // Get the actual date field value
+              const baseDate = item[dateField];
 
-                // If time fields exist and have values, create proper datetime
-                if (timeFields && item[timeFields.start]) {
-                  const startTime = item[timeFields.start];
-                  startDateTime = createDateTime(baseDate, startTime);
-                  
-                  if (timeFields.end && item[timeFields.end]) {
-                    const endTime = item[timeFields.end];
-                    endDateTime = createDateTime(baseDate, endTime);
-                  }
-                  
-                  hasTime = true;
-                }
-
-                const itemWithMetadata = {
-                  ...item,
-                  sourceTable: tableName,
-                  type: tableInfo.type,
-                  categoryName: tableInfo.categoryName,
-                  department: tableInfo.department,
-                  departmentName: tableInfo.department,
-                  date: baseDate,
-                  start: startDateTime,
-                  end: endDateTime,
-                  hasTime: hasTime,
-                  title: getActivityTitle(item)
-                };
-
-                if (tableInfo.type === 'meeting') {
-                  allMeetingsData.push(itemWithMetadata);
-                } else {
-                  allTasksData.push(itemWithMetadata);
-                }
-              } catch (itemError) {
-                console.warn(`Error processing item from ${tableName}:`, itemError);
+              if (!baseDate) {
+                console.warn(`No date found for ${tableName} record ${item.id} in field ${dateField}`);
+                invalidRecords++;
+                return;
               }
+
+              const itemWithMetadata = {
+                ...item,
+                sourceTable: tableName,
+                type: tableInfo.type,
+                categoryName: tableInfo.categoryName,
+                department: tableInfo.department,
+                date: baseDate, // Use the actual date field
+                start: baseDate, // Use the actual date field
+                title: getActivityTitle(item, tableName, tableInfo.categoryName),
+                priority: item.priority || 3,
+                status: item.status || 'scheduled',
+                hasTime: !!(item.start_time || item.end_time),
+                // Store the actual date field used for debugging
+                _dateField: dateField,
+                _rawDate: baseDate
+              };
+
+              allActivitiesData.push(itemWithMetadata);
+              validRecords++;
             });
+
+            console.log(`Fetched from ${tableName}: ${validRecords} valid, ${invalidRecords} invalid dates`);
+
+            if (validRecords > 0) {
+              console.log(`First date in ${tableName}: ${data[0]?.[dateField]}`);
+            }
+          } else {
+            console.log(`No data found in table: ${tableName}`);
           }
         } catch (tableError) {
           console.warn(`Failed to fetch from table ${tableName}:`, tableError);
@@ -1344,233 +2512,359 @@ const Dashboard = () => {
 
       await Promise.allSettled(fetchPromises);
 
-      safeSetState(setAllMeetings, allMeetingsData);
-      safeSetState(setAllTasks, allTasksData);
-      calculateStats(allMeetingsData, allTasksData);
+      // Sort activities by actual date (not created_at)
+      const sortedActivities = allActivitiesData.sort((a, b) => {
+        const dateA = new Date(a.date || a.start || a.created_at);
+        const dateB = new Date(b.date || b.start || b.created_at);
+        return dateB - dateA; // Descending order (newest first)
+      });
 
+      setAllActivities(sortedActivities);
+      calculateStats(sortedActivities);
     } catch (error) {
-      handleError(error, 'fetching all data');
-      safeSetState(setAllMeetings, []);
-      safeSetState(setAllTasks, []);
+      console.error('Error fetching all activities:', error);
+      throw error;
     }
   };
 
-  const calculateStats = (meetingsData, tasksData) => {
-    try {
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
+  const calculateStats = (activitiesData) => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
 
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
 
-      const thisWeekMeetings = meetingsData.filter(meeting => {
-        try {
-          const meetingDate = new Date(meeting.start || meeting.date || meeting.created_at);
-          return meetingDate >= startOfWeek && meetingDate <= endOfWeek;
-        } catch (error) {
-          console.warn('Error processing meeting date:', error);
-          return false;
-        }
-      });
+    const thisWeekActivities = activitiesData.filter(activity => {
+      const activityDate = new Date(activity.start || activity.date || activity.created_at);
+      return activityDate >= startOfWeek && activityDate <= endOfWeek;
+    });
 
-      const highPriorityMeetings = meetingsData.filter(meeting => meeting.priority >= 4);
-      const completedMeetings = meetingsData.filter(meeting => meeting.status === 'completed');
-      const pendingTasks = tasksData.filter(task => task.status === 'pending');
-      const timedEvents = [...meetingsData, ...tasksData].filter(activity => activity.hasTime);
+    const highPriorityActivities = activitiesData.filter(activity => activity.priority >= 4);
+    const completedActivities = activitiesData.filter(activity => activity.status === 'completed');
+    const pendingActivities = activitiesData.filter(activity => activity.status === 'pending');
+    const meetings = activitiesData.filter(activity => activity.type === 'meeting');
+    const tasks = activitiesData.filter(activity => activity.type === 'task');
 
-      safeSetState(setStats, {
-        totalMeetings: meetingsData.length,
-        totalTasks: tasksData.length,
-        thisWeekMeetings: thisWeekMeetings.length,
-        highPriorityMeetings: highPriorityMeetings.length,
-        completedMeetings: completedMeetings.length,
-        pendingTasks: pendingTasks.length,
-        timedEvents: timedEvents.length
-      });
-    } catch (error) {
-      handleError(error, 'calculating statistics');
-    }
+    setStats({
+      totalActivities: activitiesData.length,
+      totalMeetings: meetings.length,
+      totalTasks: tasks.length,
+      thisWeekActivities: thisWeekActivities.length,
+      highPriorityActivities: highPriorityActivities.length,
+      completedActivities: completedActivities.length,
+      pendingActivities: pendingActivities.length
+    });
   };
 
   // Get filtered activities based on department
   const getFilteredActivities = () => {
-    const allActivities = [...allMeetings, ...allTasks];
-    
     if (!selectedDepartment) {
       return allActivities;
     }
-    
+
     return allActivities.filter(activity => activity.department === selectedDepartment);
   };
 
-  // Convert activities to FullCalendar events with proper time handling
-  const getCalendarEvents = () => {
-    const activities = getFilteredActivities();
-    
-    return activities.map(activity => {
-      const event = {
-        id: `${activity.sourceTable}-${activity.id}`,
-        title: getActivityTitle(activity),
-        start: activity.start || activity.date || activity.created_at,
-        extendedProps: {
-          ...activity,
-          priority: activity.priority || 1,
-          type: activity.type,
-          department: activity.department
-        }
-      };
-
-      // If it has an end time, add it to the event
-      if (activity.end) {
-        event.end = activity.end;
-      }
-
-      // If it doesn't have time, mark it as all day
-      if (!activity.hasTime) {
-        event.allDay = true;
-      }
-
-      return event;
-    });
+  const handleDateClick = (date, activities = []) => {
+    setSelectedDate(date);
   };
 
-  // Handle date click on calendar
-  const handleDateClick = (date, arg) => {
-    const activities = getFilteredActivities().filter(activity => {
-      const activityDate = new Date(activity.start || activity.date || activity.created_at);
-      return activityDate.toDateString() === date.toDateString();
-    });
+  const handleEventClick = (activity) => {
+    // Close any open modals first
+    setCategoryOverviewModalVisible(false);
+    setCategoryEventsModalVisible(false);
+    setAllActivitiesModalVisible(false);
 
-    showDateActivitiesModal(dayjs(date), activities);
-  };
-
-  // Handle event click on calendar
-  const handleEventClick = (event) => {
-    const activity = event.extendedProps;
-    showActivityModal(activity);
-  };
-
-  // Handle activity click in list
-  const handleActivityClick = (activity) => {
-    showActivityModal(activity);
-  };
-
-  // Get activities for current view (organizational or department)
-  const getActivitiesForView = () => {
-    if (activeTab === 'organizational') {
-      return getFilteredActivities();
+    if (activity.sourceTable === 'organizational_data') {
+      setSelectedActivity(activity);
+      setIsOrganizationalActivityModalVisible(true);
     } else {
-      // For department view, show only activities from user's department
-      if (!currentUser) return [];
-      const userDept = currentUser.department_id;
-      return getFilteredActivities().filter(activity => 
-        activity.department_id === userDept || activity.department === departments[userDept]?.name
-      );
+      setSelectedActivity(activity);
+      setIsActivityModalVisible(true);
     }
+  };
+
+  const handleActivityClick = (activity) => {
+    if (activity.sourceTable === 'organizational_data') {
+      setSelectedActivity(activity);
+      setIsOrganizationalActivityModalVisible(true);
+    } else {
+      setSelectedActivity(activity);
+      setIsActivityModalVisible(true);
+    }
+  };
+
+  const handleShowAllCategories = (date, groupedActivities) => {
+    // Close any open modals first
+    setCategoryEventsModalVisible(false);
+    setIsActivityModalVisible(false);
+    setIsOrganizationalActivityModalVisible(false);
+    setAllActivitiesModalVisible(false);
+
+    setTempSelectedDate(date);
+    setTempGroupedActivities(groupedActivities);
+    setCategoryOverviewModalVisible(true);
+  };
+
+  const handleCategorySelect = (category, activities) => {
+    // Close category overview modal
+    setCategoryOverviewModalVisible(false);
+
+    setSelectedCategory(category);
+    setSelectedCategoryActivities(activities);
+    setCategoryEventsModalVisible(true);
+  };
+
+  const handleMonthChange = (newDate) => {
+    setCurrentMonth(newDate);
+    if (viewMode === 'day') {
+      setSelectedDate(newDate);
+    }
+  };
+
+  const handleViewModeChange = (newViewMode) => {
+    setViewMode(newViewMode);
+    if (newViewMode === 'day' && !selectedDate) {
+      setSelectedDate(currentMonth);
+    }
+  };
+
+  const handleCreateEvent = () => {
+    setCreateEventModalVisible(true);
+  };
+
+  const handleEventCreated = () => {
+    fetchOrganizationalActivities();
+  };
+
+  const CategoryOverviewModal = ({
+    visible,
+    onClose,
+    selectedDate,
+    groupedActivities,
+    onCategorySelect
+  }) => {
+    const categories = Object.entries(groupedActivities).map(([category, activities]) => ({
+      category,
+      count: activities.length,
+      department: activities[0]?.department,
+      color: departments[activities[0]?.department]?.color || '#1890ff'
+    }));
+
+    return (
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined />
+            Categories for {selectedDate?.format('MMMM D, YYYY')}
+          </Space>
+        }
+        open={visible}
+        onCancel={onClose}
+        width={600}
+        footer={[
+          <Button key="close" onClick={onClose} size="large">
+            Close
+          </Button>
+        ]}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Total Categories"
+                  value={categories.length}
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Total Activities"
+                  value={Object.values(groupedActivities).reduce((sum, activities) => sum + activities.length, 0)}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Departments"
+                  value={new Set(categories.map(cat => cat.department)).size}
+                  valueStyle={{ color: '#fa8c16' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <List
+            dataSource={categories}
+            renderItem={item => (
+              <List.Item
+                actions={[
+                  <Button
+                    type="link"
+                    onClick={() => onCategorySelect(item.category, groupedActivities[item.category])}
+                  >
+                    View Events ({item.count})
+                  </Button>
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <div
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        backgroundColor: item.color,
+                        borderRadius: '3px'
+                      }}
+                    />
+                  }
+                  title={item.category}
+                  description={departments[item.department]?.name || item.department}
+                />
+                <Tag color="blue">{item.count} activities</Tag>
+              </List.Item>
+            )}
+            locale={{
+              emptyText: 'No categories found for this date'
+            }}
+          />
+        </Space>
+      </Modal>
+    );
+  };
+
+  // Category Events Modal Component
+  const CategoryEventsModal = ({
+    visible,
+    onClose,
+    selectedCategory,
+    categoryActivities,
+    onEventClick
+  }) => {
+    const columns = [
+      {
+        title: 'Type',
+        dataIndex: 'type',
+        key: 'type',
+        width: 80,
+        render: (type) => (
+          <Tag color={type === 'meeting' ? 'blue' : 'green'}>
+            {type === 'meeting' ? 'Meeting' : 'Task'}
+          </Tag>
+        )
+      },
+      {
+        title: 'Title',
+        dataIndex: 'title',
+        key: 'title',
+        render: (title, record) => (
+          <Button
+            type="link"
+            onClick={() => onEventClick(record)}
+            style={{ padding: 0, height: 'auto', textAlign: 'left', fontSize: '14px' }}
+          >
+            {title}
+          </Button>
+        )
+      },
+      {
+        title: 'Department',
+        dataIndex: 'department',
+        key: 'department',
+        width: 120,
+        render: (department) => (
+          <Tag color={departments[department]?.color || 'default'}>
+            {departments[department]?.name || department}
+          </Tag>
+        )
+      },
+      {
+        title: 'Priority',
+        dataIndex: 'priority',
+        key: 'priority',
+        width: 100,
+        render: (priority) => (
+          <Tag color={priorityColors[priority]}>
+            {priorityLabels[priority]}
+          </Tag>
+        )
+      }
+    ];
+
+    return (
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined />
+            {selectedCategory} ({categoryActivities.length} events)
+          </Space>
+        }
+        open={visible}
+        onCancel={onClose}
+        width={800}
+        footer={[
+          <Button key="close" onClick={onClose} size="large">
+            Close
+          </Button>
+        ]}
+      >
+        <Table
+          columns={columns}
+          dataSource={categoryActivities}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: false
+          }}
+          scroll={{ y: 400 }}
+          size="middle"
+          locale={{
+            emptyText: 'No events found for this category'
+          }}
+        />
+      </Modal>
+    );
   };
 
   const formatTimeSinceLastRefresh = () => {
-    try {
-      const now = new Date();
-      const diffInSeconds = Math.floor((now - lastRefresh) / 1000);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - lastRefresh) / 1000);
 
-      if (diffInSeconds < 60) {
-        return `${diffInSeconds} seconds ago`;
-      } else {
-        const minutes = Math.floor(diffInSeconds / 60);
-        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-      }
-    } catch (error) {
-      return 'Unknown';
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} seconds ago`;
+    } else {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
     }
   };
 
-  // Handle date range change
-  const handleDateRangeChange = (dates) => {
-    setDateRange(dates);
-  };
-
-  // Clear date range filter
-  const clearDateRange = () => {
-    setDateRange(null);
-  };
-
-  // Render error state
-  if (error && retryCount > 2) {
-    return <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />;
-  }
-
-  // Render loading state
-  if (loading && !isRefreshing) {
+  if (loading) {
     return <LoadingSpinner />;
   }
 
   return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Modal: {
-            zIndexBase: 1000,
-            zIndexPopupBase: 1000,
-          },
-        },
-      }}
-    >
+    <ConfigProvider>
       <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto' }}>
         <ToastContainer position="top-right" autoClose={5000} />
-
-        {/* Error Alert */}
-        {error && (
-          <Alert
-            message="Dashboard Error"
-            description={`${error.context}: ${error.message}`}
-            type="error"
-            showIcon
-            closable
-            onClose={() => setError(null)}
-            action={
-              <Button size="large" type="primary" onClick={resetErrorBoundary}>
-                Retry
-              </Button>
-            }
-            style={{ marginBottom: 16 }}
-          />
-        )}
 
         {/* Header with Controls */}
         <Card
           size="small"
           style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
-          bodyStyle={{ padding: '12px 16px' }}
         >
           <Row justify="space-between" align="middle" gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>
               <Title level={2} style={{ margin: 0, fontSize: '24px' }}>Dashboard</Title>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" style={{ width: '100%' }} size="small">
-                <Text strong style={{ fontSize: '14px' }}>Date Range:</Text>
-                <Space.Compact style={{ width: '100%' }}>
-                  <RangePicker
-                    value={dateRange}
-                    onChange={handleDateRangeChange}
-                    style={{ width: '100%' }}
-                    size="large"
-                  />
-                  {dateRange && (
-                    <Button 
-                      onClick={clearDateRange}
-                      size="large"
-                      danger
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </Space.Compact>
-              </Space>
+              {currentUser && (
+                <Text type="secondary">Welcome, {currentUser.full_name || currentUser.email}</Text>
+              )}
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Space direction="vertical" style={{ width: '100%' }} size="small">
@@ -1586,11 +2880,17 @@ const Dashboard = () => {
                   >
                     Refresh
                   </Button>
+                  <ExportButton
+                    activities={getFilteredActivities()}
+                    currentView={viewMode}
+                    currentDate={currentMonth}
+                    selectedDepartment={selectedDepartment}
+                  />
                   <Switch
                     checkedChildren="Auto On"
                     unCheckedChildren="Auto Off"
                     checked={autoRefresh}
-                    onChange={handleAutoRefreshToggle}
+                    onChange={setAutoRefresh}
                   />
                 </Space>
               </Space>
@@ -1601,7 +2901,7 @@ const Dashboard = () => {
         {autoRefresh && (
           <Alert
             message="Auto-refresh Enabled"
-            description="Dashboard data will automatically update every 1 minute."
+            description="Dashboard data will automatically update periodically."
             type="info"
             showIcon
             closable
@@ -1614,8 +2914,8 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Total Meetings"
-                value={stats.totalMeetings}
+                title="Total Activities"
+                value={stats.totalActivities}
                 prefix={<CalendarOutlined />}
                 valueStyle={{ color: '#1890ff', fontSize: '20px' }}
               />
@@ -1624,9 +2924,9 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Total Tasks"
-                value={stats.totalTasks}
-                prefix={<CheckCircleOutlined />}
+                title="Meetings"
+                value={stats.totalMeetings}
+                prefix={<TeamOutlined />}
                 valueStyle={{ color: '#52c41a', fontSize: '20px' }}
               />
             </Card>
@@ -1634,9 +2934,9 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="This Week"
-                value={stats.thisWeekMeetings}
-                prefix={<TeamOutlined />}
+                title="Tasks"
+                value={stats.totalTasks}
+                prefix={<CheckCircleOutlined />}
                 valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
               />
             </Card>
@@ -1644,18 +2944,8 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="High Priority"
-                value={stats.highPriorityMeetings}
-                prefix={<ExclamationCircleOutlined />}
-                valueStyle={{ color: '#f5222d', fontSize: '20px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ textAlign: 'center' }}>
-              <Statistic
-                title="Timed Events"
-                value={stats.timedEvents}
+                title="This Week"
+                value={stats.thisWeekActivities}
                 prefix={<ClockCircleOutlined />}
                 valueStyle={{ color: '#722ed1', fontSize: '20px' }}
               />
@@ -1664,8 +2954,18 @@ const Dashboard = () => {
           <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ textAlign: 'center' }}>
               <Statistic
-                title="Pending Tasks"
-                value={stats.pendingTasks}
+                title="High Priority"
+                value={stats.highPriorityActivities}
+                prefix={<ExclamationCircleOutlined />}
+                valueStyle={{ color: '#f5222d', fontSize: '20px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card size="small" style={{ textAlign: 'center' }}>
+              <Statistic
+                title="Pending"
+                value={stats.pendingActivities}
                 prefix={<ClockCircleOutlined />}
                 valueStyle={{ color: '#faad14', fontSize: '20px' }}
               />
@@ -1673,172 +2973,101 @@ const Dashboard = () => {
           </Col>
         </Row>
 
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={setActiveTab}
-          size="large"
           items={[
             {
               key: 'organizational',
               label: 'Organizational View',
               children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={16}>
+                    <OrganizationalCalendar
+                      activities={organizationalActivities}
+                      onDateClick={handleDateClick}
+                      selectedDate={selectedDate}
+                      currentMonth={currentMonth}
+                      onMonthChange={handleMonthChange}
+                      onEventClick={handleEventClick}
+                      viewMode={viewMode}
+                      onViewModeChange={handleViewModeChange}
+                      onShowAllCategories={handleShowAllCategories}
+                      onCreateEvent={handleCreateEvent}
+                    />
+                  </Col>
+
+                  <Col xs={24} lg={8}>
+                    <RecentActivities
+                      activities={organizationalActivities}
+                      onActivityClick={handleActivityClick}
+                      onViewAll={() => setAllActivitiesModalVisible(true)}
+                    />
+                  </Col>
+                </Row>
+              )
+            },
+            {
+              key: 'department',
+              label: 'Department View',
+              children: (
+                <>
                   <DepartmentFilter
                     selectedDepartment={selectedDepartment}
                     onDepartmentChange={setSelectedDepartment}
                   />
-                  
                   <Row gutter={[16, 16]}>
                     <Col xs={24} lg={16}>
-                      <Card
-                        title={
-                          <Space>
-                            <CalendarOutlined />
-                            Organizational Calendar - {selectedDepartment ? departments[selectedDepartment]?.name : 'All Departments'}
-                            {dateRange && (
-                              <Tag color="blue" style={{ marginLeft: '8px' }}>
-                                {dateRange[0].format('MMM D')} - {dateRange[1].format('MMM D, YYYY')}
-                              </Tag>
-                            )}
-                          </Space>
-                        }
-                        bordered={false}
-                        extra={
-                          <Button 
-                            icon={<SyncOutlined />} 
-                            onClick={manualRefresh}
-                            loading={isRefreshing}
-                            size="small"
-                          >
-                            Refresh Calendar
-                          </Button>
-                        }
-                      >
-                        <EnhancedFullCalendar
-                          events={getCalendarEvents()}
-                          onDateClick={handleDateClick}
-                          onEventClick={handleEventClick}
-                          view={calendarView}
-                          height="600px"
-                          dateRange={dateRange}
-                        />
-                        
-                        {/* Calendar Legend */}
-                        <div style={{ 
-                          marginTop: '16px', 
-                          padding: '12px', 
-                          backgroundColor: '#f9f9f9', 
-                          borderRadius: '6px',
-                          border: '1px solid #e8e8e8'
-                        }}>
-                          <Text strong style={{ fontSize: '16px' }}>Calendar Legend:</Text>
-                          <Row gutter={16} style={{ marginTop: '12px' }}>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#52c41a',
-                                  borderRadius: '4px',
-                                  border: '2px solid #fff'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>1-3 Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#fa8c16',
-                                  borderRadius: '4px',
-                                  border: '2px solid #fff'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>4-6 Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#f5222d',
-                                  borderRadius: '4px',
-                                  border: '2px solid #fff'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>7+ Activities</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: 'transparent',
-                                  borderRadius: '4px',
-                                  border: '1px solid #d9d9d9'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>No Activities</Text>
-                              </div>
-                            </Col>
-                          </Row>
-                          <Divider style={{ margin: '12px 0' }} />
-                          <Row gutter={16}>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '4px',
-                                  height: '20px',
-                                  backgroundColor: '#1890ff',
-                                  borderRadius: '2px'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>Timed Events</Text>
-                              </div>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                <div style={{
-                                  width: '20px',
-                                  height: '20px',
-                                  backgroundColor: '#1890ff',
-                                  borderRadius: '4px'
-                                }}></div>
-                                <Text style={{ fontSize: '14px' }}>All Day Events</Text>
-                              </div>
-                            </Col>
-                          </Row>
-                        </div>
-                      </Card>
+                      <DepartmentCalendar
+                        activities={getFilteredActivities()}
+                        onDateClick={handleDateClick}
+                        selectedDate={selectedDate}
+                        currentMonth={currentMonth}
+                        onMonthChange={handleMonthChange}
+                        onEventClick={handleEventClick}
+                        viewMode={viewMode}
+                        onViewModeChange={handleViewModeChange}
+                        onShowAllCategories={handleShowAllCategories}
+                      />
                     </Col>
-                    
+
                     <Col xs={24} lg={8}>
                       <RecentActivities
-                        activities={getActivitiesForView()}
+                        activities={getFilteredActivities()}
                         onActivityClick={handleActivityClick}
-                        onViewAll={showAllActivitiesModal}
+                        onViewAll={() => setAllActivitiesModalVisible(true)}
                       />
                     </Col>
                   </Row>
-                </Space>
+                </>
               )
-            },
+            }
           ]}
         />
 
-        {/* Date Activities Modal */}
-        <DateActivitiesModal
-          visible={dateActivitiesModalVisible}
-          onClose={() => setDateActivitiesModalVisible(false)}
-          selectedDate={selectedDate}
-          activities={dateActivities}
-          onActivityClick={handleActivityClick}
+        {/* Category Overview Modal */}
+        <CategoryOverviewModal
+          visible={categoryOverviewModalVisible}
+          onClose={() => setCategoryOverviewModalVisible(false)}
+          selectedDate={tempSelectedDate}
+          groupedActivities={tempGroupedActivities}
+          onCategorySelect={handleCategorySelect}
+        />
+
+        {/* Category Events Modal */}
+        <CategoryEventsModal
+          visible={categoryEventsModalVisible}
+          onClose={() => setCategoryEventsModalVisible(false)}
+          selectedCategory={selectedCategory}
+          categoryActivities={selectedCategoryActivities}
+          onEventClick={handleEventClick}
         />
 
         {/* All Activities Modal */}
         <AllActivitiesModal
           visible={allActivitiesModalVisible}
           onClose={() => setAllActivitiesModalVisible(false)}
-          activities={getActivitiesForView()}
+          activities={getFilteredActivities()}
           onActivityClick={handleActivityClick}
         />
 
@@ -1847,8 +3076,20 @@ const Dashboard = () => {
           visible={isActivityModalVisible}
           onClose={() => setIsActivityModalVisible(false)}
           selectedActivity={selectedActivity}
-          getDateFieldName={getDateFieldName}
-          getActivityTitle={getActivityTitle}
+        />
+
+        {/* Organizational Activity Detail Modal */}
+        <OrganizationalActivityDetailModal
+          visible={isOrganizationalActivityModalVisible}
+          onClose={() => setIsOrganizationalActivityModalVisible(false)}
+          selectedActivity={selectedActivity}
+        />
+
+        {/* Create Organizational Event Modal */}
+        <CreateOrganizationalEventModal
+          visible={createEventModalVisible}
+          onClose={() => setCreateEventModalVisible(false)}
+          onEventCreated={handleEventCreated}
         />
       </div>
     </ConfigProvider>

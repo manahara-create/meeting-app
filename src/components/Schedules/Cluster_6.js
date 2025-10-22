@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Checkbox, TimePicker
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -14,8 +14,8 @@ import {
     MessageOutlined, WechatOutlined, SendOutlined,
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
-    EnvironmentOutlined, CarryOutOutlined, ShoppingOutlined,
-    ContainerOutlined, ToolOutlined, FlagOutlined
+    StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -24,6 +24,8 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -39,7 +41,7 @@ const { TabPane } = Tabs;
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
     <Result
         status="error"
-        title="Something went wrong in SCMT Module"
+        title="Something went wrong in Cluster 6 Module"
         subTitle={error?.message || "An unexpected error occurred"}
         extra={
             <Button type="primary" onClick={resetErrorBoundary} size="large">
@@ -50,7 +52,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => (
 );
 
 // Loading component
-const LoadingSpinner = ({ tip = "Loading SCMT data..." }) => (
+const LoadingSpinner = ({ tip = "Loading Cluster 6 data..." }) => (
     <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" tip={tip} />
     </div>
@@ -88,36 +90,8 @@ const PriorityBadge = ({ priority }) => {
     );
 };
 
-// Time Display Component
-const TimeDisplay = ({ time, format = 'HH:mm' }) => {
-    if (!time) return '-';
-
-    try {
-        // Handle both string time and dayjs object
-        let timeObj;
-        if (typeof time === 'string') {
-            // Try different time formats
-            const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
-            for (const fmt of formats) {
-                timeObj = dayjs(time, fmt);
-                if (timeObj.isValid()) break;
-            }
-            // If no format works, try creating from string directly
-            if (!timeObj || !timeObj.isValid()) {
-                timeObj = dayjs(`1970-01-01T${time}`);
-            }
-        } else {
-            timeObj = time;
-        }
-
-        return timeObj && timeObj.isValid() ? timeObj.format(format) : '-';
-    } catch (error) {
-        return '-';
-    }
-};
-
 // Statistics Cards Component
-const SCMTStatistics = ({ stats, loading = false }) => (
+const Cluster6Statistics = ({ stats, loading = false }) => (
     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8} md={6}>
             <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
@@ -198,7 +172,6 @@ const CategoryCard = ({ category, isSelected, onClick, loading = false }) => (
         </Title>
         <Text type="secondary" style={{ fontSize: '12px' }}>
             {category.type}
-            {category.hasTimeFields && ' • With Time'}
         </Text>
     </Card>
 );
@@ -253,15 +226,14 @@ const DiscussionModal = React.memo(({
     const [sending, setSending] = useState(false);
     const [subscription, setSubscription] = useState(null);
 
-    // Get the correct feedback table name
+    // Get the correct feedback table name for Cluster 6
     const getFeedbackTable = useCallback(() => {
         if (!category) return null;
 
         const tableMap = {
-            'delivery_distribution': 'scmt_d_n_d_fb',
-            'meetings_sessions': 'scmt_meetings_and_sessions_fb',
-            'other_operations': 'scmt_others_fb',
-            'weekly_meetings_scmt': 'scmt_weekly_meetings_fb'
+            'visit_plan': 'cluster_6_visit_plan_fb',
+            'meetings': 'cluster_6_meetings_fb',
+            'special_task': 'cluster_6_special_task_fb'
         };
 
         return tableMap[category.id] || null;
@@ -333,11 +305,22 @@ const DiscussionModal = React.memo(({
                     meeting_id: record.id,
                     sender_id: currentUser.id,
                     content: newMessage.trim(),
-                    created_at: new Date().toISOString(),
-                    priority: 1 // Default priority for messages
+                    created_at: new Date().toISOString()
                 }]);
 
             if (error) throw error;
+
+            await notifyDepartmentOperation(
+                'cluster_6',
+                category.name,
+                NOTIFICATION_TYPES.DISCUSSION,
+                record,
+                {
+                    tableName: feedbackTable,
+                    userId: currentUser.id,
+                    message: 'New message in discussion'
+                }
+            );
 
             setNewMessage('');
         } catch (error) {
@@ -420,10 +403,8 @@ const DiscussionModal = React.memo(({
             title={
                 <Space>
                     <WechatOutlined />
-                    Discussion: {record?.type || record?.supplier || record?.location || 'Record'}
+                    Discussion: {record?.subject || record?.name || record?.task || 'Record'}
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
-                    {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
-                    {record?.date_of_arrival && ` - ${dayjs(record.date_of_arrival).format('DD/MM/YYYY')}`}
                     <PriorityBadge priority={record.priority} />
                 </Space>
             }
@@ -499,7 +480,7 @@ const UserScheduleModal = React.memo(({
             switch (item.type) {
                 case 'personal_meeting':
                     return 'blue';
-                case 'scmt_activity':
+                case 'cluster_6_activity':
                     return 'green';
                 default:
                     return 'gray';
@@ -514,7 +495,7 @@ const UserScheduleModal = React.memo(({
             switch (item.type) {
                 case 'personal_meeting':
                     return <UserOutlined />;
-                case 'scmt_activity':
+                case 'cluster_6_activity':
                     return <CalendarOutlined />;
                 default:
                     return <ScheduleOutlined />;
@@ -525,9 +506,27 @@ const UserScheduleModal = React.memo(({
     };
 
     const getActivityType = (item) => {
-        if (item.type === 'personal_meeting') return 'Personal Meeting';
-        if (item.type === 'scmt_activity') return `SCMT ${item.activity_type}`;
-        return 'Unknown Activity';
+        try {
+            if (item.type === 'personal_meeting') return 'Personal Meeting';
+            if (item.type === 'cluster_6_activity') return `Cluster 6 ${item.activity_type}`;
+            return 'Unknown Activity';
+        } catch (error) {
+            return 'Unknown Activity';
+        }
+    };
+
+    const getActivityDescription = (item) => {
+        try {
+            if (item.type === 'personal_meeting') {
+                return item.description || 'No description available';
+            }
+            if (item.type === 'cluster_6_activity') {
+                return item.remarks || item.purpose || 'No description available';
+            }
+            return 'No description available';
+        } catch (error) {
+            return 'Description not available';
+        }
     };
 
     const safeDayjs = (date) => {
@@ -589,54 +588,35 @@ const UserScheduleModal = React.memo(({
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.topic || item.type || item.activity_type || 'Unknown Activity'}
+                                                {item.subject || item.name || item.task || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Date & Time">
+                                        <Descriptions.Item label="Date">
                                             <Space>
                                                 <CalendarOutlined />
-                                                {safeDayjs(item.start_date || item.date || item.date_of_arrival).format('DD/MM/YYYY')}
-                                                {item.end_date && ` to ${safeDayjs(item.end_date).format('DD/MM/YYYY')}`}
-                                                {(item.start_time || item.end_time) && (
-                                                    <Tag color="purple">
-                                                        <TimeDisplay time={item.start_time} /> - <TimeDisplay time={item.end_time} />
-                                                    </Tag>
-                                                )}
+                                                {safeDayjs(item.date).format('DD/MM/YYYY')}
                                             </Space>
                                         </Descriptions.Item>
-                                        {item.location && (
-                                            <Descriptions.Item label="Location">
-                                                <Tag color="blue">{item.location}</Tag>
+
+                                        <Descriptions.Item label="Description">
+                                            <Text type="secondary">
+                                                {getActivityDescription(item)}
+                                            </Text>
+                                        </Descriptions.Item>
+
+                                        {item.area && (
+                                            <Descriptions.Item label="Area">
+                                                <Tag color="blue">{item.area}</Tag>
                                             </Descriptions.Item>
                                         )}
-                                        {item.day && (
-                                            <Descriptions.Item label="Day">
-                                                <Tag color="purple">{item.day}</Tag>
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.supplier && (
-                                            <Descriptions.Item label="Supplier">
-                                                {item.supplier}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.pord_no && (
-                                            <Descriptions.Item label="PO Number">
-                                                {item.pord_no}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.description && (
-                                            <Descriptions.Item label="Description">
-                                                {item.description}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.remarks && (
-                                            <Descriptions.Item label="Remarks">
-                                                {item.remarks}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.responsible_2 && (
-                                            <Descriptions.Item label="Responsible Person">
-                                                {item.responsible_2}
+                                        {item.status && (
+                                            <Descriptions.Item label="Status">
+                                                <Tag color={
+                                                    item.status.toLowerCase() === 'completed' ? 'green' : 
+                                                    item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
+                                                }>
+                                                    {item.status}
+                                                </Tag>
                                             </Descriptions.Item>
                                         )}
                                     </Descriptions>
@@ -667,9 +647,201 @@ const UserScheduleModal = React.memo(({
     );
 });
 
-const SCMT = () => {
+// Export Button Component
+const ExportButton = ({ 
+    activities = [], 
+    selectedCategory = null,
+    moduleName = '',
+    priorityLabels = {}
+}) => {
+    const priorityOptions = [
+        { value: 1, label: 'Low', color: 'green' },
+        { value: 2, label: 'Normal', color: 'blue' },
+        { value: 3, label: 'Medium', color: 'orange' },
+        { value: 4, label: 'High', color: 'red' },
+        { value: 5, label: 'Critical', color: 'purple' }
+    ];
+
+    const getPriorityLabel = (priority) => {
+        const option = priorityOptions.find(opt => opt.value === priority);
+        return option ? option.label : 'Normal';
+    };
+
+    /** -----------------------------
+     * Export to Excel (.xlsx)
+     * ----------------------------- */
+    const exportToExcel = () => {
+        try {
+            const dataForExport = activities.map(activity => {
+                // Common structure for Cluster 6 modules
+                const base = {
+                    'Category': selectedCategory?.name || '',
+                    'Priority': getPriorityLabel(activity.priority),
+                    'Date': activity.date
+                        ? dayjs(activity.date).format('YYYY-MM-DD')
+                        : '',
+                    'Status': activity.status || '',
+                    'Created Date': activity.created_at
+                        ? dayjs(activity.created_at).format('YYYY-MM-DD')
+                        : ''
+                };
+
+                // Extend base based on table type
+                switch (selectedCategory?.id) {
+                    case 'meetings':
+                        return {
+                            ...base,
+                            'Subject': activity.subject || '',
+                        };
+
+                    case 'special_task':
+                        return {
+                            ...base,
+                            'Task': activity.task || '',
+                        };
+
+                    case 'visit_plan':
+                        return {
+                            ...base,
+                            'Name': activity.name || '',
+                            'Area': activity.area || '',
+                        };
+
+                    default:
+                        return base;
+                }
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Cluster 6 Export');
+
+            // Auto-size columns
+            const colWidths = [];
+            if (dataForExport.length > 0) {
+                Object.keys(dataForExport[0]).forEach(key => {
+                    const maxLength = Math.max(
+                        key.length,
+                        ...dataForExport.map(row => String(row[key] || '').length)
+                    );
+                    colWidths.push({ wch: Math.min(maxLength + 2, 50) });
+                });
+                worksheet['!cols'] = colWidths;
+            }
+
+            const fileName = `${selectedCategory?.name || 'cluster_6_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success(`Excel file exported successfully! (${dataForExport.length} records)`);
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+            toast.error('Failed to export Excel file');
+        }
+    };
+
+    /** -----------------------------
+     * Export to PDF (.pdf)
+     * ----------------------------- */
+    const exportToPDF = () => {
+        try {
+            const doc = new jsPDF();
+            doc.setFontSize(16);
+            doc.text('Cluster 6 Export Summary', 14, 15);
+            doc.setFontSize(10);
+            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
+            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+
+            const headers = ['Category', 'Priority', 'Date', 'Status'];
+            const tableData = activities.map(a => [
+                selectedCategory?.name || '',
+                getPriorityLabel(a.priority),
+                a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
+                a.status || ''
+            ]);
+
+            let y = 35;
+            const xStart = 14;
+            const colWidths = [40, 30, 30, 30];
+            const lineHeight = 7;
+            const pageHeight = doc.internal.pageSize.height;
+
+            // Header background
+            doc.setFillColor(41, 128, 185);
+            doc.setTextColor(255, 255, 255);
+            let x = xStart;
+            headers.forEach((header, i) => {
+                doc.rect(x, y - 5, colWidths[i], 8, 'F');
+                doc.text(header, x + 2, y);
+                x += colWidths[i];
+            });
+
+            doc.setTextColor(0, 0, 0);
+            y += 10;
+
+            // Rows
+            tableData.forEach(row => {
+                if (y > pageHeight - 20) {
+                    doc.addPage();
+                    y = 20;
+                }
+                x = xStart;
+                row.forEach((cell, i) => {
+                    doc.text(cell.toString().substring(0, 35), x + 2, y);
+                    x += colWidths[i];
+                });
+                y += lineHeight;
+            });
+
+            const fileName = `${selectedCategory?.name || 'cluster_6_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+
+            doc.save(fileName);
+            toast.success('PDF file exported successfully!');
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            toast.error('Failed to export PDF file');
+        }
+    };
+
+    /** -----------------------------
+     * Dropdown menu
+     * ----------------------------- */
+    const exportItems = [
+        { 
+            key: 'excel', 
+            icon: <FileExcelOutlined />, 
+            label: 'Export to Excel', 
+            onClick: exportToExcel 
+        },
+        { 
+            key: 'pdf', 
+            icon: <FilePdfOutlined />, 
+            label: 'Export to PDF', 
+            onClick: exportToPDF 
+        }
+    ];
+
+    return (
+        <Dropdown 
+            menu={{ items: exportItems }} 
+            placement="bottomRight"
+            disabled={activities.length === 0}
+        >
+            <Button 
+                type="primary" 
+                icon={<DownloadOutlined />} 
+                size="large"
+                disabled={activities.length === 0}
+            >
+                Export
+            </Button>
+        </Dropdown>
+    );
+};
+
+const Cluster6 = () => {
     // Error handling states
-    const [error, setError] = useState(null);
+    const [error, setError] = useState(null); 
     const [loading, setLoading] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
 
@@ -687,9 +859,12 @@ const SCMT = () => {
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
 
+    // View mode state (web view or excel view)
+    const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
+
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-    const [scmtUsers, setScmtUsers] = useState([]);
+    const [Cluster6Users, setCluster6Users] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [userSchedule, setUserSchedule] = useState([]);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -706,9 +881,39 @@ const SCMT = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Default time values
-    const defaultStartTime = dayjs('09:00', 'HH:mm');
-    const defaultEndTime = dayjs('17:00', 'HH:mm');
+    // Updated Cluster 6 Categories configuration to match your database structure
+    const Cluster6Categories = [
+        {
+            id: 'visit_plan',
+            name: 'Visit Plan',
+            table: 'cluster_6_visit_plan',
+            type: 'Task',
+            icon: <CheckCircleOutlined />,
+            dateField: 'date',
+            color: '#1890ff',
+            hasTimeFields: false
+        },
+        {
+            id: 'meetings',
+            name: 'Meetings',
+            table: 'cluster_6_meetings',
+            type: 'Meeting',
+            icon: <CalendarOutlined />,
+            dateField: 'date',
+            color: '#fa8c16',
+            hasTimeFields: false
+        },
+        {
+            id: 'special_task',
+            name: 'Special Task',
+            table: 'cluster_6_special_task',
+            type: 'Task',
+            icon: <CheckCircleOutlined />,
+            dateField: 'date',
+            color: '#52c41a',
+            hasTimeFields: false
+        }
+    ];
 
     // Priority options
     const priorityOptions = [
@@ -717,50 +922,6 @@ const SCMT = () => {
         { value: 3, label: 'Medium', color: 'orange' },
         { value: 4, label: 'High', color: 'red' },
         { value: 5, label: 'Critical', color: 'purple' }
-    ];
-
-    // SCMT Categories configuration with time fields
-    const scmtCategories = [
-        {
-            id: 'delivery_distribution',
-            name: 'Delivery and Distribution',
-            table: 'scmt_d_n_d',
-            type: 'Task',
-            icon: <CarryOutOutlined />,
-            dateField: 'start_date',
-            color: '#1890ff',
-            hasTimeFields: false
-        },
-        {
-            id: 'meetings_sessions',
-            name: 'Meetings and Sessions',
-            table: 'scmt_meetings_and_sessions',
-            type: 'Meeting',
-            icon: <CalendarOutlined />,
-            dateField: 'date',
-            color: '#52c41a',
-            hasTimeFields: true // Enable time fields for meetings and sessions
-        },
-        {
-            id: 'other_operations',
-            name: 'Other Operations Activities',
-            table: 'scmt_others',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
-            dateField: 'date',
-            color: '#fa8c16',
-            hasTimeFields: true // Enable time fields for operations
-        },
-        {
-            id: 'weekly_meetings_scmt',
-            name: 'Weekly Shipments',
-            table: 'scmt_weekly_meetings',
-            type: 'Task',
-            icon: <ShoppingOutlined />,
-            dateField: 'date_of_arrival',
-            color: '#722ed1',
-            hasTimeFields: false
-        }
     ];
 
     // Get default date range: yesterday to 9 days from today (total 10 days)
@@ -831,45 +992,11 @@ const SCMT = () => {
         }
     }, []);
 
-    // Safe time parsing function
-    const safeTimeParse = useCallback((time) => {
-        try {
-            if (!time) return defaultStartTime;
-
-            if (dayjs.isDayjs(time)) {
-                return time;
-            }
-
-            if (typeof time === 'string') {
-                // Try different time formats
-                const formats = ['HH:mm:ss', 'HH:mm', 'HH:mm:ss.SSS'];
-                for (const format of formats) {
-                    const parsed = dayjs(time, format);
-                    if (parsed.isValid()) {
-                        return parsed;
-                    }
-                }
-
-                // If no format works, try creating from string directly
-                const directParse = dayjs(`1970-01-01T${time}`);
-                if (directParse.isValid()) {
-                    return directParse;
-                }
-            }
-
-            console.warn('Invalid time provided, using default:', time);
-            return defaultStartTime;
-        } catch (error) {
-            console.error('Error parsing time:', time, error);
-            return defaultStartTime;
-        }
-    }, [defaultStartTime]);
-
     // Reset error boundary
     const resetErrorBoundary = useCallback(() => {
         setError(null);
         setRetryCount(prev => prev + 1);
-        initializeSCMT();
+        initializeCluster6();
     }, []);
 
     // Auto-refresh setup
@@ -877,7 +1004,7 @@ const SCMT = () => {
         try {
             if (autoRefresh) {
                 const interval = setInterval(() => {
-                    refreshSCMTData();
+                    refreshCluster6Data();
                 }, 2 * 60 * 1000); // 2 minutes
 
                 return () => clearInterval(interval);
@@ -887,14 +1014,14 @@ const SCMT = () => {
         }
     }, [autoRefresh, handleError]);
 
-    const refreshSCMTData = async () => {
+    const refreshCluster6Data = async () => {
         if (isRefreshing) return;
 
         setIsRefreshing(true);
         try {
             await fetchTableData();
             safeSetState(setLastRefresh, new Date());
-            toast.info('SCMT data updated automatically');
+            toast.info('Cluster 6 data updated automatically');
         } catch (error) {
             handleError(error, 'auto-refresh');
         } finally {
@@ -907,7 +1034,7 @@ const SCMT = () => {
         try {
             await fetchTableData();
             safeSetState(setLastRefresh, new Date());
-            toast.success('SCMT data refreshed successfully');
+            toast.success('Cluster 6 data refreshed successfully');
         } catch (error) {
             handleError(error, 'manual refresh');
         } finally {
@@ -944,28 +1071,28 @@ const SCMT = () => {
         }
     };
 
-    // Initialize SCMT module
-    const initializeSCMT = async () => {
+    // Initialize Cluster 6 module
+    const initializeCluster6 = async () => {
         setLoading(true);
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
                 fetchProfiles(),
-                fetchSCMTUsers()
+                fetchCluster6Users()
             ]);
 
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
         } catch (error) {
-            handleError(error, 'initializing SCMT module');
+            handleError(error, 'initializing Cluster 6 module');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        initializeSCMT();
+        initializeCluster6();
     }, [retryCount]);
 
     useEffect(() => {
@@ -1006,26 +1133,26 @@ const SCMT = () => {
         }
     };
 
-    const fetchSCMTUsers = async () => {
+    const fetchCluster6Users = async () => {
         try {
-            // First get the SCMT department ID
+            // First get the Cluster 6 department ID
             const { data: deptData, error: deptError } = await supabase
                 .from('departments')
                 .select('id')
-                .eq('name', 'SCMT')
+                .eq('name', 'Cluster 6')
                 .single();
 
             if (deptError) {
-                // If SCMT department doesn't exist, try case-insensitive search
+                // If Cluster 6 department doesn't exist, try case-insensitive search
                 const { data: deptDataAlt, error: deptErrorAlt } = await supabase
                     .from('departments')
                     .select('id')
-                    .ilike('name', '%scmt%')
+                    .ilike('name', '%Cluster 6%')
                     .single();
 
                 if (deptErrorAlt) throw deptErrorAlt;
                 if (!deptDataAlt) {
-                    toast.warning('SCMT department not found. Using all users as fallback.');
+                    toast.warning('Cluster 6 department not found. Using all users as fallback.');
                     // Fallback to all users
                     const { data: allUsers, error: usersError } = await supabase
                         .from('profiles')
@@ -1033,21 +1160,21 @@ const SCMT = () => {
                         .order('full_name');
 
                     if (usersError) throw usersError;
-                    safeSetState(setScmtUsers, allUsers || []);
+                    safeSetState(setCluster6Users, allUsers || []);
                     return;
                 }
 
-                safeSetState(setScmtUsers, []);
+                safeSetState(setCluster6Users, []);
                 return;
             }
 
             if (!deptData) {
-                toast.warning('SCMT department not found');
-                safeSetState(setScmtUsers, []);
+                toast.warning('Cluster 6 department not found');
+                safeSetState(setCluster6Users, []);
                 return;
             }
 
-            // Then get all users in SCMT department
+            // Then get all users in Cluster 6 department
             const { data: usersData, error: usersError } = await supabase
                 .from('profiles')
                 .select('id, full_name, email, department_id')
@@ -1055,10 +1182,10 @@ const SCMT = () => {
                 .order('full_name');
 
             if (usersError) throw usersError;
-            safeSetState(setScmtUsers, usersData || []);
+            safeSetState(setCluster6Users, usersData || []);
         } catch (error) {
-            handleError(error, 'fetching SCMT users');
-            safeSetState(setScmtUsers, []);
+            handleError(error, 'fetching Cluster 6 users');
+            safeSetState(setCluster6Users, []);
         }
     };
 
@@ -1109,10 +1236,9 @@ const SCMT = () => {
 
         try {
             const tableMap = {
-                'delivery_distribution': 'scmt_d_n_d_fb',
-                'meetings_sessions': 'scmt_meetings_and_sessions_fb',
-                'other_operations': 'scmt_others_fb',
-                'weekly_meetings_scmt': 'scmt_weekly_meetings_fb'
+                'visit_plan': 'cluster_6_visit_plan_fb',
+                'meetings': 'cluster_6_meetings_fb',
+                'special_task': 'cluster_6_special_task_fb'
             };
 
             const feedbackTable = tableMap[category.id];
@@ -1139,31 +1265,26 @@ const SCMT = () => {
         }
     };
 
-    // REFACTORED: fetchUserSchedule function for SCMT with proper user filtering
     const fetchUserSchedule = async (userId, startDate, endDate) => {
         setAvailabilityLoading(true);
         try {
-            console.log('Fetching SCMT schedule for user:', userId, 'from', startDate, 'to', endDate);
-
-            // Validate inputs
-            if (!userId) {
-                throw new Error('User ID is required');
-            }
-
-            if (!startDate || !endDate) {
-                throw new Error('Start and end dates are required');
-            }
-
             const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
             const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
 
-            if (!formattedStart || !formattedEnd) {
-                throw new Error('Invalid date range provided');
-            }
-
             let allActivities = [];
 
-            // 1. Fetch personal meetings
+            // Get user details
+            const user = Cluster6Users.find(u => u.id === userId);
+            if (!user) {
+                console.warn('User not found in Cluster 6 users list');
+                safeSetState(setUserSchedule, []);
+                return;
+            }
+
+            const userName = user.full_name || user.email;
+            console.log(`Fetching schedule for user: ${userName} (${userId})`);
+
+            // 1. Personal meetings for the specific user
             const { data: personalMeetings, error: personalError } = await supabase
                 .from('personal_meetings')
                 .select('*')
@@ -1173,72 +1294,46 @@ const SCMT = () => {
                 .order('priority', { ascending: false })
                 .order('start_date', { ascending: true });
 
-            if (personalError) {
-                console.error('Error fetching personal meetings:', personalError);
-                throw personalError;
-            }
+            if (personalError) console.error('Personal meetings error:', personalError);
 
-            console.log('Personal meetings found:', personalMeetings?.length || 0);
+            // 2. Cluster 6 activities
+            for (const category of Cluster6Categories) {
+                console.log(`Checking category: ${category.name}`);
 
-            // 2. Fetch SCMT activities with proper user filtering
-            const user = scmtUsers.find(u => u.id === userId);
-            if (!user) {
-                console.warn('User not found in SCMT users list');
-            } else {
-                const userName = user.full_name || user.email;
-                console.log(`Searching SCMT activities for user: ${userName}`);
+                let query = supabase
+                    .from(category.table)
+                    .select('*')
+                    .gte(category.dateField, formattedStart)
+                    .lte(category.dateField, formattedEnd)
+                    .order('priority', { ascending: false })
+                    .order(category.dateField, { ascending: true });
 
-                for (const category of scmtCategories) {
-                    try {
-                        console.log(`Checking SCMT category: ${category.name}`);
+                let categoryActivities = [];
 
-                        let categoryActivities = [];
-
-                        // Different filtering strategies for each SCMT category
-                        switch (category.id) {
-                            case 'delivery_distribution':
-                            case 'meetings_sessions':
-                            case 'other_operations':
-                                // These categories use responsible_2 field (text array)
-                                categoryActivities = await fetchSCMTActivitiesForUser(
-                                    category,
-                                    formattedStart,
-                                    formattedEnd,
-                                    userName
-                                );
-                                break;
-
-                            case 'weekly_meetings_scmt':
-                                // Weekly shipments might have different responsible field
-                                categoryActivities = await fetchWeeklyShipmentsForUser(
-                                    category,
-                                    formattedStart,
-                                    formattedEnd,
-                                    userName
-                                );
-                                break;
-
-                            default:
-                                console.warn(`Unknown SCMT category type: ${category.id}`);
-                                continue;
-                        }
-
-                        console.log(`SCMT Category ${category.name} activities:`, categoryActivities.length);
-
-                        // Add category info to activities
-                        if (categoryActivities.length > 0) {
-                            allActivities.push(...categoryActivities.map(activity => ({
-                                ...activity,
-                                type: 'scmt_activity',
-                                activity_type: category.name,
-                                source_table: category.table,
-                                category_id: category.id
-                            })));
-                        }
-
-                    } catch (categoryError) {
-                        console.error(`Error fetching ${category.name} activities:`, categoryError);
+                try {
+                    // Get all activities for this category
+                    const { data } = await query;
+                    if (data) {
+                        // For Cluster 6, we'll include all activities since there's no specific user assignment
+                        // You can modify this logic based on your user assignment requirements
+                        categoryActivities = data;
                     }
+
+                    console.log(`Category ${category.name} activities:`, categoryActivities.length);
+
+                    // Add category info to activities
+                    if (categoryActivities.length > 0) {
+                        allActivities.push(...categoryActivities.map(activity => ({
+                            ...activity,
+                            type: 'cluster_6_activity',
+                            activity_type: category.name,
+                            source_table: category.table,
+                            category_id: category.id
+                        })));
+                    }
+
+                } catch (categoryError) {
+                    console.error(`Error fetching ${category.name}:`, categoryError);
                 }
             }
 
@@ -1252,88 +1347,15 @@ const SCMT = () => {
                 ...allActivities
             ];
 
-            console.log('Total SCMT schedule items found:', userSchedule.length);
-            console.log('SCMT Schedule details:', userSchedule);
-
+            console.log('Total schedule items:', userSchedule.length);
             safeSetState(setUserSchedule, userSchedule);
-            return userSchedule;
 
         } catch (error) {
             console.error('Error in fetchUserSchedule:', error);
             handleError(error, 'fetching user schedule');
             safeSetState(setUserSchedule, []);
-            return [];
         } finally {
             setAvailabilityLoading(false);
-        }
-    };
-
-    // Helper function to fetch SCMT activities for a user (delivery, meetings, operations)
-    const fetchSCMTActivitiesForUser = async (category, startDate, endDate, userName) => {
-        try {
-            // First get all activities in date range
-            const { data: allActivities, error } = await supabase
-                .from(category.table)
-                .select('*')
-                .gte(category.dateField, startDate)
-                .lte(category.dateField, endDate)
-                .order('priority', { ascending: false })
-                .order(category.dateField, { ascending: true });
-
-            if (error) throw error;
-
-            // Filter client-side for better matching on responsible_2 field
-            return (allActivities || []).filter(activity => {
-                const responsiblePersons = activity.responsible_2;
-                if (!responsiblePersons) return false;
-
-                // Handle different data types for responsible_2 field
-                if (Array.isArray(responsiblePersons)) {
-                    return responsiblePersons.some(name =>
-                        name && String(name).toLowerCase().includes(userName.toLowerCase())
-                    );
-                } else if (typeof responsiblePersons === 'string') {
-                    // Handle comma-separated strings or single names
-                    const namesArray = responsiblePersons.split(',').map(name => name.trim());
-                    return namesArray.some(name =>
-                        name.toLowerCase().includes(userName.toLowerCase())
-                    );
-                }
-                return false;
-            });
-
-        } catch (error) {
-            console.error(`Error fetching ${category.name} activities:`, error);
-            return [];
-        }
-    };
-
-    // Helper function to fetch weekly shipments for a user
-    const fetchWeeklyShipmentsForUser = async (category, startDate, endDate, userName) => {
-        try {
-            // For weekly shipments, we might need to check different fields
-            const { data: allShipments, error } = await supabase
-                .from(category.table)
-                .select('*')
-                .gte(category.dateField, startDate)
-                .lte(category.dateField, endDate)
-                .order('priority', { ascending: false })
-                .order(category.dateField, { ascending: true });
-
-            if (error) throw error;
-
-            // Filter shipments where user might be involved
-            // Since weekly shipments might not have explicit responsible field,
-            // we'll return all for now or implement specific logic based on your data structure
-            console.log(`Weekly shipments found: ${allShipments?.length || 0}, need to implement user filtering logic`);
-
-            // TODO: Implement specific user filtering logic for weekly shipments based on your data structure
-            // For now, return all shipments or implement based on your specific fields
-            return allShipments || [];
-
-        } catch (error) {
-            console.error(`Error fetching ${category.name} shipments:`, error);
-            return [];
         }
     };
 
@@ -1343,6 +1365,7 @@ const SCMT = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
+            safeSetState(setViewMode, 'web'); // Reset to web view when category changes
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1390,27 +1413,11 @@ const SCMT = () => {
 
             // Format date fields based on category with error handling
             try {
-                if (selectedCategory.id === 'delivery_distribution' && record.start_date) {
-                    formattedRecord.start_date = safeDayjs(record.start_date);
-                }
-                if ((selectedCategory.id === 'meetings_sessions' || selectedCategory.id === 'other_operations') && record.date) {
+                if (record.date) {
                     formattedRecord.date = safeDayjs(record.date);
                 }
-                if (selectedCategory.id === 'weekly_meetings_scmt' && record.date_of_arrival) {
-                    formattedRecord.date_of_arrival = safeDayjs(record.date_of_arrival);
-                }
-
-                // Format time fields using the dedicated time parser
-                if (selectedCategory.hasTimeFields) {
-                    if (record.start_time) {
-                        formattedRecord.start_time = safeTimeParse(record.start_time);
-                    }
-                    if (record.end_time) {
-                        formattedRecord.end_time = safeTimeParse(record.end_time);
-                    }
-                }
             } catch (dateError) {
-                console.warn('Error formatting dates/times for editing:', dateError);
+                console.warn('Error formatting dates for editing:', dateError);
             }
 
             form.setFieldsValue(formattedRecord);
@@ -1431,6 +1438,17 @@ const SCMT = () => {
                 .eq('id', record.id);
 
             if (error) throw error;
+
+            await notifyDepartmentOperation(
+                'cluster_6',
+                selectedCategory.name,
+                NOTIFICATION_TYPES.DELETE,
+                record,
+                {
+                    tableName: selectedCategory.table,
+                    userId: currentUser?.id
+                }
+            );
 
             toast.success('Record deleted successfully');
             fetchTableData();
@@ -1490,58 +1508,27 @@ const SCMT = () => {
         }
     };
 
-    // Helper function to ensure time fields have defaults
-    const ensureTimeDefaults = (values) => {
-        if (!selectedCategory?.hasTimeFields) return values;
-
-        return {
-            ...values,
-            start_time: values.start_time || defaultStartTime,
-            end_time: values.end_time || defaultEndTime
-        };
-    };
-
-    // CORRECTED: handleFormSubmit to fix time handling and department_id error
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
-            // Ensure time defaults
-            const valuesWithDefaults = ensureTimeDefaults(values);
-
-            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
-            const { department_id, category_id, ...cleanData } = valuesWithDefaults;
-            const submitData = { ...cleanData };
+            // Prepare data for submission
+            const submitData = { ...values };
 
             // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
                 try {
                     const value = submitData[key];
                     if (dayjs.isDayjs(value)) {
-                        if (key.includes('time')) {
-                            // Convert time to HH:mm:ss format
-                            submitData[key] = value.format('HH:mm:ss');
-                        } else {
-                            // Convert date to YYYY-MM-DD format
-                            submitData[key] = value.format('YYYY-MM-DD');
-                        }
+                        // Convert date to YYYY-MM-DD format
+                        submitData[key] = value.format('YYYY-MM-DD');
                     }
                 } catch (dateError) {
-                    console.warn(`Error converting date/time field ${key}:`, dateError);
+                    console.warn(`Error converting date field ${key}:`, dateError);
                 }
             });
-
-            // Handle time fields specifically
-            if (selectedCategory.hasTimeFields) {
-                if (submitData.start_time && dayjs.isDayjs(submitData.start_time)) {
-                    submitData.start_time = submitData.start_time.format('HH:mm:ss');
-                }
-                if (submitData.end_time && dayjs.isDayjs(submitData.end_time)) {
-                    submitData.end_time = submitData.end_time.format('HH:mm:ss');
-                }
-            }
 
             let result;
 
@@ -1557,7 +1544,7 @@ const SCMT = () => {
                 result = data[0];
 
                 await notifyDepartmentOperation(
-                    'scmt',
+                    'cluster_6',
                     selectedCategory.name,
                     NOTIFICATION_TYPES.UPDATE,
                     result,
@@ -1566,6 +1553,7 @@ const SCMT = () => {
                         userId: currentUser?.id
                     }
                 );
+
                 toast.success('Record updated successfully');
             } else {
                 // Create new record
@@ -1578,7 +1566,7 @@ const SCMT = () => {
                 result = data[0];
 
                 await notifyDepartmentOperation(
-                    'scmt',
+                    'cluster_6',
                     selectedCategory.name,
                     NOTIFICATION_TYPES.CREATE,
                     result,
@@ -1587,191 +1575,15 @@ const SCMT = () => {
                         userId: currentUser?.id
                     }
                 );
+
                 toast.success('Record created successfully');
             }
-
-            // Auto-create personal meetings for responsible SCMT users
-            await createPersonalMeetingsForSCMT(result, selectedCategory, submitData);
 
             safeSetState(setModalVisible, false);
             fetchTableData();
         } catch (error) {
             handleError(error, 'saving record');
         }
-    };
-
-    // Function to create personal meetings for SCMT users when records are created/edited
-    const createPersonalMeetingsForSCMT = async (record, category, formData) => {
-        try {
-            console.log('Creating personal meetings for SCMT:', { category: category.id, formData });
-
-            let responsibleUsers = [];
-            let meetingDate = '';
-            let meetingTitle = '';
-
-            // Extract responsible users and meeting details based on category
-            switch (category.id) {
-                case 'delivery_distribution':
-                    responsibleUsers = formData.responsible_2 || [];
-                    meetingDate = formData.start_date;
-                    meetingTitle = `SCMT Delivery: ${formData.type || 'Delivery Activity'}`;
-                    break;
-
-                case 'meetings_sessions':
-                    responsibleUsers = formData.responsible_2 || [];
-                    meetingDate = formData.date;
-                    meetingTitle = `SCMT Meeting: ${formData.type || 'Meeting'}`;
-                    break;
-
-                case 'other_operations':
-                    responsibleUsers = formData.responsible_2 || [];
-                    meetingDate = formData.date;
-                    meetingTitle = `SCMT Operations: ${formData.type || 'Operation'}`;
-                    break;
-
-                case 'weekly_meetings_scmt':
-                    // For weekly shipments, you might want to assign to specific users
-                    // You can modify this based on your business logic
-                    responsibleUsers = []; // Add logic to determine responsible users for shipments
-                    meetingDate = formData.date_of_arrival;
-                    meetingTitle = `SCMT Shipment: ${formData.supplier || 'Shipment'}`;
-                    break;
-
-                default:
-                    console.warn(`Unknown category for SCMT: ${category.id}`);
-                    return;
-            }
-
-            // Validate required fields
-            if (!responsibleUsers.length) {
-                console.log('No responsible users found for creating personal meetings');
-                return;
-            }
-
-            if (!meetingDate) {
-                console.warn('No meeting date found for creating personal meetings');
-                return;
-            }
-
-            // Convert to array and clean up user references
-            const usersArray = Array.isArray(responsibleUsers)
-                ? responsibleUsers
-                : typeof responsibleUsers === 'string'
-                    ? responsibleUsers.split(',').map(u => u.trim()).filter(u => u)
-                    : [responsibleUsers];
-
-            console.log('Processing SCMT users:', usersArray);
-
-            if (usersArray.length === 0) {
-                console.log('No valid users found after processing');
-                return;
-            }
-
-            let createdCount = 0;
-            const errors = [];
-
-            // Create personal meetings for each responsible user
-            for (const userRef of usersArray) {
-                try {
-                    const user = findUserByReference(userRef, scmtUsers);
-
-                    if (!user) {
-                        console.warn(`SCMT User not found for reference: ${userRef}`);
-                        continue;
-                    }
-
-                    console.log(`Creating personal meeting for SCMT user: ${user.full_name}`);
-
-                    // Format the date properly
-                    const formattedDate = safeDayjs(meetingDate).format('YYYY-MM-DD');
-
-                    if (!formattedDate || formattedDate === 'Invalid Date') {
-                        console.warn(`Invalid date format: ${meetingDate}`);
-                        continue;
-                    }
-
-                    // Create personal meeting data
-                    const personalMeetingData = {
-                        topic: meetingTitle,
-                        start_date: formattedDate,
-                        end_date: formattedDate,
-                        description: `Automatically created from ${category.name}: ${formData.remarks || formData.description || 'No description'}`,
-                        venue: formData.location || 'TBD',
-                        user_id: user.id,
-                        priority: formData.priority || 2,
-                        status: 'scheduled'
-                    };
-
-                    // Add time fields if available
-                    if (formData.start_time) {
-                        personalMeetingData.start_time = formData.start_time;
-                    }
-                    if (formData.end_time) {
-                        personalMeetingData.end_time = formData.end_time;
-                    }
-
-                    const { data, error } = await supabase
-                        .from('personal_meetings')
-                        .insert([personalMeetingData])
-                        .select();
-
-                    if (error) {
-                        console.error(`Error creating personal meeting for ${user.full_name}:`, error);
-                        errors.push(`${user.full_name}: ${error.message}`);
-                    } else {
-                        console.log(`Personal meeting created for ${user.full_name}:`, data[0]?.id);
-                        createdCount++;
-                    }
-
-                } catch (userError) {
-                    console.error(`Error processing SCMT user ${userRef}:`, userError);
-                    errors.push(`${userRef}: Processing error`);
-                }
-            }
-
-            // Show appropriate toast message
-            if (createdCount > 0) {
-                const message = `Created personal meetings for ${createdCount} SCMT team member(s)`;
-                if (errors.length > 0) {
-                    toast.warning(`${message} (${errors.length} errors)`);
-                } else {
-                    toast.success(message);
-                }
-            } else if (errors.length > 0) {
-                toast.error(`Failed to create personal meetings: ${errors.join('; ')}`);
-            }
-
-        } catch (error) {
-            console.error('Error in createPersonalMeetingsForSCMT:', error);
-            toast.error('Failed to create personal meetings for SCMT team members');
-        }
-    };
-
-    // Helper function to find user by various reference types
-    const findUserByReference = (userRef, usersList) => {
-        if (!userRef || !usersList?.length) return null;
-
-        const refString = String(userRef).trim().toLowerCase();
-
-        // Try different matching strategies
-        return usersList.find(user => {
-            // Exact match on ID
-            if (user.id && String(user.id).toLowerCase() === refString) return true;
-
-            // Exact match on full name
-            if (user.full_name && user.full_name.toLowerCase() === refString) return true;
-
-            // Exact match on email
-            if (user.email && user.email.toLowerCase() === refString) return true;
-
-            // Partial match on full name
-            if (user.full_name && user.full_name.toLowerCase().includes(refString)) return true;
-
-            // Partial match on email
-            if (user.email && user.email.toLowerCase().includes(refString)) return true;
-
-            return false;
-        });
     };
 
     const getTableColumns = () => {
@@ -1835,162 +1647,39 @@ const SCMT = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-            const timeColumn = selectedCategory.hasTimeFields ? [
-                {
-                    title: 'Start Time',
-                    dataIndex: 'start_time',
-                    key: 'start_time',
-                    width: 100,
-                    render: (time) => <TimeDisplay time={time} />
-                },
-                {
-                    title: 'End Time',
-                    dataIndex: 'end_time',
-                    key: 'end_time',
-                    width: 100,
-                    render: (time) => <TimeDisplay time={time} />
-                }
-            ] : [];
 
-            const baseColumns = [
-                {
-                    title: 'Created',
-                    dataIndex: 'created_at',
-                    key: 'created_at',
-                    render: (date) => {
-                        try {
-                            return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                        } catch (error) {
-                            console.warn('Error formatting created_at date:', error);
-                            return '-';
-                        }
-                    },
-                    width: 100
-                },
-                priorityColumn,
-                ...timeColumn
-            ];
 
             switch (selectedCategory.id) {
-                case 'delivery_distribution':
+                case 'visit_plan':
                     return [
-                        ...baseColumns,
-                        { title: 'Day', dataIndex: 'day', key: 'day', width: 100 },
-                        { title: 'Location', dataIndex: 'location', key: 'location', width: 150 },
-                        { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
-                        { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        { title: 'Responsible Person', dataIndex: 'responsible_2', key: 'responsible_2', width: 150 },
-                        actionColumn
-                    ];
 
-                case 'meetings_sessions':
-                    return [
-                        ...baseColumns,
-                        { title: 'Day', dataIndex: 'day', key: 'day', width: 100 },
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
-                        { title: 'Location', dataIndex: 'location', key: 'location', width: 150 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        { title: 'Responsible Person', dataIndex: 'responsible_2', key: 'responsible_2', width: 150 },
+                        { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
+                        { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
                         actionColumn
                     ];
 
-                case 'other_operations':
+                case 'meetings':
                     return [
-                        ...baseColumns,
-                        { title: 'Day', dataIndex: 'day', key: 'day', width: 100 },
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
-                        { title: 'Location', dataIndex: 'location', key: 'location', width: 150 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        { title: 'Responsible Person', dataIndex: 'responsible_2', key: 'responsible_2', width: 150 },
+                        { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
                         actionColumn
                     ];
 
-                case 'weekly_meetings_scmt':
+                case 'special_task':
                     return [
-                        ...baseColumns,
-                        {
-                            title: 'Supplier',
-                            dataIndex: 'supplier',
-                            key: 'supplier',
-                            width: 150,
-                            render: (supplier) => supplier || '-'
-                        },
-                        {
-                            title: 'PO Number',
-                            dataIndex: 'pord_no',
-                            key: 'pord_no',
-                            width: 120,
-                            render: (pord_no) => pord_no || '-'
-                        },
-                        {
-                            title: 'Reagent',
-                            dataIndex: 'reagent',
-                            key: 'reagent',
-                            width: 80,
-                            render: (reagent) => (
-                                <Tag color={reagent ? 'green' : 'red'}>
-                                    {reagent ? 'Yes' : 'No'}
-                                </Tag>
-                            )
-                        },
-                        {
-                            title: 'Spare Part',
-                            dataIndex: 'spare_part',
-                            key: 'spare_part',
-                            width: 100,
-                            render: (spare_part) => (
-                                <Tag color={spare_part ? 'green' : 'red'}>
-                                    {spare_part ? 'Yes' : 'No'}
-                                </Tag>
-                            )
-                        },
-                        {
-                            title: 'Instruments',
-                            dataIndex: 'instruments',
-                            key: 'instruments',
-                            width: 100,
-                            render: (instruments) => (
-                                <Tag color={instruments ? 'green' : 'red'}>
-                                    {instruments ? 'Yes' : 'No'}
-                                </Tag>
-                            )
-                        },
-                        {
-                            title: 'Date of Arrival',
-                            dataIndex: 'date_of_arrival',
-                            key: 'date_of_arrival',
-                            width: 120,
-                            render: (date) => {
-                                try {
-                                    return date ? safeDayjs(date).format('DD/MM/YYYY') : '-';
-                                } catch (error) {
-                                    console.warn('Error formatting date_of_arrival:', error);
-                                    return '-';
-                                }
-                            }
-                        },
-                        {
-                            title: 'Mode',
-                            dataIndex: 'mode',
-                            key: 'mode',
-                            width: 100,
-                            render: (mode) => mode || '-'
-                        },
-                        {
-                            title: 'Main Item List',
-                            dataIndex: 'main_item_list',
-                            key: 'main_item_list',
-                            width: 200,
-                            render: (items) => items || '-'
-                        },
+
+                        { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
+                        { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
                         actionColumn
                     ];
 
                 default:
-                    return [...baseColumns, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -2005,34 +1694,22 @@ const SCMT = () => {
             const commonFields = (
                 <>
                     <Form.Item
-                        name="day"
-                        label="Day"
-                        rules={[{ required: true, message: 'Please enter day' }]}
+                        name="date"
+                        label="Date"
+                        rules={[{ required: true, message: 'Please select date' }]}
                     >
-                        <Select placeholder="Select day">
-                            <Option value="Monday">Monday</Option>
-                            <Option value="Tuesday">Tuesday</Option>
-                            <Option value="Wednesday">Wednesday</Option>
-                            <Option value="Thursday">Thursday</Option>
-                            <Option value="Friday">Friday</Option>
-                            <Option value="Saturday">Saturday</Option>
-                            <Option value="Sunday">Sunday</Option>
-                        </Select>
+                        <DatePicker
+                            style={{ width: '100%' }}
+                            format="DD/MM/YYYY"
+                            placeholder="Select date"
+                        />
                     </Form.Item>
 
                     <Form.Item
-                        name="location"
-                        label="Location"
-                        rules={[{ required: true, message: 'Please enter location' }]}
+                        name="status"
+                        label="Status"
                     >
-                        <Input placeholder="Enter location" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="type"
-                        label="Type"
-                    >
-                        <Input placeholder="Enter activity type" />
+                        <Input placeholder="Enter status" />
                     </Form.Item>
 
                     <Form.Item
@@ -2052,217 +1729,54 @@ const SCMT = () => {
                             ))}
                         </Select>
                     </Form.Item>
-
-                    <Form.Item
-                        name="responsible_2"
-                        label="Responsible Person"
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select responsible persons"
-                            showSearch
-                            filterOption={(input, option) =>
-                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                            }
-                        >
-                            {scmtUsers.map(user => (
-                                <Option key={user.id} value={user.full_name || user.email}>
-                                    {user.full_name || user.email}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
                 </>
             );
 
-            const timeFields = selectedCategory.hasTimeFields ? (
-                <>
-                    <Form.Item
-                        name="start_time"
-                        label="Start Time"
-                        initialValue={defaultStartTime}
-                    >
-                        <TimePicker
-                            format="HH:mm"
-                            style={{ width: '100%' }}
-                            placeholder="Select start time"
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        name="end_time"
-                        label="End Time"
-                        initialValue={defaultEndTime}
-                    >
-                        <TimePicker
-                            format="HH:mm"
-                            style={{ width: '100%' }}
-                            placeholder="Select end time"
-                        />
-                    </Form.Item>
-                </>
-            ) : null;
-
             switch (selectedCategory.id) {
-                case 'delivery_distribution':
+                case 'visit_plan':
                     return (
                         <>
-                            <Form.Item
-                                name="start_date"
-                                label="Start Date"
-                                rules={[{ required: true, message: 'Please select start date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select start date"
-                                />
-                            </Form.Item>
                             {commonFields}
+                            <Form.Item
+                                name="name"
+                                label="Name"
+                                rules={[{ required: true, message: 'Please enter name' }]}
+                            >
+                                <Input placeholder="Enter name" />
+                            </Form.Item>
+                            <Form.Item
+                                name="area"
+                                label="Area"
+                            >
+                                <Input placeholder="Enter area" />
+                            </Form.Item>
                         </>
                     );
 
-                case 'meetings_sessions':
+                case 'meetings':
                     return (
                         <>
-                            <Form.Item
-                                name="date"
-                                label="Meeting Date"
-                                rules={[{ required: true, message: 'Please select meeting date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select meeting date"
-                                />
-                            </Form.Item>
-                            {timeFields}
                             {commonFields}
+                            <Form.Item
+                                name="subject"
+                                label="Subject"
+                                rules={[{ required: true, message: 'Please enter subject' }]}
+                            >
+                                <TextArea rows={3} placeholder="Enter meeting subject" />
+                            </Form.Item>
                         </>
                     );
 
-                case 'other_operations':
+                case 'special_task':
                     return (
                         <>
-                            <Form.Item
-                                name="date"
-                                label="Activity Date"
-                                rules={[{ required: true, message: 'Please select activity date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select activity date"
-                                />
-                            </Form.Item>
-                            {timeFields}
                             {commonFields}
-                        </>
-                    );
-
-                case 'weekly_meetings_scmt':
-                    return (
-                        <>
                             <Form.Item
-                                name="supplier"
-                                label="Supplier"
-                                rules={[{ required: true, message: 'Please enter supplier name' }]}
+                                name="task"
+                                label="Task"
+                                rules={[{ required: true, message: 'Please enter task' }]}
                             >
-                                <Input
-                                    placeholder="Enter supplier name"
-                                    prefix={<ShoppingOutlined />}
-                                />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="pord_no"
-                                label="PO Number"
-                            >
-                                <Input
-                                    placeholder="Enter purchase order number"
-                                    prefix={<ContainerOutlined />}
-                                />
-                            </Form.Item>
-
-                            <Row gutter={16}>
-                                <Col span={8}>
-                                    <Form.Item
-                                        name="reagent"
-                                        label="Reagent"
-                                        valuePropName="checked"
-                                    >
-                                        <Checkbox>Reagent</Checkbox>
-                                    </Form.Item>
-                                </Col>
-                                <Col span={8}>
-                                    <Form.Item
-                                        name="spare_part"
-                                        label="Spare Part"
-                                        valuePropName="checked"
-                                    >
-                                        <Checkbox>Spare Part</Checkbox>
-                                    </Form.Item>
-                                </Col>
-                                <Col span={8}>
-                                    <Form.Item
-                                        name="instruments"
-                                        label="Instruments"
-                                        valuePropName="checked"
-                                    >
-                                        <Checkbox>Instruments</Checkbox>
-                                    </Form.Item>
-                                </Col>
-                            </Row>
-
-                            <Form.Item
-                                name="date_of_arrival"
-                                label="Date of Arrival"
-                                rules={[{ required: true, message: 'Please select date of arrival' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select date of arrival"
-                                />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="mode"
-                                label="Mode"
-                            >
-                                <Select placeholder="Select mode">
-                                    <Option value="Air">Air</Option>
-                                    <Option value="Sea">Sea</Option>
-                                    <Option value="Land">Land</Option>
-                                    <Option value="Courier">Courier</Option>
-                                </Select>
-                            </Form.Item>
-
-                            <Form.Item
-                                name="main_item_list"
-                                label="Main Item List"
-                            >
-                                <TextArea
-                                    rows={4}
-                                    placeholder="Enter main item list details"
-                                />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="priority"
-                                label="Priority"
-                                initialValue={2}
-                                rules={[{ required: true, message: 'Please select priority' }]}
-                            >
-                                <Select placeholder="Select priority">
-                                    {priorityOptions.map(option => (
-                                        <Option key={option.value} value={option.value}>
-                                            <Space>
-                                                <Badge color={option.color} />
-                                                {option.label}
-                                            </Space>
-                                        </Option>
-                                    ))}
-                                </Select>
+                                <TextArea rows={3} placeholder="Enter task details" />
                             </Form.Item>
                         </>
                     );
@@ -2321,7 +1835,7 @@ const SCMT = () => {
 
     // Render loading state
     if (loading && !selectedCategory) {
-        return <LoadingSpinner tip="Loading SCMT module..." />;
+        return <LoadingSpinner tip="Loading Cluster 6 module..." />;
     }
 
     const stats = getStats();
@@ -2333,7 +1847,7 @@ const SCMT = () => {
             {/* Error Alert */}
             {error && (
                 <Alert
-                    message="SCMT Module Error"
+                    message="Cluster 6 Module Error"
                     description={`${error.context}: ${error.message}`}
                     type="error"
                     showIcon
@@ -2351,13 +1865,18 @@ const SCMT = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
+                style={{ 
+                    marginBottom: 16, 
+                    backgroundColor: '#fafafa',
+                    borderRadius: '12px',
+                    border: '2px solid #1890ff20'
+                }}
                 bodyStyle={{ padding: '12px 16px' }}
             >
                 <Row justify="space-between" align="middle" gutter={[16, 16]}>
                     <Col xs={24} sm={12} md={8}>
                         <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-                            <TeamOutlined /> SCMT - Customer Care Department
+                            <TeamOutlined /> Cluster 6 Department
                         </Title>
                     </Col>
                     <Col xs={24} sm={12} md={8}>
@@ -2401,7 +1920,7 @@ const SCMT = () => {
             {autoRefresh && (
                 <Alert
                     message="Auto-refresh Enabled"
-                    description="SCMT data will automatically update every 2 minutes."
+                    description="Cluster 6 data will automatically update every 2 minutes."
                     type="info"
                     showIcon
                     closable
@@ -2411,16 +1930,16 @@ const SCMT = () => {
 
             {/* Category Cards */}
             <Card
-                title="SCMT Categories"
+                title="Cluster 6 Categories"
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
-                        {scmtCategories.length} Categories Available
+                        {Cluster6Categories.length} Categories Available
                     </Tag>
                 }
             >
                 <Row gutter={[16, 16]}>
-                    {scmtCategories.map((category) => (
+                    {Cluster6Categories.map((category) => (
                         <Col xs={24} sm={12} md={8} lg={6} key={category.id}>
                             <CategoryCard
                                 category={category}
@@ -2433,13 +1952,13 @@ const SCMT = () => {
                 </Row>
             </Card>
 
-            {/* Date Range Filter and Create Button */}
+            {/* View Mode Selection and Date Range Filter */}
             {selectedCategory && (
                 <Card
                     title={
                         <Space>
                             <FilterOutlined />
-                            Filter Data
+                            Filter Data & View Options
                             <Tag color="blue">
                                 Default: {safeDayjs(dateRange[0]).format('DD/MM/YYYY')} - {safeDayjs(dateRange[1]).format('DD/MM/YYYY')}
                             </Tag>
@@ -2447,15 +1966,29 @@ const SCMT = () => {
                     }
                     style={{ marginBottom: 24 }}
                     extra={
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={handleCreate}
-                            loading={loading}
-                            size="large"
-                        >
-                            Add New Record
-                        </Button>
+                        <Space>
+                            <Radio.Group 
+                                value={viewMode} 
+                                onChange={(e) => setViewMode(e.target.value)}
+                                buttonStyle="solid"
+                            >
+                                <Radio.Button value="web">
+                                    <AppstoreOutlined /> Web View
+                                </Radio.Button>
+                                <Radio.Button value="excel">
+                                    <FileExcelOutlined /> Excel View
+                                </Radio.Button>
+                            </Radio.Group>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={handleCreate}
+                                loading={loading}
+                                size="large"
+                            >
+                                Add New Record
+                            </Button>
+                        </Space>
                     }
                 >
                     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -2506,7 +2039,7 @@ const SCMT = () => {
             {/* Statistics */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <>
-                    <SCMTStatistics stats={stats} loading={loading} />
+                    <Cluster6Statistics stats={stats} loading={loading} />
 
                     {/* Progress Bar for Completion Rate */}
                     <Card style={{ marginBottom: 24 }}>
@@ -2528,13 +2061,13 @@ const SCMT = () => {
                 </>
             )}
 
-            {/* Data Table */}
+            {/* Data Table or Export Button */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <Card
                     title={
                         <Space>
                             {selectedCategory.icon}
-                            {selectedCategory.name} Data
+                            {selectedCategory.name} Data - {viewMode === 'web' ? 'Web View' : 'Excel View'}
                             <Badge count={tableData.length} showZero color="#1890ff" />
                         </Space>
                     }
@@ -2547,6 +2080,16 @@ const SCMT = () => {
                                 <Tag color={priorityOptions.find(opt => opt.value === priorityFilter)?.color}>
                                     Priority: {priorityOptions.find(opt => opt.value === priorityFilter)?.label}
                                 </Tag>
+                            )}
+                            {viewMode === 'excel' && (
+                                <ExportButton
+                                    activities={tableData}
+                                    selectedCategory={selectedCategory}
+                                    moduleName={selectedCategory.table}
+                                    priorityLabels={Object.fromEntries(
+                                        priorityOptions.map(opt => [opt.value, opt.label])
+                                    )}
+                                />
                             )}
                             <Button
                                 icon={<ReloadOutlined />}
@@ -2574,7 +2117,7 @@ const SCMT = () => {
                                 </Space>
                             }
                         />
-                    ) : (
+                    ) : viewMode === 'web' ? (
                         <Table
                             columns={getTableColumns()}
                             dataSource={tableData.map(item => ({ ...item, key: item.id }))}
@@ -2588,6 +2131,20 @@ const SCMT = () => {
                             scroll={{ x: true }}
                             size="middle"
                         />
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '40px' }}>
+                            <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
+                            <Title level={4}>Ready to Export Data</Title>
+                            <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                            </Text>
+                            <Alert
+                                message="Excel View Mode"
+                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                type="info"
+                                showIcon
+                            />
+                        </div>
                     )}
                 </Card>
             )}
@@ -2603,7 +2160,7 @@ const SCMT = () => {
                 open={modalVisible}
                 onCancel={() => setModalVisible(false)}
                 footer={null}
-                width={selectedCategory?.id === 'weekly_meetings_scmt' ? 700 : 600}
+                width={600}
                 destroyOnClose
             >
                 <Form
@@ -2633,7 +2190,7 @@ const SCMT = () => {
                 title={
                     <Space>
                         <UserOutlined />
-                        Check SCMT Team Availability
+                        Check Cluster 6 Team Availability
                         <Tag color="blue">
                             Default: {availabilityDateRange[0] ? safeDayjs(availabilityDateRange[0]).format('DD/MM/YYYY') : ''} - {availabilityDateRange[1] ? safeDayjs(availabilityDateRange[1]).format('DD/MM/YYYY') : ''}
                         </Tag>
@@ -2659,16 +2216,16 @@ const SCMT = () => {
                         </Text>
                     </Card>
 
-                    {/* SCMT Users List */}
-                    <Card size="small" title="SCMT Team Members">
-                        {scmtUsers.length === 0 ? (
+                    {/* Cluster 6 Users List */}
+                    <Card size="small" title="Cluster 6 Team Members">
+                        {Cluster6Users.length === 0 ? (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="No SCMT team members found"
+                                description="No Cluster 6 team members found"
                             />
                         ) : (
                             <List
-                                dataSource={scmtUsers}
+                                dataSource={Cluster6Users}
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
@@ -2694,7 +2251,7 @@ const SCMT = () => {
                                             description={
                                                 <Badge
                                                     status="success"
-                                                    text="SCMT Team Member"
+                                                    text="Cluster 6 Team Member"
                                                 />
                                             }
                                         />
@@ -2744,29 +2301,26 @@ const SCMT = () => {
 
             {/* Instructions */}
             {!selectedCategory && (
-                <Card title="How to Use SCMT Module">
+                <Card title="How to Use Cluster 6 Module" style={{ borderRadius: '12px' }}>
                     <Alert
-                        message="Manage SCMT - Customer Care Department Data"
+                        message="Manage Cluster 6 Department Data"
                         description={
                             <div>
                                 <Text strong>Follow these steps:</Text>
                                 <ol>
                                     <li>Click on any category card above to select a data type</li>
+                                    <li>Choose between Web View (for editing/discussion) or Excel View (for export)</li>
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
-                                    <li>View the filtered data in the table below (sorted by priority)</li>
-                                    <li>Use the "Add New Record" button to create new entries</li>
-                                    <li>Use Edit/Delete actions in the table to manage records</li>
-                                    <li>Use "Discuss" button to participate in group discussions for each record</li>
+                                    <li>In Web View: Use Edit/Delete actions and Discuss features</li>
+                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
-                                    <li>Use "Check Team Availability" to view team schedules in popup windows</li>
+                                    <li>Use "Check Team Availability" to view team schedules</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
                                 </ol>
                                 <Text type="secondary">
-                                    SCMT - Customer Care department manages delivery, distribution, meetings, operational activities, and weekly shipments.
-                                    Default date range shows data from yesterday to 9 days in the future (10 days total).
-                                    Priority levels help you focus on critical tasks first.
-                                    Schedule details open in convenient popup windows for better visibility.
+                                    Each category represents different Cluster 6 activities recorded in the system.
+                                    Web View provides full interactive features while Excel View is for read-only data export.
                                 </Text>
                             </div>
                         }
@@ -2779,4 +2333,4 @@ const SCMT = () => {
     );
 };
 
-export default SCMT;
+export default Cluster6;

@@ -13,12 +13,31 @@ import ResetPasswordSuccess from './components/Auth/ResetPasswordSuccess';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import Dashboard from './components/Dashboard/Dashboard'
 import Departments from './components/Departments/Departments';
-import BDM from './components/Schedules/BDM_Schedules';
-import SCMT from './components/Schedules/SCMT';
-import SalesOperations from './components/Schedules/SalesOperations';
 import Profile from './components/Personal/Profile';
 import NotificationPanel from './components/notifications/NotificationPanel';
 import { notify } from './components/notifications/notify';
+import OopsPage from './components/Layout/OopsPage';
+
+
+import BDM from './components/Schedules/BDM_Schedules';
+import Cluster1 from './components/Schedules/Cluster_1';
+import Cluster2 from './components/Schedules/Cluster_2';
+import Cluster3 from './components/Schedules/Cluster_3';
+import Cluster4 from './components/Schedules/Cluster_4';
+import Cluster5 from './components/Schedules/Cluster_5';
+import Cluster6 from './components/Schedules/Cluster_6';
+import CustomerCare from './components/Schedules/Customer_Care';
+import EHealthcare from './components/Schedules/eHealthcare.js';
+import HiTech from './components/Schedules/HiTech.js';
+import HR from './components/Schedules/Hr.js';
+import Import from './components/Schedules/Imports.js';
+import Regulatory from './components/Schedules/Regulatory.js';
+import SalesOperations from './components/Schedules/SalesOperations.js';
+import SOMT from './components/Schedules/SOMT.js';
+import StoresView from './components/Schedules/Stores.js';
+import SurgiSurgicare from './components/Schedules/Surge-Surgecare.js';
+import SurgeSurgeCareImageView from './components/Schedules/Surge-Surgecare-Image.js';
+
 
 import 'antd/dist/reset.css';
 
@@ -108,10 +127,31 @@ function AppContent() {
         >
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="departments" element={<Departments />} />
-          <Route path="departments/bdm" element={<BDM />} />
-          <Route path="departments/scmt" element={<SCMT />} />
-          <Route path="departments/sales-operations" element={<SalesOperations />} />
           <Route path="personal" element={<Profile />} />
+          <Route path="departments/bdm" element={<BDM />} />
+          <Route path="departments/after-sales" element={<OopsPage />} />
+          <Route path="departments/cluster-1" element={<Cluster1 />} />
+          <Route path="departments/cluster-2" element={<Cluster2 />} />
+          <Route path="departments/cluster-3" element={<Cluster3 />} />
+          <Route path="departments/cluster-4" element={<Cluster4 />} />
+          <Route path="departments/cluster-5" element={<Cluster5 />} />
+          <Route path="departments/cluster-6" element={<Cluster6 />} />
+          <Route path="departments/customer-care" element={<CustomerCare />} />
+          <Route path="departments/e-healthcare" element={<EHealthcare />} />
+          <Route path="departments/hi-tech" element={<HiTech />} />
+          <Route path="departments/hr" element={<HR />} />
+          <Route path="departments/finance" element={<OopsPage />} />
+          <Route path="departments/it" element={<OopsPage />} />
+          <Route path="departments/imports" element={<Import />} />
+          <Route path="departments/regulatory" element={<Regulatory />} />
+          <Route path="departments/sales-operations" element={<SalesOperations />} />
+          <Route path="departments/somt" element={<SOMT />} />
+          <Route path="departments/stores" element={<StoresView />} />
+          <Route path="departments/surge-surgecare" element={<SurgiSurgicare />} />
+          <Route path="departments/surge-surgecare-image" element={<SurgeSurgeCareImageView />} />
+          <Route path="/analytics" element={<OopsPage />} />
+
+
           <Route index element={<Navigate to="/dashboard" />} />
         </Route>
       </Routes>

@@ -15,7 +15,9 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
+    RocketOutlined, CodeOutlined, FileSearchOutlined, BuildOutlined,
+    UsergroupAddOutlined, BookOutlined, TrophyOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -37,21 +39,11 @@ const { TextArea } = Input;
 const { Option } = Select;
 const { TabPane } = Tabs;
 
-// Department and Category IDs from your database
-const BDM_DEPARTMENT_ID = '4755d627-64ad-4a03-81f2-fd867084cef7';
-const CATEGORY_IDS = {
-    COLLEGE_SESSION: 'd37bbf9e-2c66-4e7e-bc32-fa1af48e4300',
-    MEETINGS: 'b21e53e2-a5ea-4351-829b-ad1e90d35f65',
-    PRINCIPLE_VISIT: '99e6d59b-bd19-4666-bf06-156a3dab43ff',
-    PROMOTIONAL_ACTIVITIES: '6e717e47-171d-4cb4-8bef-1a5527129cab',
-    VISIT_PLAN: 'e0cbbaf0-940d-48d3-b403-e345f4c5e333'
-};
-
 // Error boundary component
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
     <Result
         status="error"
-        title="Something went wrong in BDM Module"
+        title="Something went wrong in HR Module"
         subTitle={error?.message || "An unexpected error occurred"}
         extra={
             <Button type="primary" onClick={resetErrorBoundary} size="large">
@@ -62,7 +54,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => (
 );
 
 // Loading component
-const LoadingSpinner = ({ tip = "Loading BDM data..." }) => (
+const LoadingSpinner = ({ tip = "Loading HR data..." }) => (
     <div style={{ textAlign: 'center', padding: '50px' }}>
         <Spin size="large" tip={tip} />
     </div>
@@ -101,7 +93,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 // Statistics Cards Component
-const BDMStatistics = ({ stats, loading = false }) => (
+const HRStatistics = ({ stats, loading = false }) => (
     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8} md={6}>
             <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
@@ -116,8 +108,8 @@ const BDMStatistics = ({ stats, loading = false }) => (
         <Col xs={24} sm={8} md={6}>
             <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
                 <Statistic
-                    title="Upcoming"
-                    value={stats?.upcomingRecords || 0}
+                    title="Meetings"
+                    value={stats?.meetingsCount || 0}
                     prefix={<CalendarOutlined />}
                     valueStyle={{ color: '#fa8c16', fontSize: '20px' }}
                 />
@@ -126,9 +118,9 @@ const BDMStatistics = ({ stats, loading = false }) => (
         <Col xs={24} sm={8} md={6}>
             <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
                 <Statistic
-                    title="Completed"
-                    value={stats?.completedRecords || 0}
-                    prefix={<CheckCircleOutlined />}
+                    title="Training Programs"
+                    value={stats?.trainingCount || 0}
+                    prefix={<BookOutlined />}
                     valueStyle={{ color: '#52c41a', fontSize: '20px' }}
                 />
             </Card>
@@ -136,10 +128,9 @@ const BDMStatistics = ({ stats, loading = false }) => (
         <Col xs={24} sm={8} md={6}>
             <Card size="small" style={{ textAlign: 'center' }} loading={loading}>
                 <Statistic
-                    title="Completion Rate"
-                    value={stats?.completionRate || 0}
-                    suffix="%"
-                    prefix={<BarChartOutlined />}
+                    title="Special Tasks"
+                    value={stats?.specialTasksCount || 0}
+                    prefix={<TrophyOutlined />}
                     valueStyle={{ color: '#722ed1', fontSize: '20px' }}
                 />
             </Card>
@@ -236,16 +227,14 @@ const DiscussionModal = React.memo(({
     const [sending, setSending] = useState(false);
     const [subscription, setSubscription] = useState(null);
 
-    // Get the correct feedback table name
+    // Get the correct feedback table name for HR
     const getFeedbackTable = useCallback(() => {
         if (!category) return null;
 
         const tableMap = {
-            'visit_plan': 'bdm_visit_plan_fb',
-            'principle_visit': 'bdm_principle_visit_fb',
-            'meetings': 'bdm_meetings_fb',
-            'college_session': 'bdm_college_session_fb',
-            'promotional_activities': 'bdm_promotional_activities_fb'
+            'meetings': 'hr_meetings_fb',
+            'training': 'hr_training_fb',
+            'special_events_n_tasks': 'hr_special_events_n_tasks_fb'
         };
 
         return tableMap[category.id] || null;
@@ -323,7 +312,7 @@ const DiscussionModal = React.memo(({
             if (error) throw error;
 
             await notifyDepartmentOperation(
-                'bdm',
+                'hr',
                 category.name,
                 NOTIFICATION_TYPES.DISCUSSION,
                 record,
@@ -415,10 +404,8 @@ const DiscussionModal = React.memo(({
             title={
                 <Space>
                     <WechatOutlined />
-                    Discussion: {record?.subject || record?.name || record?.college_name || record?.principle_name || record?.promotional_activity || 'Record'}
+                    Discussion: {record?.subject || record?.training_program || record?.task || 'Record'}
                     {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
-                    {record?.start_date && ` - ${dayjs(record.start_date).format('DD/MM/YYYY')}`}
-                    {record?.schedule_date && ` - ${dayjs(record.schedule_date).format('DD/MM/YYYY')}`}
                     <PriorityBadge priority={record.priority} />
                 </Space>
             }
@@ -494,7 +481,7 @@ const UserScheduleModal = React.memo(({
             switch (item.type) {
                 case 'personal_meeting':
                     return 'blue';
-                case 'bdm_activity':
+                case 'hr_activity':
                     return 'green';
                 default:
                     return 'gray';
@@ -509,7 +496,7 @@ const UserScheduleModal = React.memo(({
             switch (item.type) {
                 case 'personal_meeting':
                     return <UserOutlined />;
-                case 'bdm_activity':
+                case 'hr_activity':
                     return <CalendarOutlined />;
                 default:
                     return <ScheduleOutlined />;
@@ -522,7 +509,7 @@ const UserScheduleModal = React.memo(({
     const getActivityType = (item) => {
         try {
             if (item.type === 'personal_meeting') return 'Personal Meeting';
-            if (item.type === 'bdm_activity') return `BDM ${item.activity_type}`;
+            if (item.type === 'hr_activity') return `HR ${item.activity_type}`;
             return 'Unknown Activity';
         } catch (error) {
             return 'Unknown Activity';
@@ -534,8 +521,8 @@ const UserScheduleModal = React.memo(({
             if (item.type === 'personal_meeting') {
                 return item.description || 'No description available';
             }
-            if (item.type === 'bdm_activity') {
-                return item.remarks || item.purpose || 'No description available';
+            if (item.type === 'hr_activity') {
+                return item.subject || item.training_program || item.task || 'No description available';
             }
             return 'No description available';
         } catch (error) {
@@ -549,6 +536,15 @@ const UserScheduleModal = React.memo(({
             return dayjs.isDayjs(date) ? date : dayjs(date);
         } catch (error) {
             return dayjs();
+        }
+    };
+
+    const formatTime = (time) => {
+        try {
+            if (!time) return '-';
+            return dayjs(time, 'HH:mm:ss').format('HH:mm');
+        } catch (error) {
+            return time || '-';
         }
     };
 
@@ -602,15 +598,24 @@ const UserScheduleModal = React.memo(({
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.subject || item.name || item.college_name || item.principle_name || item.promotional_activity || 'Unknown Activity'}
+                                                {item.subject || item.training_program || item.task || 'Unknown Activity'}
                                             </Text>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Date">
                                             <Space>
                                                 <CalendarOutlined />
-                                                {safeDayjs(item.start_date || item.date || item.schedule_date || item.visit_duration_start).format('DD/MM/YYYY')}
+                                                {safeDayjs(item.date).format('DD/MM/YYYY')}
                                             </Space>
                                         </Descriptions.Item>
+
+                                        {(item.start_time || item.end_time) && (
+                                            <Descriptions.Item label="Time">
+                                                <Space>
+                                                    <ClockCircleOutlined />
+                                                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
+                                                </Space>
+                                            </Descriptions.Item>
+                                        )}
 
                                         <Descriptions.Item label="Description">
                                             <Text type="secondary">
@@ -618,24 +623,28 @@ const UserScheduleModal = React.memo(({
                                             </Text>
                                         </Descriptions.Item>
 
-                                        {item.company && (
-                                            <Descriptions.Item label="Company">
-                                                {item.company}
+                                        {item.department && (
+                                            <Descriptions.Item label="Department">
+                                                <Tag color="blue">{item.department}</Tag>
                                             </Descriptions.Item>
                                         )}
-                                        {item.area && (
-                                            <Descriptions.Item label="Area">
-                                                <Tag color="blue">{item.area}</Tag>
+                                        {item.status && (
+                                            <Descriptions.Item label="Status">
+                                                <Tag color={
+                                                    item.status.toLowerCase() === 'completed' ? 'green' : 
+                                                    item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
+                                                }>
+                                                    {item.status}
+                                                </Tag>
                                             </Descriptions.Item>
                                         )}
-                                        {item.remarks && (
-                                            <Descriptions.Item label="Remarks">
-                                                {item.remarks}
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.purpose && (
-                                            <Descriptions.Item label="Purpose">
-                                                {item.purpose}
+                                        {item.trainer_names && Array.isArray(item.trainer_names) && item.trainer_names.length > 0 && (
+                                            <Descriptions.Item label="Trainers">
+                                                <Space wrap>
+                                                    {item.trainer_names.map((trainer, idx) => (
+                                                        <Tag key={idx} color="purple">{trainer}</Tag>
+                                                    ))}
+                                                </Space>
                                             </Descriptions.Item>
                                         )}
                                     </Descriptions>
@@ -686,21 +695,28 @@ const ExportButton = ({
         return option ? option.label : 'Normal';
     };
 
+    const formatTime = (time) => {
+        try {
+            if (!time) return '';
+            return dayjs(time, 'HH:mm:ss').format('HH:mm');
+        } catch (error) {
+            return time || '';
+        }
+    };
+
     /** -----------------------------
      * Export to Excel (.xlsx)
      * ----------------------------- */
     const exportToExcel = () => {
         try {
             const dataForExport = activities.map(activity => {
-                // Common structure shared by BDM modules
+                // Common structure for HR modules
                 const base = {
-                    'Company': activity.company || '',
                     'Category': selectedCategory?.name || '',
                     'Priority': getPriorityLabel(activity.priority),
-                    'Responsible BDM(s)': Array.isArray(activity.responsible_bdm_names)
-                        ? activity.responsible_bdm_names.join(', ')
-                        : activity.responsible_bdm_names || '',
-                    'Remarks': activity.remarks || '',
+                    'Date': activity.date
+                        ? dayjs(activity.date).format('YYYY-MM-DD')
+                        : '',
                     'Created Date': activity.created_at
                         ? dayjs(activity.created_at).format('YYYY-MM-DD')
                         : ''
@@ -708,63 +724,31 @@ const ExportButton = ({
 
                 // Extend base based on table type
                 switch (selectedCategory?.id) {
-                    case 'college_session':
-                        return {
-                            ...base,
-                            'College Name': activity.college_name || '',
-                            'Session': activity.session || '',
-                            'Start Date': activity.start_date
-                                ? dayjs(activity.start_date).format('YYYY-MM-DD')
-                                : ''
-                        };
-
                     case 'meetings':
                         return {
                             ...base,
                             'Subject': activity.subject || '',
-                            'Date': activity.date
-                                ? dayjs(activity.date).format('YYYY-MM-DD')
-                                : '',
-                            'Status': activity.status || ''
+                            'Start Time': formatTime(activity.start_time),
+                            'End Time': formatTime(activity.end_time)
                         };
 
-                    case 'principle_visit':
+                    case 'training':
                         return {
                             ...base,
-                            'Principle Name': activity.principle_name || '',
-                            'Visitors Name': activity.visitors_name || '',
-                            'Visitors Job': activity.visitors_job || '',
-                            'Purpose': activity.purpose || '',
-                            'Visit Start': activity.visit_duration_start
-                                ? dayjs(activity.visit_duration_start).format('YYYY-MM-DD HH:mm')
-                                : '',
-                            'Visit End': activity.visit_duration_end
-                                ? dayjs(activity.visit_duration_end).format('YYYY-MM-DD HH:mm')
-                                : ''
+                            'Training Program': activity.training_program || '',
+                            'Department': activity.department || '',
+                            'Start Time': formatTime(activity.start_time),
+                            'End Time': formatTime(activity.end_time),
+                            'Status': activity.status || '',
+                            'Trainer Names': Array.isArray(activity.trainer_names) ? activity.trainer_names.join(', ') : activity.trainer_names || ''
                         };
 
-                    case 'promotional_activities':
+                    case 'special_events_n_tasks':
                         return {
                             ...base,
-                            'Promotional Activity': activity.promotional_activity || '',
-                            'Type': activity.type || '',
-                            'Date': activity.date
-                                ? dayjs(activity.date).format('YYYY-MM-DD')
-                                : ''
-                        };
-
-                    case 'visit_plan':
-                        return {
-                            ...base,
-                            'Schedule Date': activity.schedule_date
-                                ? dayjs(activity.schedule_date).format('YYYY-MM-DD')
-                                : '',
-                            'Name': activity.name || '',
-                            'Area': activity.area || '',
-                            'Customer': activity.customer || '',
-                            'Purpose': activity.purpose || '',
-                            'ROI': activity.roi || '',
-                            'Status': activity.status || ''
+                            'Task': activity.task || '',
+                            'Status': activity.status || '',
+                            'Date Range': activity.date_range || ''
                         };
 
                     default:
@@ -774,7 +758,7 @@ const ExportButton = ({
 
             const worksheet = XLSX.utils.json_to_sheet(dataForExport);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'BDM Export');
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'HR Export');
 
             // Auto-size columns
             const colWidths = [];
@@ -789,7 +773,7 @@ const ExportButton = ({
                 worksheet['!cols'] = colWidths;
             }
 
-            const fileName = `${selectedCategory?.name || 'bdm_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+            const fileName = `${selectedCategory?.name || 'hr_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
 
             XLSX.writeFile(workbook, fileName);
 
@@ -807,27 +791,22 @@ const ExportButton = ({
         try {
             const doc = new jsPDF();
             doc.setFontSize(16);
-            doc.text('BDM Export Summary', 14, 15);
+            doc.text('HR Export Summary', 14, 15);
             doc.setFontSize(10);
             const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
             doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
 
-            const headers = ['Company', 'Category', 'Priority', 'Responsible BDMs', 'Date'];
+            const headers = ['Category', 'Date', 'Priority', 'Details'];
             const tableData = activities.map(a => [
-                a.company || '',
                 selectedCategory?.name || '',
+                a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
                 getPriorityLabel(a.priority),
-                Array.isArray(a.responsible_bdm_names)
-                    ? a.responsible_bdm_names.join(', ')
-                    : a.responsible_bdm_names || '',
-                a[selectedCategory?.dateField] 
-                    ? dayjs(a[selectedCategory?.dateField]).format('YYYY-MM-DD')
-                    : ''
+                a.subject || a.training_program || a.task || 'No details'
             ]);
 
             let y = 35;
             const xStart = 14;
-            const colWidths = [40, 30, 20, 50, 25];
+            const colWidths = [30, 30, 25, 105];
             const lineHeight = 7;
             const pageHeight = doc.internal.pageSize.height;
 
@@ -858,7 +837,7 @@ const ExportButton = ({
                 y += lineHeight;
             });
 
-            const fileName = `${selectedCategory?.name || 'bdm_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            const fileName = `${selectedCategory?.name || 'hr_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
 
             doc.save(fileName);
             toast.success('PDF file exported successfully!');
@@ -904,7 +883,7 @@ const ExportButton = ({
     );
 };
 
-const BDM = () => {
+const HR = () => {
     // Error handling states
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -929,7 +908,7 @@ const BDM = () => {
 
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-    const [bdmUsers, setBdmUsers] = useState([]);
+    const [hrUsers, setHRUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [userSchedule, setUserSchedule] = useState([]);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -946,62 +925,37 @@ const BDM = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Updated BDM Categories configuration with proper category IDs
-    const bdmCategories = [
-        {
-            id: 'visit_plan',
-            name: 'Visit Plan',
-            table: 'bdm_visit_plan',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
-            dateField: 'schedule_date',
-            color: '#1890ff',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.VISIT_PLAN
-        },
-        {
-            id: 'principle_visit',
-            name: 'Principle Visit',
-            table: 'bdm_principle_visit',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
-            dateField: 'visit_duration_start',
-            color: '#52c41a',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.PRINCIPLE_VISIT
-        },
+    // HR Categories configuration
+    const hrCategories = [
         {
             id: 'meetings',
             name: 'Meetings',
-            table: 'bdm_meetings',
-            type: 'Meeting',
-            icon: <CalendarOutlined />,
+            table: 'hr_meetings',
+            type: 'HR Meeting',
+            icon: <UsergroupAddOutlined />,
+            dateField: 'date',
+            color: '#1890ff',
+            hasTimeFields: true
+        },
+        {
+            id: 'training',
+            name: 'Training',
+            table: 'hr_training',
+            type: 'Training Program',
+            icon: <BookOutlined />,
             dateField: 'date',
             color: '#fa8c16',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.MEETINGS
+            hasTimeFields: true
         },
         {
-            id: 'college_session',
-            name: 'College Sessions',
-            table: 'bdm_college_session',
-            type: 'Meeting',
-            icon: <CalendarOutlined />,
-            dateField: 'start_date',
-            color: '#722ed1',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.COLLEGE_SESSION
-        },
-        {
-            id: 'promotional_activities',
-            name: 'Promotional Activities',
-            table: 'bdm_promotional_activities',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
+            id: 'special_events_n_tasks',
+            name: 'Special Events & Tasks',
+            table: 'hr_special_events_n_tasks',
+            type: 'HR Activity',
+            icon: <TrophyOutlined />,
             dateField: 'date',
-            color: '#eb2f96',
-            hasTimeFields: false,
-            categoryId: CATEGORY_IDS.PROMOTIONAL_ACTIVITIES
+            color: '#52c41a',
+            hasTimeFields: false
         }
     ];
 
@@ -1086,7 +1040,7 @@ const BDM = () => {
     const resetErrorBoundary = useCallback(() => {
         setError(null);
         setRetryCount(prev => prev + 1);
-        initializeBDM();
+        initializeHR();
     }, []);
 
     // Auto-refresh setup
@@ -1094,7 +1048,7 @@ const BDM = () => {
         try {
             if (autoRefresh) {
                 const interval = setInterval(() => {
-                    refreshBDMData();
+                    refreshHRData();
                 }, 2 * 60 * 1000); // 2 minutes
 
                 return () => clearInterval(interval);
@@ -1104,14 +1058,14 @@ const BDM = () => {
         }
     }, [autoRefresh, handleError]);
 
-    const refreshBDMData = async () => {
+    const refreshHRData = async () => {
         if (isRefreshing) return;
 
         setIsRefreshing(true);
         try {
             await fetchTableData();
             safeSetState(setLastRefresh, new Date());
-            toast.info('BDM data updated automatically');
+            toast.info('HR data updated automatically');
         } catch (error) {
             handleError(error, 'auto-refresh');
         } finally {
@@ -1124,7 +1078,7 @@ const BDM = () => {
         try {
             await fetchTableData();
             safeSetState(setLastRefresh, new Date());
-            toast.success('BDM data refreshed successfully');
+            toast.success('HR data refreshed successfully');
         } catch (error) {
             handleError(error, 'manual refresh');
         } finally {
@@ -1161,28 +1115,28 @@ const BDM = () => {
         }
     };
 
-    // Initialize BDM module
-    const initializeBDM = async () => {
+    // Initialize HR module
+    const initializeHR = async () => {
         setLoading(true);
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
                 fetchProfiles(),
-                fetchBDMUsers()
+                fetchHRUsers()
             ]);
 
             // Set default date range after initialization
             const defaultRange = getDefaultDateRange();
             safeSetState(setDateRange, defaultRange);
         } catch (error) {
-            handleError(error, 'initializing BDM module');
+            handleError(error, 'initializing HR module');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        initializeBDM();
+        initializeHR();
     }, [retryCount]);
 
     useEffect(() => {
@@ -1223,20 +1177,36 @@ const BDM = () => {
         }
     };
 
-    const fetchBDMUsers = async () => {
+    const fetchHRUsers = async () => {
         try {
-            // Get all users in BDM department
+            // Use the specific HR department ID you provided
+            const hrDepartmentId = '4f64ea9f-879c-4232-b658-3599098bff26';
+            
+            // Get all users in HR department
             const { data: usersData, error: usersError } = await supabase
                 .from('profiles')
                 .select('id, full_name, email, department_id')
-                .eq('department_id', BDM_DEPARTMENT_ID)
+                .eq('department_id', hrDepartmentId)
                 .order('full_name');
 
-            if (usersError) throw usersError;
-            safeSetState(setBdmUsers, usersData || []);
+            if (usersError) {
+                console.error('Error fetching HR users:', usersError);
+                // Fallback to all users if department not found
+                const { data: allUsers, error: allUsersError } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, email, department_id')
+                    .order('full_name');
+
+                if (allUsersError) throw allUsersError;
+                safeSetState(setHRUsers, allUsers || []);
+                toast.warning('Using all users as fallback for HR department');
+                return;
+            }
+
+            safeSetState(setHRUsers, usersData || []);
         } catch (error) {
-            handleError(error, 'fetching BDM users');
-            safeSetState(setBdmUsers, []);
+            handleError(error, 'fetching HR users');
+            safeSetState(setHRUsers, []);
         }
     };
 
@@ -1255,11 +1225,9 @@ const BDM = () => {
             let query = supabase
                 .from(selectedCategory.table)
                 .select('*')
-                .eq('department_id', BDM_DEPARTMENT_ID)
-                .eq('category_id', selectedCategory.categoryId)
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
-                .order('priority', { ascending: false }) // Sort by priority (high to low)
+                .order('priority', { ascending: false })
                 .order(selectedCategory.dateField, { ascending: true });
 
             // Apply priority filter if selected
@@ -1289,11 +1257,9 @@ const BDM = () => {
 
         try {
             const tableMap = {
-                'visit_plan': 'bdm_visit_plan_fb',
-                'principle_visit': 'bdm_principle_visit_fb',
-                'meetings': 'bdm_meetings_fb',
-                'college_session': 'bdm_college_session_fb',
-                'promotional_activities': 'bdm_promotional_activities_fb'
+                'meetings': 'hr_meetings_fb',
+                'training': 'hr_training_fb',
+                'special_events_n_tasks': 'hr_special_events_n_tasks_fb'
             };
 
             const feedbackTable = tableMap[category.id];
@@ -1329,9 +1295,9 @@ const BDM = () => {
             let allActivities = [];
 
             // Get user details
-            const user = bdmUsers.find(u => u.id === userId);
+            const user = hrUsers.find(u => u.id === userId);
             if (!user) {
-                console.warn('User not found in BDM users list');
+                console.warn('User not found in HR users list');
                 safeSetState(setUserSchedule, []);
                 return;
             }
@@ -1351,15 +1317,13 @@ const BDM = () => {
 
             if (personalError) console.error('Personal meetings error:', personalError);
 
-            // 2. BDM activities - Updated for new table structure
-            for (const category of bdmCategories) {
+            // 2. HR activities
+            for (const category of hrCategories) {
                 console.log(`Checking category: ${category.name}`);
 
                 let query = supabase
                     .from(category.table)
                     .select('*')
-                    .eq('department_id', BDM_DEPARTMENT_ID)
-                    .eq('category_id', category.categoryId)
                     .gte(category.dateField, formattedStart)
                     .lte(category.dateField, formattedEnd)
                     .order('priority', { ascending: false })
@@ -1368,48 +1332,11 @@ const BDM = () => {
                 let categoryActivities = [];
 
                 try {
-                    // Different filtering strategies for each category based on new structure
-                    switch (category.id) {
-                        case 'visit_plan':
-                        case 'college_session':
-                        case 'promotional_activities':
-                            // These use responsible_bdm_names field (text array)
-                            const { data: textArrayData } = await query;
-                            if (textArrayData) {
-                                categoryActivities = textArrayData.filter(item => {
-                                    const responsibleUsers = item.responsible_bdm_names;
-                                    if (!responsibleUsers) return false;
-
-                                    // Handle both string arrays and comma-separated strings
-                                    if (Array.isArray(responsibleUsers)) {
-                                        return responsibleUsers.some(name =>
-                                            name && name.toLowerCase().includes(userName.toLowerCase())
-                                        );
-                                    } else if (typeof responsibleUsers === 'string') {
-                                        return responsibleUsers.toLowerCase().includes(userName.toLowerCase());
-                                    }
-                                    return false;
-                                });
-                            }
-                            break;
-
-                        case 'principle_visit':
-                            // This uses responsible_bdm_ids field (uuid array)
-                            const { data: uuidArrayData } = await query.contains('responsible_bdm_ids', [userId]);
-                            categoryActivities = uuidArrayData || [];
-                            break;
-
-                        case 'meetings':
-                            // This table doesn't have specific responsible field in new structure
-                            // We'll include all meetings for now, or you can add specific logic
-                            const { data: meetingsData } = await query;
-                            categoryActivities = meetingsData || [];
-                            break;
-
-                        default:
-                            const { data: defaultData } = await query;
-                            categoryActivities = defaultData || [];
-                            break;
+                    // Get all activities for this category
+                    const { data } = await query;
+                    if (data) {
+                        // For HR, we'll include all activities since there's no specific user assignment
+                        categoryActivities = data;
                     }
 
                     console.log(`Category ${category.name} activities:`, categoryActivities.length);
@@ -1418,7 +1345,7 @@ const BDM = () => {
                     if (categoryActivities.length > 0) {
                         allActivities.push(...categoryActivities.map(activity => ({
                             ...activity,
-                            type: 'bdm_activity',
+                            type: 'hr_activity',
                             activity_type: category.name,
                             source_table: category.table,
                             category_id: category.id
@@ -1506,24 +1433,8 @@ const BDM = () => {
 
             // Format date fields based on category with error handling
             try {
-                if (selectedCategory.id === 'visit_plan' && record.schedule_date) {
-                    formattedRecord.schedule_date = safeDayjs(record.schedule_date);
-                }
-                if (selectedCategory.id === 'principle_visit') {
-                    if (record.visit_duration_start) {
-                        formattedRecord.visit_duration_start = safeDayjs(record.visit_duration_start);
-                    }
-                    if (record.visit_duration_end) {
-                        formattedRecord.visit_duration_end = safeDayjs(record.visit_duration_end);
-                    }
-                }
-                if ((selectedCategory.id === 'meetings' || selectedCategory.id === 'promotional_activities') && record.date) {
+                if (record.date) {
                     formattedRecord.date = safeDayjs(record.date);
-                }
-                if (selectedCategory.id === 'college_session') {
-                    if (record.start_date) {
-                        formattedRecord.start_date = safeDayjs(record.start_date);
-                    }
                 }
             } catch (dateError) {
                 console.warn('Error formatting dates for editing:', dateError);
@@ -1549,7 +1460,7 @@ const BDM = () => {
             if (error) throw error;
 
             await notifyDepartmentOperation(
-                'bdm',
+                'hr',
                 selectedCategory.name,
                 NOTIFICATION_TYPES.DELETE,
                 record,
@@ -1623,12 +1534,8 @@ const BDM = () => {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission with proper department_id and category_id
-            const submitData = {
-                ...values,
-                department_id: BDM_DEPARTMENT_ID,
-                category_id: selectedCategory.categoryId
-            };
+            // Prepare data for submission
+            const submitData = { ...values };
 
             // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
@@ -1657,7 +1564,7 @@ const BDM = () => {
                 result = data[0];
 
                 await notifyDepartmentOperation(
-                    'bdm',
+                    'hr',
                     selectedCategory.name,
                     NOTIFICATION_TYPES.UPDATE,
                     result,
@@ -1679,7 +1586,7 @@ const BDM = () => {
                 result = data[0];
 
                 await notifyDepartmentOperation(
-                    'bdm',
+                    'hr',
                     selectedCategory.name,
                     NOTIFICATION_TYPES.CREATE,
                     result,
@@ -1760,67 +1667,64 @@ const BDM = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
+
+
+            const formatTime = (time) => {
+                try {
+                    if (!time) return '-';
+                    return dayjs(time, 'HH:mm:ss').format('HH:mm');
+                } catch (error) {
+                    return time || '-';
+                }
+            };
+
             switch (selectedCategory.id) {
-                case 'visit_plan':
-                    return [
-                        { title: 'Schedule Date', dataIndex: 'schedule_date', key: 'schedule_date', width: 120 },
-                        { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
-                        { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
-                        { title: 'Customer', dataIndex: 'customer', key: 'customer', width: 150 },
-                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
-                        { title: 'ROI', dataIndex: 'roi', key: 'roi', width: 100 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
-                        priorityColumn,
-                        actionColumn
-                    ];
-
-                case 'principle_visit':
-                    return [
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Principle Name', dataIndex: 'principle_name', key: 'principle_name', width: 150 },
-                        { title: 'Visitors Name', dataIndex: 'visitors_name', key: 'visitors_name', width: 150 },
-                        { title: 'Visitors Job', dataIndex: 'visitors_job', key: 'visitors_job', width: 120 },
-                        { title: 'Visit Start', dataIndex: 'visit_duration_start', key: 'visit_duration_start', width: 120 },
-                        { title: 'Visit End', dataIndex: 'visit_duration_end', key: 'visit_duration_end', width: 120 },
-                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
-                        priorityColumn,
-                        actionColumn
-                    ];
-
                 case 'meetings':
                     return [
+
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
+                        { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 100, render: formatTime },
+                        { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100, render: formatTime },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
-                        priorityColumn,
                         actionColumn
                     ];
 
-                case 'college_session':
+                case 'training':
                     return [
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'College Name', dataIndex: 'college_name', key: 'college_name', width: 150 },
-                        { title: 'Session', dataIndex: 'session', key: 'session', width: 150 },
-                        { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        priorityColumn,
-                        actionColumn
-                    ];
 
-                case 'promotional_activities':
-                    return [
-                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
-                        { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
-                        priorityColumn,
+                        { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 100, render: formatTime },
+                        { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100, render: formatTime },
+                        { title: 'Department', dataIndex: 'department', key: 'department', width: 120 },
+                        { title: 'Training Program', dataIndex: 'training_program', key: 'training_program', width: 200 },
+                        { 
+                            title: 'Trainer Names', 
+                            dataIndex: 'trainer_names', 
+                            key: 'trainer_names', 
+                            width: 150,
+                            render: (names) => {
+                                if (Array.isArray(names)) {
+                                    return names.join(', ');
+                                }
+                                return names || '-';
+                            }
+                        },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        actionColumn
+                    ];
+
+                case 'special_events_n_tasks':
+                    return [
+
+                        { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
+                        { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        { title: 'Date Range', dataIndex: 'date_range', key: 'date_range', width: 100 },
                         actionColumn
                     ];
 
                 default:
-                    return [priorityColumn, actionColumn];
+                    return ;
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1834,21 +1738,6 @@ const BDM = () => {
         try {
             const commonFields = (
                 <>
-                    <Form.Item
-                        name="company"
-                        label="Company"
-                        rules={[{ required: true, message: 'Please enter company name' }]}
-                    >
-                        <Input placeholder="Enter company name" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="remarks"
-                        label="Remarks"
-                    >
-                        <TextArea rows={3} placeholder="Enter any remarks or notes" />
-                    </Form.Item>
-
                     <Form.Item
                         name="priority"
                         label="Priority"
@@ -1866,142 +1755,10 @@ const BDM = () => {
                             ))}
                         </Select>
                     </Form.Item>
-
-                    {/* Responsible BDMs Selection */}
-                    <Form.Item
-                        name="responsible_bdm_ids"
-                        label="Responsible BDMs"
-                    >
-                        <Select
-                            mode="multiple"
-                            placeholder="Select responsible BDMs"
-                            style={{ width: '100%' }}
-                            optionFilterProp="children"
-                            filterOption={(input, option) =>
-                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                            }
-                        >
-                            {bdmUsers.map(user => (
-                                <Option key={user.id} value={user.id}>
-                                    {user.full_name || user.email}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
                 </>
             );
 
             switch (selectedCategory.id) {
-                case 'visit_plan':
-                    return (
-                        <>
-                            <Form.Item
-                                name="schedule_date"
-                                label="Schedule Date"
-                                rules={[{ required: true, message: 'Please select schedule date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select schedule date"
-                                />
-                            </Form.Item>
-                            {commonFields}
-                            <Form.Item
-                                name="name"
-                                label="Name"
-                                rules={[{ required: true, message: 'Please enter name' }]}
-                            >
-                                <Input placeholder="Enter name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="area"
-                                label="Area"
-                            >
-                                <Input placeholder="Enter area" />
-                            </Form.Item>
-                            <Form.Item
-                                name="customer"
-                                label="Customer"
-                            >
-                                <Input placeholder="Enter customer" />
-                            </Form.Item>
-                            <Form.Item
-                                name="purpose"
-                                label="Purpose"
-                                rules={[{ required: true, message: 'Please enter purpose' }]}
-                            >
-                                <TextArea rows={3} placeholder="Enter purpose" />
-                            </Form.Item>
-                            <Form.Item
-                                name="roi"
-                                label="ROI"
-                            >
-                                <Input placeholder="Enter ROI" />
-                            </Form.Item>
-                            <Form.Item
-                                name="status"
-                                label="Status"
-                            >
-                                <Input placeholder="Enter status" />
-                            </Form.Item>
-                        </>
-                    );
-
-                case 'principle_visit':
-                    return (
-                        <>
-                            {commonFields}
-                            <Form.Item
-                                name="principle_name"
-                                label="Principle Name"
-                                rules={[{ required: true, message: 'Please enter principle name' }]}
-                            >
-                                <Input placeholder="Enter principle name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="visitors_name"
-                                label="Visitors Name"
-                            >
-                                <Input placeholder="Enter visitors name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="visitors_job"
-                                label="Visitors Job"
-                            >
-                                <Input placeholder="Enter visitors job title" />
-                            </Form.Item>
-                            <Form.Item
-                                name="visit_duration_start"
-                                label="Visit Start Date"
-                                rules={[{ required: true, message: 'Please select start date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select visit start date"
-                                />
-                            </Form.Item>
-                            <Form.Item
-                                name="visit_duration_end"
-                                label="Visit End Date"
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select visit end date"
-                                />
-                            </Form.Item>
-                            <Form.Item
-                                name="purpose"
-                                label="Purpose"
-                                rules={[{ required: true, message: 'Please enter purpose' }]}
-                            >
-                                <TextArea rows={3} placeholder="Enter visit purpose" />
-                            </Form.Item>
-                        </>
-                    );
-
                 case 'meetings':
                     return (
                         <>
@@ -2016,7 +1773,26 @@ const BDM = () => {
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
-                            {commonFields}
+                            <Form.Item
+                                name="start_time"
+                                label="Start Time"
+                            >
+                                <TimePicker
+                                    style={{ width: '100%' }}
+                                    format="HH:mm"
+                                    placeholder="Select start time"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="end_time"
+                                label="End Time"
+                            >
+                                <TimePicker
+                                    style={{ width: '100%' }}
+                                    format="HH:mm"
+                                    placeholder="Select end time"
+                                />
+                            </Form.Item>
                             <Form.Item
                                 name="subject"
                                 label="Subject"
@@ -2024,74 +1800,115 @@ const BDM = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter meeting subject" />
                             </Form.Item>
+                            {commonFields}
+                        </>
+                    );
+
+                case 'training':
+                    return (
+                        <>
+                            <Form.Item
+                                name="date"
+                                label="Training Date"
+                                rules={[{ required: true, message: 'Please select training date' }]}
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY"
+                                    placeholder="Select training date"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="start_time"
+                                label="Start Time"
+                            >
+                                <TimePicker
+                                    style={{ width: '100%' }}
+                                    format="HH:mm"
+                                    placeholder="Select start time"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="end_time"
+                                label="End Time"
+                            >
+                                <TimePicker
+                                    style={{ width: '100%' }}
+                                    format="HH:mm"
+                                    placeholder="Select end time"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="department"
+                                label="Department"
+                            >
+                                <Input placeholder="Enter department" />
+                            </Form.Item>
+                            <Form.Item
+                                name="training_program"
+                                label="Training Program"
+                                rules={[{ required: true, message: 'Please enter training program' }]}
+                            >
+                                <TextArea rows={3} placeholder="Enter training program" />
+                            </Form.Item>
+                            <Form.Item
+                                name="trainer_names"
+                                label="Trainer Names"
+                            >
+                                <Select
+                                    mode="tags"
+                                    placeholder="Enter trainer names (press Enter to add multiple)"
+                                    style={{ width: '100%' }}
+                                />
+                            </Form.Item>
                             <Form.Item
                                 name="status"
                                 label="Status"
                             >
                                 <Input placeholder="Enter status" />
                             </Form.Item>
-                        </>
-                    );
-
-                case 'college_session':
-                    return (
-                        <>
                             {commonFields}
-                            <Form.Item
-                                name="college_name"
-                                label="College Name"
-                                rules={[{ required: true, message: 'Please enter college name' }]}
-                            >
-                                <Input placeholder="Enter college name" />
-                            </Form.Item>
-                            <Form.Item
-                                name="session"
-                                label="Session"
-                            >
-                                <TextArea rows={3} placeholder="Enter session details" />
-                            </Form.Item>
-                            <Form.Item
-                                name="start_date"
-                                label="Start Date"
-                                rules={[{ required: true, message: 'Please select start date' }]}
-                            >
-                                <DatePicker
-                                    style={{ width: '100%' }}
-                                    format="DD/MM/YYYY"
-                                    placeholder="Select session start date"
-                                />
-                            </Form.Item>
                         </>
                     );
 
-                case 'promotional_activities':
+                case 'special_events_n_tasks':
                     return (
                         <>
                             <Form.Item
                                 name="date"
-                                label="Activity Date"
-                                rules={[{ required: true, message: 'Please select activity date' }]}
+                                label="Date"
+                                rules={[{ required: true, message: 'Please select date' }]}
                             >
                                 <DatePicker
                                     style={{ width: '100%' }}
                                     format="DD/MM/YYYY"
-                                    placeholder="Select activity date"
+                                    placeholder="Select date"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="task"
+                                label="Task"
+                                rules={[{ required: true, message: 'Please enter task' }]}
+                            >
+                                <TextArea rows={3} placeholder="Enter task" />
+                            </Form.Item>
+                            <Form.Item
+                                name="status"
+                                label="Status"
+                            >
+                                <Input placeholder="Enter status" />
+                            </Form.Item>
+                            <Form.Item
+                                name="date_range"
+                                label="Date Range (days)"
+                            >
+                                <InputNumber
+                                    style={{ width: '100%' }}
+                                    placeholder="Enter date range in days"
+                                    min={1}
                                 />
                             </Form.Item>
                             {commonFields}
-                            <Form.Item
-                                name="promotional_activity"
-                                label="Promotional Activity"
-                                rules={[{ required: true, message: 'Please enter promotional activity' }]}
-                            >
-                                <Input placeholder="Enter promotional activity" />
-                            </Form.Item>
-                            <Form.Item
-                                name="type"
-                                label="Activity Type"
-                            >
-                                <Input placeholder="Enter activity type" />
-                            </Form.Item>
                         </>
                     );
 
@@ -2107,38 +1924,33 @@ const BDM = () => {
     const getStats = () => {
         try {
             if (!selectedCategory || !tableData.length) {
-                return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0, completionRate: 0 };
+                return { 
+                    totalRecords: 0, 
+                    meetingsCount: 0, 
+                    trainingCount: 0, 
+                    specialTasksCount: 0 
+                };
             }
 
             const totalRecords = tableData.length;
-            const now = safeDayjs();
+            
+            // Calculate category-specific stats
+            const meetingsCount = tableData.filter(item => 
+                selectedCategory.id === 'meetings'
+            ).length;
 
-            const upcomingRecords = tableData.filter(item => {
-                try {
-                    const itemDate = safeDayjs(item[selectedCategory.dateField]);
-                    return itemDate.isValid() && itemDate.isAfter(now, 'day');
-                } catch (error) {
-                    console.warn('Error processing upcoming record:', error);
-                    return false;
-                }
-            }).length;
+            const trainingCount = tableData.filter(item => 
+                selectedCategory.id === 'training'
+            ).length;
 
-            const completedRecords = tableData.filter(item => {
-                try {
-                    const itemDate = safeDayjs(item[selectedCategory.dateField]);
-                    return itemDate.isValid() && itemDate.isBefore(now, 'day');
-                } catch (error) {
-                    console.warn('Error processing completed record:', error);
-                    return false;
-                }
-            }).length;
+            const specialTasksCount = tableData.filter(item => 
+                selectedCategory.id === 'special_events_n_tasks'
+            ).length;
 
-            const completionRate = totalRecords > 0 ? Math.round((completedRecords / totalRecords) * 100) : 0;
-
-            return { totalRecords, upcomingRecords, completedRecords, completionRate };
+            return { totalRecords, meetingsCount, trainingCount, specialTasksCount };
         } catch (error) {
             console.error('Error calculating stats:', error);
-            return { totalRecords: 0, upcomingRecords: 0, completedRecords: 0, completionRate: 0 };
+            return { totalRecords: 0, meetingsCount: 0, trainingCount: 0, specialTasksCount: 0 };
         }
     };
 
@@ -2149,7 +1961,7 @@ const BDM = () => {
 
     // Render loading state
     if (loading && !selectedCategory) {
-        return <LoadingSpinner tip="Loading BDM module..." />;
+        return <LoadingSpinner tip="Loading HR module..." />;
     }
 
     const stats = getStats();
@@ -2161,7 +1973,7 @@ const BDM = () => {
             {/* Error Alert */}
             {error && (
                 <Alert
-                    message="BDM Module Error"
+                    message="HR Module Error"
                     description={`${error.context}: ${error.message}`}
                     type="error"
                     showIcon
@@ -2190,7 +2002,7 @@ const BDM = () => {
                 <Row justify="space-between" align="middle" gutter={[16, 16]}>
                     <Col xs={24} sm={12} md={8}>
                         <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-                            <TeamOutlined /> BDM Department
+                            <UsergroupAddOutlined /> HR Department
                         </Title>
                     </Col>
                     <Col xs={24} sm={12} md={8}>
@@ -2234,7 +2046,7 @@ const BDM = () => {
             {autoRefresh && (
                 <Alert
                     message="Auto-refresh Enabled"
-                    description="BDM data will automatically update every 2 minutes."
+                    description="HR data will automatically update every 2 minutes."
                     type="info"
                     showIcon
                     closable
@@ -2244,16 +2056,16 @@ const BDM = () => {
 
             {/* Category Cards */}
             <Card
-                title="BDM Categories"
+                title="HR Categories"
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
-                        {bdmCategories.length} Categories Available
+                        {hrCategories.length} Categories Available
                     </Tag>
                 }
             >
                 <Row gutter={[16, 16]}>
-                    {bdmCategories.map((category) => (
+                    {hrCategories.map((category) => (
                         <Col xs={24} sm={12} md={8} lg={6} key={category.id}>
                             <CategoryCard
                                 category={category}
@@ -2353,22 +2165,22 @@ const BDM = () => {
             {/* Statistics */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
                 <>
-                    <BDMStatistics stats={stats} loading={loading} />
+                    <HRStatistics stats={stats} loading={loading} />
 
                     {/* Progress Bar for Completion Rate */}
                     <Card style={{ marginBottom: 24 }}>
                         <Space direction="vertical" style={{ width: '100%' }}>
-                            <Text strong>Overall Completion Progress</Text>
+                            <Text strong>Overall Progress</Text>
                             <Progress
-                                percent={stats.completionRate}
-                                status={stats.completionRate >= 80 ? "success" : "active"}
+                                percent={Math.round((stats.totalRecords / (stats.totalRecords + 10)) * 100)}
+                                status="active"
                                 strokeColor={{
                                     '0%': '#108ee9',
                                     '100%': '#87d068',
                                 }}
                             />
                             <Text type="secondary">
-                                {stats.completedRecords} of {stats.totalRecords} records completed ({stats.completionRate}%)
+                                {stats.totalRecords} total records across all categories
                             </Text>
                         </Space>
                     </Card>
@@ -2504,7 +2316,7 @@ const BDM = () => {
                 title={
                     <Space>
                         <UserOutlined />
-                        Check BDM Team Availability
+                        Check HR Team Availability
                         <Tag color="blue">
                             Default: {availabilityDateRange[0] ? safeDayjs(availabilityDateRange[0]).format('DD/MM/YYYY') : ''} - {availabilityDateRange[1] ? safeDayjs(availabilityDateRange[1]).format('DD/MM/YYYY') : ''}
                         </Tag>
@@ -2530,16 +2342,16 @@ const BDM = () => {
                         </Text>
                     </Card>
 
-                    {/* BDM Users List */}
-                    <Card size="small" title="BDM Team Members">
-                        {bdmUsers.length === 0 ? (
+                    {/* HR Users List */}
+                    <Card size="small" title="HR Team Members">
+                        {hrUsers.length === 0 ? (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="No BDM team members found"
+                                description="No HR team members found"
                             />
                         ) : (
                             <List
-                                dataSource={bdmUsers}
+                                dataSource={hrUsers}
                                 renderItem={user => (
                                     <List.Item
                                         actions={[
@@ -2565,7 +2377,7 @@ const BDM = () => {
                                             description={
                                                 <Badge
                                                     status="success"
-                                                    text="BDM Team Member"
+                                                    text="HR Team Member"
                                                 />
                                             }
                                         />
@@ -2615,9 +2427,9 @@ const BDM = () => {
 
             {/* Instructions */}
             {!selectedCategory && (
-                <Card title="How to Use BDM Module" style={{ borderRadius: '12px' }}>
+                <Card title="How to Use HR Module" style={{ borderRadius: '12px' }}>
                     <Alert
-                        message="Manage BDM Department Data"
+                        message="Manage HR Department Data"
                         description={
                             <div>
                                 <Text strong>Follow these steps:</Text>
@@ -2633,7 +2445,7 @@ const BDM = () => {
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
                                 </ol>
                                 <Text type="secondary">
-                                    Each category represents different BDM activities recorded in the system.
+                                    Each category represents different HR activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
                                 </Text>
                             </div>
@@ -2647,4 +2459,4 @@ const BDM = () => {
     );
 };
 
-export default BDM;
+export default HR;
