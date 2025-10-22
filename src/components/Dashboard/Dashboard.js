@@ -132,8 +132,8 @@ const findMatchingLegend = (title) => {
   const variations = {
     'monthly meeting bdm': 'Monthly Meeting BDM',
     'monthly meeting ehpl': 'Monthly Meeting EHPL',
-    'monthly meeting scpl': 'Monthly Meeting SCLP',
-    'monthly meeting scpl': 'Monthly Meeting SCLP',
+    'monthly meeting scpl': 'Monthly Meeting SCPL',
+    'monthly meeting scpl': 'Monthly Meeting SCPL',
     'rolle over': 'Rolle-Over',
     'rolle-over': 'Rolle-Over',
     'college': 'College Session',
