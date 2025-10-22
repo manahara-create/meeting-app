@@ -89,7 +89,7 @@ const organizationalLegends = {
   'PRE EXCO IT': { name: 'PRE EXCO IT', color: '#f1c40f' },
   'Monthly Meeting BDM': { name: 'Monthly Meeting BDM', color: '#7f8c8d' },
   'Monthly Meeting EHPL': { name: 'Monthly Meeting EHPL', color: '#2c3e50' },
-  'Monthly Meeting SCLP': { name: 'Monthly Meeting SCLP', color: '#e84393' }
+  'Monthly Meeting SCPL': { name: 'Monthly Meeting SCPL', color: '#e84393' }
 };
 
 // Function to calculate luminance and determine text color

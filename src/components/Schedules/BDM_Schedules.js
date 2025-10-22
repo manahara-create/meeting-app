@@ -37,6 +37,16 @@ const { TextArea } = Input;
 const { Option } = Select;
 const { TabPane } = Tabs;
 
+// Department and Category IDs from your database
+const BDM_DEPARTMENT_ID = '4755d627-64ad-4a03-81f2-fd867084cef7';
+const CATEGORY_IDS = {
+    COLLEGE_SESSION: 'd37bbf9e-2c66-4e7e-bc32-fa1af48e4300',
+    MEETINGS: 'b21e53e2-a5ea-4351-829b-ad1e90d35f65',
+    PRINCIPLE_VISIT: '99e6d59b-bd19-4666-bf06-156a3dab43ff',
+    PROMOTIONAL_ACTIVITIES: '6e717e47-171d-4cb4-8bef-1a5527129cab',
+    VISIT_PLAN: 'e0cbbaf0-940d-48d3-b403-e345f4c5e333'
+};
+
 // Error boundary component
 const ErrorFallback = ({ error, resetErrorBoundary }) => (
     <Result
@@ -936,7 +946,7 @@ const BDM = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Updated BDM Categories configuration to match new database structure
+    // Updated BDM Categories configuration with proper category IDs
     const bdmCategories = [
         {
             id: 'visit_plan',
@@ -946,7 +956,8 @@ const BDM = () => {
             icon: <CheckCircleOutlined />,
             dateField: 'schedule_date',
             color: '#1890ff',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.VISIT_PLAN
         },
         {
             id: 'principle_visit',
@@ -956,7 +967,8 @@ const BDM = () => {
             icon: <CheckCircleOutlined />,
             dateField: 'visit_duration_start',
             color: '#52c41a',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.PRINCIPLE_VISIT
         },
         {
             id: 'meetings',
@@ -966,7 +978,8 @@ const BDM = () => {
             icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#fa8c16',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.MEETINGS
         },
         {
             id: 'college_session',
@@ -976,7 +989,8 @@ const BDM = () => {
             icon: <CalendarOutlined />,
             dateField: 'start_date',
             color: '#722ed1',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.COLLEGE_SESSION
         },
         {
             id: 'promotional_activities',
@@ -986,7 +1000,8 @@ const BDM = () => {
             icon: <CheckCircleOutlined />,
             dateField: 'date',
             color: '#eb2f96',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.PROMOTIONAL_ACTIVITIES
         }
     ];
 
@@ -1210,50 +1225,11 @@ const BDM = () => {
 
     const fetchBDMUsers = async () => {
         try {
-            // First get the BDM department ID
-            const { data: deptData, error: deptError } = await supabase
-                .from('departments')
-                .select('id')
-                .eq('name', 'BDM')
-                .single();
-
-            if (deptError) {
-                // If BDM department doesn't exist, try case-insensitive search
-                const { data: deptDataAlt, error: deptErrorAlt } = await supabase
-                    .from('departments')
-                    .select('id')
-                    .ilike('name', '%bdm%')
-                    .single();
-
-                if (deptErrorAlt) throw deptErrorAlt;
-                if (!deptDataAlt) {
-                    toast.warning('BDM department not found. Using all users as fallback.');
-                    // Fallback to all users
-                    const { data: allUsers, error: usersError } = await supabase
-                        .from('profiles')
-                        .select('id, full_name, email, department_id')
-                        .order('full_name');
-
-                    if (usersError) throw usersError;
-                    safeSetState(setBdmUsers, allUsers || []);
-                    return;
-                }
-
-                safeSetState(setBdmUsers, []);
-                return;
-            }
-
-            if (!deptData) {
-                toast.warning('BDM department not found');
-                safeSetState(setBdmUsers, []);
-                return;
-            }
-
-            // Then get all users in BDM department
+            // Get all users in BDM department
             const { data: usersData, error: usersError } = await supabase
                 .from('profiles')
                 .select('id, full_name, email, department_id')
-                .eq('department_id', deptData.id)
+                .eq('department_id', BDM_DEPARTMENT_ID)
                 .order('full_name');
 
             if (usersError) throw usersError;
@@ -1279,6 +1255,8 @@ const BDM = () => {
             let query = supabase
                 .from(selectedCategory.table)
                 .select('*')
+                .eq('department_id', BDM_DEPARTMENT_ID)
+                .eq('category_id', selectedCategory.categoryId)
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
                 .order('priority', { ascending: false }) // Sort by priority (high to low)
@@ -1380,6 +1358,8 @@ const BDM = () => {
                 let query = supabase
                     .from(category.table)
                     .select('*')
+                    .eq('department_id', BDM_DEPARTMENT_ID)
+                    .eq('category_id', category.categoryId)
                     .gte(category.dateField, formattedStart)
                     .lte(category.dateField, formattedEnd)
                     .order('priority', { ascending: false })
@@ -1643,9 +1623,12 @@ const BDM = () => {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission - REMOVE department_id and category_id to avoid foreign key errors
-            const { department_id, category_id, ...cleanData } = values;
-            const submitData = { ...cleanData };
+            // Prepare data for submission with proper department_id and category_id
+            const submitData = {
+                ...values,
+                department_id: BDM_DEPARTMENT_ID,
+                category_id: selectedCategory.categoryId
+            };
 
             // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
@@ -1787,12 +1770,12 @@ const BDM = () => {
                         { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
                         { title: 'ROI', dataIndex: 'roi', key: 'roi', width: 100 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'principle_visit':
                     return [
-
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Principle Name', dataIndex: 'principle_name', key: 'principle_name', width: 150 },
                         { title: 'Visitors Name', dataIndex: 'visitors_name', key: 'visitors_name', width: 150 },
@@ -1800,43 +1783,44 @@ const BDM = () => {
                         { title: 'Visit Start', dataIndex: 'visit_duration_start', key: 'visit_duration_start', width: 120 },
                         { title: 'Visit End', dataIndex: 'visit_duration_end', key: 'visit_duration_end', width: 120 },
                         { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'meetings':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'college_session':
                     return [
-
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'College Name', dataIndex: 'college_name', key: 'college_name', width: 150 },
                         { title: 'Session', dataIndex: 'session', key: 'session', width: 150 },
                         { title: 'Start Date', dataIndex: 'start_date', key: 'start_date', width: 120 },
                         { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'promotional_activities':
                     return [
-
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 default:
-                    return ;
+                    return [priorityColumn, actionColumn];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1878,6 +1862,28 @@ const BDM = () => {
                                         <Badge color={option.color} />
                                         {option.label}
                                     </Space>
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+
+                    {/* Responsible BDMs Selection */}
+                    <Form.Item
+                        name="responsible_bdm_ids"
+                        label="Responsible BDMs"
+                    >
+                        <Select
+                            mode="multiple"
+                            placeholder="Select responsible BDMs"
+                            style={{ width: '100%' }}
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
+                        >
+                            {bdmUsers.map(user => (
+                                <Option key={user.id} value={user.id}>
+                                    {user.full_name || user.email}
                                 </Option>
                             ))}
                         </Select>

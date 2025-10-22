@@ -179,7 +179,7 @@ const Register = () => {
           .from('profiles')
           .update({
             full_name: values.full_name,
-            role: values.role,
+            role: 'User',
             department_id: values.department_id,
             updated_at: new Date().toISOString()
           })
@@ -327,7 +327,7 @@ const Register = () => {
           autoComplete="off"
           layout="vertical"
           initialValues={{
-            role: 'user'
+            role: 'User'
           }}
         >
           <Form.Item
@@ -413,28 +413,6 @@ const Register = () => {
                     {dept.name}
                   </Option>
                 ))}
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              name="role"
-              label={<Text style={{ color: '#2c3e50', fontWeight: '600', fontSize: '14px' }}>Role</Text>}
-              rules={[{ 
-                required: true, 
-                message: 'Please select your role!' 
-              }]}
-            >
-              <Select 
-                placeholder="Select role" 
-                size="large"
-                suffixIcon={<UserOutlined style={{ color: '#3498db' }} />}
-                style={{
-                  borderRadius: '8px'
-                }}
-              >
-                
-                <Option value="operational_manager">Operational Manager</Option>
-                <Option value="user">User</Option>
               </Select>
             </Form.Item>
           </div>
