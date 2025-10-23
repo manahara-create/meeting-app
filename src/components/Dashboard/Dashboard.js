@@ -2176,7 +2176,7 @@ const LoadingSpinner = ({ tip = "Loading dashboard data..." }) => (
 
 // Helper function to get activity title
 const getActivityTitle = (item, tableName, categoryName) => {
-  if (!item) return 'Unknown Activity';
+  if (!item) return 'Activity';
 
   const department = tableCategoryMapping[tableName]?.department;
 

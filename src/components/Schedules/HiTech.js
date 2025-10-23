@@ -510,9 +510,9 @@ const UserScheduleModal = React.memo(({
         try {
             if (item.type === 'personal_meeting') return 'Personal Meeting';
             if (item.type === 'hitech_activity') return `HiTech ${item.activity_type}`;
-            return 'Unknown Activity';
+            return 'Activity';
         } catch (error) {
-            return 'Unknown Activity';
+            return 'Activity';
         }
     };
 
@@ -589,7 +589,7 @@ const UserScheduleModal = React.memo(({
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Title">
                                             <Text strong>
-                                                {item.sp_name || item.name || item.promotional_activity || 'Unknown Activity'}
+                                                {item.sp_name || item.name || item.promotional_activity || 'Activity'}
                                             </Text>
                                         </Descriptions.Item>
                                         <Descriptions.Item label="Date">
