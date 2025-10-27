@@ -624,7 +624,7 @@ const UserScheduleModal = React.memo(({
                                             <Descriptions.Item label="Status">
                                                 <Tag color={
                                                     item.status.toLowerCase() === 'completed' ? 'green' :
-                                                    item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
+                                                        item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
                                                 }>
                                                     {item.status}
                                                 </Tag>
@@ -659,8 +659,8 @@ const UserScheduleModal = React.memo(({
 });
 
 // Export Button Component
-const ExportButton = ({ 
-    activities = [], 
+const ExportButton = ({
+    activities = [],
     selectedCategory = null,
     moduleName = '',
     priorityLabels = {}
@@ -816,29 +816,29 @@ const ExportButton = ({
      * Dropdown menu
      * ----------------------------- */
     const exportItems = [
-        { 
-            key: 'excel', 
-            icon: <FileExcelOutlined />, 
-            label: 'Export to Excel', 
-            onClick: exportToExcel 
+        {
+            key: 'excel',
+            icon: <FileExcelOutlined />,
+            label: 'Export to Excel',
+            onClick: exportToExcel
         },
-        { 
-            key: 'pdf', 
-            icon: <FilePdfOutlined />, 
-            label: 'Export to PDF', 
-            onClick: exportToPDF 
+        {
+            key: 'pdf',
+            icon: <FilePdfOutlined />,
+            label: 'Export to PDF',
+            onClick: exportToPDF
         }
     ];
 
     return (
-        <Dropdown 
-            menu={{ items: exportItems }} 
+        <Dropdown
+            menu={{ items: exportItems }}
             placement="bottomRight"
             disabled={activities.length === 0}
         >
-            <Button 
-                type="primary" 
-                icon={<DownloadOutlined />} 
+            <Button
+                type="primary"
+                icon={<DownloadOutlined />}
                 size="large"
                 disabled={activities.length === 0}
             >
@@ -1037,7 +1037,7 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
                     </Space>
                 </Card>
             ))}
-            
+
             <Button
                 type="dashed"
                 icon={<PlusOutlined />}
@@ -1046,7 +1046,7 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
             >
                 Add Another Record
             </Button>
-            
+
             <Alert
                 message={`You are creating ${records.length} record(s) at once`}
                 description="All records will be saved when you click the 'Create Records' button."
@@ -1058,13 +1058,13 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
     );
 };
 
-// Excel Import Component
+// Excel Import Component - Updated to handle dd/mm/yyyy format
 const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete }) => {
     const [importLoading, setImportLoading] = useState(false);
     const [uploadedData, setUploadedData] = useState([]);
     const [validationResults, setValidationResults] = useState([]);
 
-    // Download template function
+    // Download template function - Updated date format
     const downloadTemplate = () => {
         try {
             // Create template data structure based on category
@@ -1075,7 +1075,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 case 'visit_plan':
                     headers = ['Date*', 'Name*', 'Area*', 'Customer*', 'Purpose*', 'ROI', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '2024-01-15',
+                        'Date*': '15/01/2024',
                         'Name*': 'John Doe, Jane Smith',
                         'Area*': 'North Region',
                         'Customer*': 'ABC Hospital',
@@ -1089,7 +1089,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 case 'meetings':
                     headers = ['Date*', 'Subject*', 'Company*', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '2024-01-15',
+                        'Date*': '15/01/2024',
                         'Subject*': 'Quarterly Healthcare Review',
                         'Company*': 'MedTech Solutions',
                         'Status': 'Planned',
@@ -1100,7 +1100,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 default:
                     headers = ['Date*', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '2024-01-15',
+                        'Date*': '15/01/2024',
                         'Status': 'Active',
                         'Priority*': '2'
                     }];
@@ -1110,16 +1110,16 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             const instructions = {
                 'Instructions': 'Fill in the data below. Fields marked with * are required. For multiple names, separate with commas.',
                 'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
-                'Date Format': 'YYYY-MM-DD (e.g., 2024-01-15)'
+                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD'
             };
 
             const worksheet = XLSX.utils.json_to_sheet(templateData);
             const workbook = XLSX.utils.book_new();
-            
+
             // Add instructions sheet
             const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
             XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
-            
+
             // Add data template sheet
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
 
@@ -1137,20 +1137,47 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         }
     };
 
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+
+        // Remove any extra spaces
+        const cleanDateStr = dateStr.toString().trim();
+
+        // Try dd/mm/yyyy format firsts
+        let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try yyyy-mm-dd format
+        date = dayjs(cleanDateStr, 'YYYY-MM-DD', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try other common formats
+        date = dayjs(cleanDateStr);
+        if (date.isValid()) {
+            return date;
+        }
+
+        return null;
+    };
+
     // Handle file upload
     const handleFileUpload = (file) => {
         setImportLoading(true);
         const reader = new FileReader();
-        
+
         reader.onload = (e) => {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                
+
                 // Get first worksheet
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
+
                 if (jsonData.length === 0) {
                     toast.error('The uploaded file is empty');
                     setImportLoading(false);
@@ -1174,12 +1201,12 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 setImportLoading(false);
             }
         };
-        
+
         reader.readAsArrayBuffer(file);
         return false; // Prevent default upload behavior
     };
 
-    // Validate Excel data
+    // Validate Excel data - Updated date validation
     const validateExcelData = (data) => {
         const results = [];
         const validRows = [];
@@ -1189,16 +1216,16 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             const validatedRow = {};
 
             // Check required fields based on category
-            if (!row.Date && !row['Date*']) {
+            const dateValue = row.Date || row['Date*'];
+            if (!dateValue) {
                 errors.push('Date is required');
             } else {
-                // Validate date format
-                const dateStr = row.Date || row['Date*'];
-                const date = dayjs(dateStr);
-                if (!date.isValid()) {
-                    errors.push('Invalid date format. Use YYYY-MM-DD');
+                // Validate date format using enhanced parser
+                const date = parseDate(dateValue);
+                if (!date || !date.isValid()) {
+                    errors.push('Invalid date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
                 } else {
-                    validatedRow.date = date.format('YYYY-MM-DD');
+                    validatedRow.date = date.format('YYYY-MM-DD'); // Store in database format
                 }
             }
 
@@ -1283,7 +1310,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     record,
                     {
                         tableName: selectedCategory.table,
-                        userId: 'excel-import', // You might want to track the current user here
+                        userId: 'excel-import',
                         source: 'excel_import'
                     }
                 );
@@ -1321,16 +1348,16 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 <Button key="cancel" onClick={onCancel}>
                     Cancel
                 </Button>,
-                <Button 
-                    key="download" 
+                <Button
+                    key="download"
                     icon={<DownloadOutlined />}
                     onClick={downloadTemplate}
                 >
                     Download Template
                 </Button>,
-                <Button 
+                <Button
                     key="import"
-                    type="primary" 
+                    type="primary"
                     icon={<UploadOutlined />}
                     onClick={importData}
                     loading={importLoading}
@@ -1380,8 +1407,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
                 {/* Validation Results */}
                 {validationResults.length > 0 && (
-                    <Card 
-                        size="small" 
+                    <Card
+                        size="small"
                         title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
                     >
                         <div style={{ maxHeight: '200px', overflow: 'auto' }}>
@@ -1410,17 +1437,20 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     </Card>
                 )}
 
-                {/* Instructions */}
+                {/* Instructions - Updated date format info */}
                 <Alert
                     message="Import Instructions"
                     description={
                         <ul style={{ margin: 0, paddingLeft: '16px' }}>
                             <li>Download the template first to ensure correct format</li>
                             <li>Required fields are marked with * in the template</li>
-                            <li>Date format must be YYYY-MM-DD (e.g., 2024-01-15)</li>
+                            <li>
+                                <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                            </li>
                             <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
                             <li>For multiple names, separate with commas</li>
                             <li>Only valid records will be imported</li>
+                            <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
                         </ul>
                     }
                     type="info"
@@ -2590,8 +2620,8 @@ const EHealthcare = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{ 
-                    marginBottom: 16, 
+                style={{
+                    marginBottom: 16,
                     backgroundColor: '#fafafa',
                     borderRadius: '12px',
                     border: '2px solid #1890ff20'
@@ -2692,8 +2722,8 @@ const EHealthcare = () => {
                     style={{ marginBottom: 24 }}
                     extra={
                         <Space>
-                            <Radio.Group 
-                                value={viewMode} 
+                            <Radio.Group
+                                value={viewMode}
                                 onChange={(e) => setViewMode(e.target.value)}
                                 buttonStyle="solid"
                             >
@@ -2704,7 +2734,7 @@ const EHealthcare = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
-                            
+
                             {/* Add Bulk Mode Toggle */}
                             <Switch
                                 checkedChildren="Multiple"
@@ -2866,8 +2896,8 @@ const EHealthcare = () => {
                                         <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
                                             <PlusOutlined /> Create First Record
                                         </Button>
-                                        <Button 
-                                            type="default" 
+                                        <Button
+                                            type="default"
                                             icon={<UploadOutlined />}
                                             onClick={handleExcelImportClick}
                                         >
@@ -2962,7 +2992,7 @@ const EHealthcare = () => {
                         <Divider />
                         <div style={{ textAlign: 'right' }}>
                             <Space>
-                                <Button 
+                                <Button
                                     onClick={() => {
                                         setModalVisible(false);
                                         setBulkRecords([{}]);
@@ -2970,8 +3000,8 @@ const EHealthcare = () => {
                                 >
                                     Cancel
                                 </Button>
-                                <Button 
-                                    type="primary" 
+                                <Button
+                                    type="primary"
                                     onClick={() => handleBulkCreate(bulkRecords)}
                                     size="large"
                                     loading={loading}
