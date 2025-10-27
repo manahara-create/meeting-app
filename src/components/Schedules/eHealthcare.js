@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown, Upload
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -17,7 +17,7 @@ import {
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
     AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
     EnvironmentOutlined, RocketOutlined, TaskOutlined, MedicineBoxOutlined,
-    HeartOutlined, ExperimentOutlined
+    HeartOutlined, ExperimentOutlined, UploadOutlined, FileAddOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -623,7 +623,7 @@ const UserScheduleModal = React.memo(({
                                         {item.status && (
                                             <Descriptions.Item label="Status">
                                                 <Tag color={
-                                                    item.status.toLowerCase() === 'completed' ? 'green' : 
+                                                    item.status.toLowerCase() === 'completed' ? 'green' :
                                                     item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
                                                 }>
                                                     {item.status}
@@ -848,6 +848,589 @@ const ExportButton = ({
     );
 };
 
+// Bulk Form Fields Component
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs }) => {
+    const updateRecord = (index, field, value) => {
+        const newRecords = [...records];
+        newRecords[index] = {
+            ...newRecords[index],
+            [field]: value
+        };
+        onChange(newRecords);
+    };
+
+    const addRecord = () => {
+        onChange([...records, {}]);
+    };
+
+    const removeRecord = (index) => {
+        if (records.length > 1) {
+            const newRecords = records.filter((_, i) => i !== index);
+            onChange(newRecords);
+        }
+    };
+
+    const renderCommonFields = (record, index) => (
+        <>
+            <Form.Item
+                label="Date"
+                required
+            >
+                <DatePicker
+                    value={record.date ? safeDayjs(record.date) : null}
+                    onChange={(date) => updateRecord(index, 'date', date)}
+                    style={{ width: '100%' }}
+                    format="DD/MM/YYYY"
+                    placeholder="Select date"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Status"
+            >
+                <Input
+                    value={record.status || ''}
+                    onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                    placeholder="Enter status"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Priority"
+                required
+            >
+                <Select
+                    value={record.priority || 2}
+                    onChange={(value) => updateRecord(index, 'priority', value)}
+                    placeholder="Select priority"
+                >
+                    {priorityOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                            <Space>
+                                <Badge color={option.color} />
+                                {option.label}
+                            </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        </>
+    );
+
+    const renderCategorySpecificFields = (record, index) => {
+        switch (category?.id) {
+            case 'visit_plan':
+                return (
+                    <>
+                        <Form.Item
+                            label="Name"
+                            required
+                        >
+                            <Select
+                                mode="tags"
+                                value={record.name || []}
+                                onChange={(value) => updateRecord(index, 'name', value)}
+                                placeholder="Enter names (press Enter to add multiple)"
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Area"
+                            required
+                        >
+                            <Input
+                                value={record.area || ''}
+                                onChange={(e) => updateRecord(index, 'area', e.target.value)}
+                                placeholder="Enter area"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Customer"
+                            required
+                        >
+                            <Input
+                                value={record.customer || ''}
+                                onChange={(e) => updateRecord(index, 'customer', e.target.value)}
+                                placeholder="Enter customer"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Purpose"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.purpose || ''}
+                                onChange={(e) => updateRecord(index, 'purpose', e.target.value)}
+                                placeholder="Enter purpose"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="ROI"
+                        >
+                            <Input
+                                value={record.roi || ''}
+                                onChange={(e) => updateRecord(index, 'roi', e.target.value)}
+                                placeholder="Enter ROI"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'meetings':
+                return (
+                    <>
+                        <Form.Item
+                            label="Subject"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.subject || ''}
+                                onChange={(e) => updateRecord(index, 'subject', e.target.value)}
+                                placeholder="Enter meeting subject"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Company"
+                            required
+                        >
+                            <Input
+                                value={record.company || ''}
+                                onChange={(e) => updateRecord(index, 'company', e.target.value)}
+                                placeholder="Enter company"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {records.map((record, index) => (
+                <Card
+                    key={index}
+                    title={`Record ${index + 1}`}
+                    size="small"
+                    style={{ marginBottom: 16, border: '1px solid #d9d9d9' }}
+                    extra={
+                        records.length > 1 && (
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeRecord(index)}
+                                size="small"
+                            >
+                                Remove
+                            </Button>
+                        )
+                    }
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {renderCommonFields(record, index)}
+                        {renderCategorySpecificFields(record, index)}
+                    </Space>
+                </Card>
+            ))}
+            
+            <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={addRecord}
+                style={{ width: '100%' }}
+            >
+                Add Another Record
+            </Button>
+            
+            <Alert
+                message={`You are creating ${records.length} record(s) at once`}
+                description="All records will be saved when you click the 'Create Records' button."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+            />
+        </div>
+    );
+};
+
+// Excel Import Component
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete }) => {
+    const [importLoading, setImportLoading] = useState(false);
+    const [uploadedData, setUploadedData] = useState([]);
+    const [validationResults, setValidationResults] = useState([]);
+
+    // Download template function
+    const downloadTemplate = () => {
+        try {
+            // Create template data structure based on category
+            let templateData = [];
+            let headers = [];
+
+            switch (selectedCategory?.id) {
+                case 'visit_plan':
+                    headers = ['Date*', 'Name*', 'Area*', 'Customer*', 'Purpose*', 'ROI', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '2024-01-15',
+                        'Name*': 'John Doe, Jane Smith',
+                        'Area*': 'North Region',
+                        'Customer*': 'ABC Hospital',
+                        'Purpose*': 'Regular health checkup and consultation',
+                        'ROI': 'High potential',
+                        'Status': 'Scheduled',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'meetings':
+                    headers = ['Date*', 'Subject*', 'Company*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '2024-01-15',
+                        'Subject*': 'Quarterly Healthcare Review',
+                        'Company*': 'MedTech Solutions',
+                        'Status': 'Planned',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                default:
+                    headers = ['Date*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '2024-01-15',
+                        'Status': 'Active',
+                        'Priority*': '2'
+                    }];
+            }
+
+            // Add instructions row
+            const instructions = {
+                'Instructions': 'Fill in the data below. Fields marked with * are required. For multiple names, separate with commas.',
+                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
+                'Date Format': 'YYYY-MM-DD (e.g., 2024-01-15)'
+            };
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+            
+            // Add instructions sheet
+            const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+            
+            // Add data template sheet
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+            // Auto-size columns
+            const colWidths = headers.map(header => ({ wch: Math.max(header.length + 2, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            const fileName = `${selectedCategory?.name || 'ehealthcare'}_import_template.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success('Template downloaded successfully!');
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            toast.error('Failed to download template');
+        }
+    };
+
+    // Handle file upload
+    const handleFileUpload = (file) => {
+        setImportLoading(true);
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get first worksheet
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                if (jsonData.length === 0) {
+                    toast.error('The uploaded file is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Validate data
+                const validatedData = validateExcelData(jsonData);
+                setUploadedData(validatedData.validRows);
+                setValidationResults(validatedData.results);
+
+                if (validatedData.validRows.length === 0) {
+                    toast.error('No valid data found in the uploaded file');
+                } else {
+                    toast.success(`Found ${validatedData.validRows.length} valid records out of ${jsonData.length}`);
+                }
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                toast.error('Failed to read Excel file');
+            } finally {
+                setImportLoading(false);
+            }
+        };
+        
+        reader.readAsArrayBuffer(file);
+        return false; // Prevent default upload behavior
+    };
+
+    // Validate Excel data
+    const validateExcelData = (data) => {
+        const results = [];
+        const validRows = [];
+
+        data.forEach((row, index) => {
+            const errors = [];
+            const validatedRow = {};
+
+            // Check required fields based on category
+            if (!row.Date && !row['Date*']) {
+                errors.push('Date is required');
+            } else {
+                // Validate date format
+                const dateStr = row.Date || row['Date*'];
+                const date = dayjs(dateStr);
+                if (!date.isValid()) {
+                    errors.push('Invalid date format. Use YYYY-MM-DD');
+                } else {
+                    validatedRow.date = date.format('YYYY-MM-DD');
+                }
+            }
+
+            if (!row.Priority && !row['Priority*']) {
+                errors.push('Priority is required');
+            } else {
+                const priority = parseInt(row.Priority || row['Priority*']);
+                if (isNaN(priority) || priority < 1 || priority > 5) {
+                    errors.push('Priority must be between 1-5');
+                } else {
+                    validatedRow.priority = priority;
+                }
+            }
+
+            // Category-specific validations
+            switch (selectedCategory?.id) {
+                case 'visit_plan':
+                    if (!row.Name && !row['Name*']) errors.push('Name is required');
+                    else validatedRow.name = (row.Name || row['Name*']).toString().split(',').map(n => n.trim());
+
+                    if (!row.Area && !row['Area*']) errors.push('Area is required');
+                    else validatedRow.area = row.Area || row['Area*'];
+
+                    if (!row.Customer && !row['Customer*']) errors.push('Customer is required');
+                    else validatedRow.customer = row.Customer || row['Customer*'];
+
+                    if (!row.Purpose && !row['Purpose*']) errors.push('Purpose is required');
+                    else validatedRow.purpose = row.Purpose || row['Purpose*'];
+
+                    validatedRow.roi = row.ROI || '';
+                    break;
+
+                case 'meetings':
+                    if (!row.Subject && !row['Subject*']) errors.push('Subject is required');
+                    else validatedRow.subject = row.Subject || row['Subject*'];
+
+                    if (!row.Company && !row['Company*']) errors.push('Company is required');
+                    else validatedRow.company = row.Company || row['Company*'];
+                    break;
+            }
+
+            // Optional fields
+            validatedRow.status = row.Status || 'Scheduled';
+
+            results.push({
+                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                data: validatedRow,
+                errors,
+                isValid: errors.length === 0
+            });
+
+            if (errors.length === 0) {
+                validRows.push(validatedRow);
+            }
+        });
+
+        return { results, validRows };
+    };
+
+    // Import validated data
+    const importData = async () => {
+        if (uploadedData.length === 0) {
+            toast.warning('No valid data to import');
+            return;
+        }
+
+        setImportLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(uploadedData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each imported record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'ehealthcare',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: 'excel-import', // You might want to track the current user here
+                        source: 'excel_import'
+                    }
+                );
+            }
+
+            toast.success(`Successfully imported ${data.length} records`);
+            onImportComplete();
+            onCancel();
+        } catch (error) {
+            console.error('Error importing data:', error);
+            toast.error('Failed to import data');
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const uploadProps = {
+        beforeUpload: handleFileUpload,
+        accept: '.xlsx, .xls',
+        showUploadList: false,
+        multiple: false
+    };
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <FileExcelOutlined />
+                    Import Data from Excel - {selectedCategory?.name}
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={[
+                <Button key="cancel" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button 
+                    key="download" 
+                    icon={<DownloadOutlined />}
+                    onClick={downloadTemplate}
+                >
+                    Download Template
+                </Button>,
+                <Button 
+                    key="import"
+                    type="primary" 
+                    icon={<UploadOutlined />}
+                    onClick={importData}
+                    loading={importLoading}
+                    disabled={uploadedData.length === 0}
+                >
+                    Import {uploadedData.length} Records
+                </Button>
+            ]}
+            width={800}
+            destroyOnClose
+        >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* Warning Alert */}
+                <Alert
+                    message="Important Notice"
+                    description={
+                        <div>
+                            <Text strong style={{ color: '#ff4d4f' }}>
+                                Responsible BGM (Business Goal Manager) data cannot be imported via Excel.
+                            </Text>
+                            <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                <li>BGM assignments must be done manually in the system</li>
+                                <li>Excel import is for basic record data only</li>
+                                <li>After import, you may need to assign BGMs manually</li>
+                                <li>Download the template first to ensure correct format</li>
+                            </ul>
+                        </div>
+                    }
+                    type="warning"
+                    showIcon
+                />
+
+                {/* Upload Section */}
+                <Card size="small" title="Upload Excel File">
+                    <Upload.Dragger {...uploadProps}>
+                        <p className="ant-upload-drag-icon">
+                            <FileExcelOutlined />
+                        </p>
+                        <p className="ant-upload-text">
+                            Click or drag Excel file to this area to upload
+                        </p>
+                        <p className="ant-upload-hint">
+                            Support for .xlsx, .xls files only
+                        </p>
+                    </Upload.Dragger>
+                </Card>
+
+                {/* Validation Results */}
+                {validationResults.length > 0 && (
+                    <Card 
+                        size="small" 
+                        title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                    >
+                        <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                            {validationResults.map((result, index) => (
+                                <Alert
+                                    key={index}
+                                    message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                    description={
+                                        result.errors.length > 0 ? (
+                                            <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                {result.errors.map((error, errorIndex) => (
+                                                    <li key={errorIndex}>{error}</li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            'All fields are valid'
+                                        )
+                                    }
+                                    type={result.isValid ? 'success' : 'error'}
+                                    showIcon
+                                    style={{ marginBottom: 8 }}
+                                    size="small"
+                                />
+                            ))}
+                        </div>
+                    </Card>
+                )}
+
+                {/* Instructions */}
+                <Alert
+                    message="Import Instructions"
+                    description={
+                        <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                            <li>Download the template first to ensure correct format</li>
+                            <li>Required fields are marked with * in the template</li>
+                            <li>Date format must be YYYY-MM-DD (e.g., 2024-01-15)</li>
+                            <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                            <li>For multiple names, separate with commas</li>
+                            <li>Only valid records will be imported</li>
+                        </ul>
+                    }
+                    type="info"
+                    showIcon
+                />
+            </Space>
+        </Modal>
+    );
+};
+
 const EHealthcare = () => {
     // Error handling states
     const [error, setError] = useState(null);
@@ -867,6 +1450,10 @@ const EHealthcare = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
+
+    // Bulk mode states
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkRecords, setBulkRecords] = useState([{}]);
 
     // View mode state (web view or excel view)
     const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
@@ -889,6 +1476,9 @@ const EHealthcare = () => {
 
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
+
+    // Excel Import Modal State
+    const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
 
     // eHealthcare Categories configuration
     const ehealthcareCategories = [
@@ -1363,6 +1953,8 @@ const EHealthcare = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             safeSetState(setViewMode, 'web'); // Reset to web view when category changes
+            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
+            safeSetState(setBulkRecords, [{}]); // Reset bulk records
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1393,6 +1985,12 @@ const EHealthcare = () => {
         try {
             safeSetState(setEditingRecord, null);
             form.resetFields();
+
+            // Initialize bulk records if in bulk mode
+            if (bulkMode) {
+                safeSetState(setBulkRecords, [{}]);
+            }
+
             safeSetState(setModalVisible, true);
         } catch (error) {
             handleError(error, 'creating new record');
@@ -1492,6 +2090,98 @@ const EHealthcare = () => {
         }
     };
 
+    const handleBulkCreate = async (records) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            if (!records || records.length === 0) {
+                toast.warning('No records to create');
+                return;
+            }
+
+            // Validate records
+            const validRecords = records.filter(record => {
+                // Basic validation - check required fields based on category
+                if (!record.date) return false;
+
+                switch (selectedCategory.id) {
+                    case 'visit_plan':
+                        return record.name && record.area && record.customer && record.purpose;
+                    case 'meetings':
+                        return record.subject && record.company;
+                    default:
+                        return true;
+                }
+            });
+
+            if (validRecords.length === 0) {
+                toast.error('Please fill in all required fields for at least one record');
+                return;
+            }
+
+            if (validRecords.length !== records.length) {
+                toast.warning(`Only ${validRecords.length} out of ${records.length} records are valid and will be created`);
+            }
+
+            setLoading(true);
+
+            // Prepare data for submission
+            const submitData = validRecords.map(record => {
+                const preparedRecord = { ...record };
+
+                // Convert dayjs objects to proper formats
+                Object.keys(preparedRecord).forEach(key => {
+                    try {
+                        const value = preparedRecord[key];
+                        if (dayjs.isDayjs(value)) {
+                            preparedRecord[key] = value.format('YYYY-MM-DD');
+                        }
+                    } catch (dateError) {
+                        console.warn(`Error converting date field ${key}:`, dateError);
+                    }
+                });
+
+                return preparedRecord;
+            });
+
+            // Insert all records
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(submitData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each created record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'ehealthcare',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+            }
+
+            toast.success(`Successfully created ${data.length} record(s)`);
+
+            // Reset and close
+            setModalVisible(false);
+            setBulkRecords([{}]);
+            fetchTableData();
+
+        } catch (error) {
+            handleError(error, 'bulk creating records');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDiscussionClick = (record) => {
         try {
             if (!selectedCategory) {
@@ -1503,6 +2193,22 @@ const EHealthcare = () => {
         } catch (error) {
             handleError(error, 'opening discussion');
         }
+    };
+
+    const handleExcelImportClick = () => {
+        try {
+            if (!selectedCategory) {
+                toast.warning('Please select a category first');
+                return;
+            }
+            safeSetState(setExcelImportModalVisible, true);
+        } catch (error) {
+            handleError(error, 'opening Excel import');
+        }
+    };
+
+    const handleExcelImportComplete = () => {
+        fetchTableData(); // Refresh table data after import
     };
 
     const handleFormSubmit = async (values) => {
@@ -1644,17 +2350,15 @@ const EHealthcare = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-
-
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return [
-
+                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        { 
-                            title: 'Name', 
-                            dataIndex: 'name', 
-                            key: 'name', 
+                        {
+                            title: 'Name',
+                            dataIndex: 'name',
+                            key: 'name',
                             width: 150,
                             render: (names) => {
                                 if (Array.isArray(names)) {
@@ -1673,7 +2377,7 @@ const EHealthcare = () => {
 
                 case 'meetings':
                     return [
-
+                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
@@ -1682,7 +2386,7 @@ const EHealthcare = () => {
                     ];
 
                 default:
-                    return ;
+                    return [];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -2000,6 +2704,32 @@ const EHealthcare = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
+                            
+                            {/* Add Bulk Mode Toggle */}
+                            <Switch
+                                checkedChildren="Multiple"
+                                unCheckedChildren="Single"
+                                checked={bulkMode}
+                                onChange={(checked) => {
+                                    setBulkMode(checked);
+                                    if (checked) {
+                                        // Initialize with one empty record when switching to bulk mode
+                                        setBulkRecords([{}]);
+                                    }
+                                }}
+                            />
+
+                            {/* Excel Import Button */}
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={handleExcelImportClick}
+                                size="large"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
+                                Upload Excel
+                            </Button>
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -2007,7 +2737,7 @@ const EHealthcare = () => {
                                 loading={loading}
                                 size="large"
                             >
-                                Add New Record
+                                Add New Record{bulkMode ? 's (Multiple)' : ''}
                             </Button>
                         </Space>
                     }
@@ -2132,9 +2862,18 @@ const EHealthcare = () => {
                                 <Space direction="vertical">
                                     <Text>No records found for selected criteria</Text>
                                     <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
-                                    <Button type="primary" onClick={handleCreate}>
-                                        <PlusOutlined /> Create First Record
-                                    </Button>
+                                    <div>
+                                        <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
+                                            <PlusOutlined /> Create First Record
+                                        </Button>
+                                        <Button 
+                                            type="default" 
+                                            icon={<UploadOutlined />}
+                                            onClick={handleExcelImportClick}
+                                        >
+                                            Upload Excel Data
+                                        </Button>
+                                    </div>
                                 </Space>
                             }
                         />
@@ -2175,36 +2914,103 @@ const EHealthcare = () => {
                 title={
                     <Space>
                         {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-                        {editingRecord ? 'Edit' : 'Create'} {selectedCategory?.name} Record
+                        {editingRecord ? 'Edit' : bulkMode ? 'Create Multiple' : 'Create'} {selectedCategory?.name} Record
+                        {bulkMode && !editingRecord && (
+                            <Tag color="orange">Bulk Mode: {bulkRecords.length} records</Tag>
+                        )}
                     </Space>
                 }
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setBulkRecords([{}]); // Reset bulk records when closing
+                }}
                 footer={null}
-                width={600}
+                width={bulkMode && !editingRecord ? 800 : 600}
                 destroyOnClose
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleFormSubmit}
-                >
-                    {getFormFields()}
-
-                    <Divider />
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setModalVisible(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="primary" htmlType="submit" size="large">
-                                {editingRecord ? 'Update' : 'Create'} Record
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                {editingRecord ? (
+                    // Single Edit Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Update Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                ) : bulkMode ? (
+                    // Bulk Create Mode
+                    <div>
+                        <BulkFormFields
+                            records={bulkRecords}
+                            onChange={setBulkRecords}
+                            category={selectedCategory}
+                            priorityOptions={priorityOptions}
+                            safeDayjs={safeDayjs}
+                        />
+                        <Divider />
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button 
+                                    onClick={() => {
+                                        setModalVisible(false);
+                                        setBulkRecords([{}]);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    type="primary" 
+                                    onClick={() => handleBulkCreate(bulkRecords)}
+                                    size="large"
+                                    loading={loading}
+                                >
+                                    Create {bulkRecords.length} Record{bulkRecords.length > 1 ? 's' : ''}
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                ) : (
+                    // Single Create Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Create Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
+
+            {/* Excel Import Modal */}
+            <ExcelImportModal
+                visible={excelImportModalVisible}
+                onCancel={() => setExcelImportModalVisible(false)}
+                selectedCategory={selectedCategory}
+                onImportComplete={handleExcelImportComplete}
+            />
 
             {/* User Availability Modal */}
             <Modal
@@ -2338,10 +3144,14 @@ const EHealthcare = () => {
                                     <li>Red badge on Discuss button shows unread messages</li>
                                     <li>Use "Check Team Availability" to view team schedules</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
+                                    <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
+                                    <li>Use "Upload Excel" to import data from Excel files with validation</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different eHealthcare activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
+                                    Bulk mode allows creating multiple records at once for better productivity.
+                                    Excel import feature helps in bulk data entry with proper validation.
                                 </Text>
                             </div>
                         }
