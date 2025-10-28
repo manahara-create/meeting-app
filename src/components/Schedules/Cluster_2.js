@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown, Upload
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -15,7 +15,8 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
+    UploadOutlined, FileAddOutlined, FileWordOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -25,7 +26,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -647,9 +647,591 @@ const UserScheduleModal = React.memo(({
     );
 });
 
-// Export Button Component
-const ExportButton = ({ 
-    activities = [], 
+// Bulk Form Fields Component
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs, profiles }) => {
+    const updateRecord = (index, field, value) => {
+        const newRecords = [...records];
+        newRecords[index] = {
+            ...newRecords[index],
+            [field]: value
+        };
+        onChange(newRecords);
+    };
+
+    const addRecord = () => {
+        onChange([...records, {}]);
+    };
+
+    const removeRecord = (index) => {
+        if (records.length > 1) {
+            const newRecords = records.filter((_, i) => i !== index);
+            onChange(newRecords);
+        }
+    };
+
+    const renderCommonFields = (record, index) => (
+        <>
+            <Form.Item
+                label="Date"
+                required
+            >
+                <DatePicker
+                    value={record.date ? safeDayjs(record.date) : null}
+                    onChange={(date) => updateRecord(index, 'date', date)}
+                    style={{ width: '100%' }}
+                    format="DD/MM/YYYY"
+                    placeholder="Select date"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Status"
+            >
+                <Input
+                    value={record.status || ''}
+                    onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                    placeholder="Enter status"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Priority"
+                required
+            >
+                <Select
+                    value={record.priority || 2}
+                    onChange={(value) => updateRecord(index, 'priority', value)}
+                    placeholder="Select priority"
+                >
+                    {priorityOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                            <Space>
+                                <Badge color={option.color} />
+                                {option.label}
+                            </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        </>
+    );
+
+    const renderCategorySpecificFields = (record, index) => {
+        switch (category?.id) {
+            case 'visit_plan':
+                return (
+                    <>
+                        <Form.Item
+                            label="Name"
+                            required
+                        >
+                            <Input
+                                value={record.name || ''}
+                                onChange={(e) => updateRecord(index, 'name', e.target.value)}
+                                placeholder="Enter name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Area"
+                        >
+                            <Input
+                                value={record.area || ''}
+                                onChange={(e) => updateRecord(index, 'area', e.target.value)}
+                                placeholder="Enter area"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'meetings':
+                return (
+                    <>
+                        <Form.Item
+                            label="Subject"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.subject || ''}
+                                onChange={(e) => updateRecord(index, 'subject', e.target.value)}
+                                placeholder="Enter meeting subject"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'special_task':
+                return (
+                    <>
+                        <Form.Item
+                            label="Task"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.task || ''}
+                                onChange={(e) => updateRecord(index, 'task', e.target.value)}
+                                placeholder="Enter task details"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {records.map((record, index) => (
+                <Card
+                    key={index}
+                    title={`Record ${index + 1}`}
+                    size="small"
+                    style={{ marginBottom: 16, border: '1px solid #d9d9d9' }}
+                    extra={
+                        records.length > 1 && (
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeRecord(index)}
+                                size="small"
+                            >
+                                Remove
+                            </Button>
+                        )
+                    }
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {renderCommonFields(record, index)}
+                        {renderCategorySpecificFields(record, index)}
+                    </Space>
+                </Card>
+            ))}
+
+            <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={addRecord}
+                style={{ width: '100%' }}
+            >
+                Add Another Record
+            </Button>
+
+            <Alert
+                message={`You are creating ${records.length} record(s) at once`}
+                description="All records will be saved when you click the 'Create Records' button."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+            />
+        </div>
+    );
+};
+
+// Excel Import Component
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, profiles }) => {
+    const [importLoading, setImportLoading] = useState(false);
+    const [uploadedData, setUploadedData] = useState([]);
+    const [validationResults, setValidationResults] = useState([]);
+
+    // Check if category has responsible_bdm column
+    const hasResponsibleBDM = selectedCategory?.hasResponsibleBDM || false;
+
+    // Download template function
+    const downloadTemplate = () => {
+        try {
+            if (hasResponsibleBDM) {
+                toast.warning("We cannot create a template for this category because there is a mandatory column 'Responsible BDM' for assigning an employee. Use Bulk Records to add multiple records.");
+                return;
+            }
+
+            // Create template data structure based on category
+            let templateData = [];
+            let headers = [];
+
+            switch (selectedCategory?.id) {
+                case 'visit_plan':
+                    headers = ['Date*', 'Name*', 'Area', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Name*': 'John Doe',
+                        'Area': 'North Region',
+                        'Status': 'Scheduled',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'meetings':
+                    headers = ['Date*', 'Subject*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Subject*': 'Quarterly Review',
+                        'Status': 'Planned',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'special_task':
+                    headers = ['Date*', 'Task*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Task*': 'Complete project documentation',
+                        'Status': 'In Progress',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                default:
+                    headers = ['Date*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Status': 'Active',
+                        'Priority*': '2'
+                    }];
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+
+            // Add data template sheet
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+            // Auto-size columns
+            const colWidths = headers.map(header => ({ wch: Math.max(header.length + 2, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            const fileName = `${selectedCategory?.name || 'cluster_2'}_import_template.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success('Template downloaded successfully!');
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            toast.error('Failed to download template');
+        }
+    };
+
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const cleanDateStr = dateStr.toString().trim();
+
+        // Try dd/mm/yyyy format first
+        let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try yyyy-mm-dd format
+        date = dayjs(cleanDateStr, 'YYYY-MM-DD', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try other common formats
+        date = dayjs(cleanDateStr);
+        if (date.isValid()) {
+            return date;
+        }
+
+        return null;
+    };
+
+    // Handle file upload
+    const handleFileUpload = (file) => {
+        setImportLoading(true);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Get first worksheet
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    toast.error('The uploaded file is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Validate data
+                const validatedData = validateExcelData(jsonData);
+                setUploadedData(validatedData.validRows);
+                setValidationResults(validatedData.results);
+
+                if (validatedData.validRows.length === 0) {
+                    toast.error('No valid data found in the uploaded file');
+                } else {
+                    toast.success(`Found ${validatedData.validRows.length} valid records out of ${jsonData.length}`);
+                }
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                toast.error('Failed to read Excel file');
+            } finally {
+                setImportLoading(false);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+        return false; // Prevent default upload behavior
+    };
+
+    // Validate Excel data
+    const validateExcelData = (data) => {
+        const results = [];
+        const validRows = [];
+
+        data.forEach((row, index) => {
+            const errors = [];
+            const validatedRow = {};
+
+            // Check required fields based on category
+            const dateValue = row.Date || row['Date*'];
+            if (!dateValue) {
+                errors.push('Date is required');
+            } else {
+                const date = parseDate(dateValue);
+                if (!date || !date.isValid()) {
+                    errors.push('Invalid date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                } else {
+                    validatedRow.date = date.format('YYYY-MM-DD');
+                }
+            }
+
+            if (!row.Priority && !row['Priority*']) {
+                errors.push('Priority is required');
+            } else {
+                const priority = parseInt(row.Priority || row['Priority*']);
+                if (isNaN(priority) || priority < 1 || priority > 5) {
+                    errors.push('Priority must be between 1-5');
+                } else {
+                    validatedRow.priority = priority;
+                }
+            }
+
+            // Category-specific validations
+            switch (selectedCategory?.id) {
+                case 'visit_plan':
+                    if (!row.Name && !row['Name*']) errors.push('Name is required');
+                    else validatedRow.name = row.Name || row['Name*'];
+                    validatedRow.area = row.Area || '';
+                    break;
+
+                case 'meetings':
+                    if (!row.Subject && !row['Subject*']) errors.push('Subject is required');
+                    else validatedRow.subject = row.Subject || row['Subject*'];
+                    break;
+
+                case 'special_task':
+                    if (!row.Task && !row['Task*']) errors.push('Task is required');
+                    else validatedRow.task = row.Task || row['Task*'];
+                    break;
+            }
+
+            // Optional fields
+            validatedRow.status = row.Status || 'Scheduled';
+
+            results.push({
+                row: index + 2,
+                data: validatedRow,
+                errors,
+                isValid: errors.length === 0
+            });
+
+            if (errors.length === 0) {
+                validRows.push(validatedRow);
+            }
+        });
+
+        return { results, validRows };
+    };
+
+    // Import validated data
+    const importData = async () => {
+        if (uploadedData.length === 0) {
+            toast.warning('No valid data to import');
+            return;
+        }
+
+        setImportLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(uploadedData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each imported record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'cluster_2',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: 'excel-import',
+                        source: 'excel_import'
+                    }
+                );
+            }
+
+            toast.success(`Successfully imported ${data.length} records`);
+            onImportComplete();
+            onCancel();
+        } catch (error) {
+            console.error('Error importing data:', error);
+            toast.error('Failed to import data');
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const uploadProps = {
+        beforeUpload: handleFileUpload,
+        accept: '.xlsx, .xls',
+        showUploadList: false,
+        multiple: false
+    };
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <FileExcelOutlined />
+                    Import Data from Excel - {selectedCategory?.name}
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={[
+                <Button key="cancel" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button
+                    key="download"
+                    icon={<DownloadOutlined />}
+                    onClick={downloadTemplate}
+                    disabled={hasResponsibleBDM}
+                >
+                    Download Template
+                </Button>,
+                <Button
+                    key="import"
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={importData}
+                    loading={importLoading}
+                    disabled={uploadedData.length === 0}
+                >
+                    Import {uploadedData.length} Records
+                </Button>
+            ]}
+            width={800}
+            destroyOnClose
+        >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* Warning Alert for categories with responsible_bdm */}
+                {hasResponsibleBDM && (
+                    <Alert
+                        message="Important Notice"
+                        description={
+                            <div>
+                                <Text strong style={{ color: '#ff4d4f' }}>
+                                    We cannot create a template for this category because there is a mandatory column 'Responsible BDM' for assigning an employee.
+                                </Text>
+                                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                    <li>Use Bulk Records feature to add multiple records with BDM assignments</li>
+                                    <li>BDM assignments must be done manually in the system</li>
+                                    <li>Excel import is not available for categories with Responsible BDM field</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
+                        showIcon
+                    />
+                )}
+
+                {/* Upload Section */}
+                <Card size="small" title="Upload Excel File" style={{ display: hasResponsibleBDM ? 'none' : 'block' }}>
+                    <Upload.Dragger {...uploadProps}>
+                        <p className="ant-upload-drag-icon">
+                            <FileExcelOutlined />
+                        </p>
+                        <p className="ant-upload-text">
+                            Click or drag Excel file to this area to upload
+                        </p>
+                        <p className="ant-upload-hint">
+                            Support for .xlsx, .xls files only
+                        </p>
+                    </Upload.Dragger>
+                </Card>
+
+                {/* Validation Results */}
+                {validationResults.length > 0 && (
+                    <Card
+                        size="small"
+                        title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                    >
+                        <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                            {validationResults.map((result, index) => (
+                                <Alert
+                                    key={index}
+                                    message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                    description={
+                                        result.errors.length > 0 ? (
+                                            <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                {result.errors.map((error, errorIndex) => (
+                                                    <li key={errorIndex}>{error}</li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            'All fields are valid'
+                                        )
+                                    }
+                                    type={result.isValid ? 'success' : 'error'}
+                                    showIcon
+                                    style={{ marginBottom: 8 }}
+                                    size="small"
+                                />
+                            ))}
+                        </div>
+                    </Card>
+                )}
+
+                {/* Instructions */}
+                <Alert
+                    message="Import Instructions"
+                    description={
+                        <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                            <li>Download the template first to ensure correct format</li>
+                            <li>Required fields are marked with * in the template</li>
+                            <li>
+                                <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                            </li>
+                            <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                            <li>Only valid records will be imported</li>
+                            {hasResponsibleBDM && (
+                                <li><Text strong>This category requires BDM assignment - use Bulk Records instead</Text></li>
+                            )}
+                        </ul>
+                    }
+                    type="info"
+                    showIcon
+                />
+            </Space>
+        </Modal>
+    );
+};
+
+// Export Button Component - Updated to remove PDF and add Word export
+const ExportButton = ({
+    activities = [],
     selectedCategory = null,
     moduleName = '',
     priorityLabels = {}
@@ -691,20 +1273,20 @@ const ExportButton = ({
                     case 'meetings':
                         return {
                             ...base,
-                            'Subject': activity.subject || '',
-                        };
-
-                    case 'special_task':
-                        return {
-                            ...base,
-                            'Task': activity.task || '',
+                            'Subject': activity.subject || ''
                         };
 
                     case 'visit_plan':
                         return {
                             ...base,
                             'Name': activity.name || '',
-                            'Area': activity.area || '',
+                            'Area': activity.area || ''
+                        };
+
+                    case 'special_task':
+                        return {
+                            ...base,
+                            'Task': activity.task || ''
                         };
 
                     default:
@@ -741,95 +1323,138 @@ const ExportButton = ({
     };
 
     /** -----------------------------
-     * Export to PDF (.pdf)
+     * Export to Word (.docx) - Simple implementation
      * ----------------------------- */
-    const exportToPDF = () => {
+    const exportToWord = () => {
         try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('Cluster 2 Export Summary', 14, 15);
-            doc.setFontSize(10);
-            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
-            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+            // Create a simple HTML content for Word export
+            let htmlContent = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+                      xmlns:w="urn:schemas-microsoft-com:office:word" 
+                      xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8">
+                    <title>Cluster 2 Export</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        h1 { color: #1890ff; border-bottom: 2px solid #1890ff; padding-bottom: 10px; }
+                        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f5f5f5; font-weight: bold; }
+                        .summary { background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Cluster 2 Export Report</h1>
+                    <div class="summary">
+                        <strong>Category:</strong> ${selectedCategory?.name || 'All'} <br>
+                        <strong>Export Date:</strong> ${dayjs().format('DD/MM/YYYY HH:mm')} <br>
+                        <strong>Total Records:</strong> ${activities.length}
+                    </div>
+            `;
 
-            const headers = ['Category', 'Priority', 'Date', 'Status'];
-            const tableData = activities.map(a => [
-                selectedCategory?.name || '',
-                getPriorityLabel(a.priority),
-                a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                a.status || ''
-            ]);
+            // Add table header
+            htmlContent += '<table><tr>';
+            
+            // Determine columns based on category
+            const columns = ['Priority', 'Date', 'Status'];
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    columns.push('Subject');
+                    break;
+                case 'visit_plan':
+                    columns.push('Name', 'Area');
+                    break;
+                case 'special_task':
+                    columns.push('Task');
+                    break;
+            }
 
-            let y = 35;
-            const xStart = 14;
-            const colWidths = [40, 30, 30, 30];
-            const lineHeight = 7;
-            const pageHeight = doc.internal.pageSize.height;
-
-            // Header background
-            doc.setFillColor(41, 128, 185);
-            doc.setTextColor(255, 255, 255);
-            let x = xStart;
-            headers.forEach((header, i) => {
-                doc.rect(x, y - 5, colWidths[i], 8, 'F');
-                doc.text(header, x + 2, y);
-                x += colWidths[i];
+            columns.forEach(col => {
+                htmlContent += `<th>${col}</th>`;
             });
+            htmlContent += '</tr>';
 
-            doc.setTextColor(0, 0, 0);
-            y += 10;
-
-            // Rows
-            tableData.forEach(row => {
-                if (y > pageHeight - 20) {
-                    doc.addPage();
-                    y = 20;
-                }
-                x = xStart;
-                row.forEach((cell, i) => {
-                    doc.text(cell.toString().substring(0, 35), x + 2, y);
-                    x += colWidths[i];
+            // Add table rows
+            activities.forEach(activity => {
+                htmlContent += '<tr>';
+                columns.forEach(col => {
+                    let value = '';
+                    switch (col) {
+                        case 'Priority':
+                            value = getPriorityLabel(activity.priority);
+                            break;
+                        case 'Date':
+                            value = activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '';
+                            break;
+                        case 'Status':
+                            value = activity.status || '';
+                            break;
+                        case 'Subject':
+                            value = activity.subject || '';
+                            break;
+                        case 'Name':
+                            value = activity.name || '';
+                            break;
+                        case 'Area':
+                            value = activity.area || '';
+                            break;
+                        case 'Task':
+                            value = activity.task || '';
+                            break;
+                    }
+                    htmlContent += `<td>${value}</td>`;
                 });
-                y += lineHeight;
+                htmlContent += '</tr>';
             });
 
-            const fileName = `${selectedCategory?.name || 'cluster_2_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            htmlContent += '</table></body></html>';
 
-            doc.save(fileName);
-            toast.success('PDF file exported successfully!');
+            // Create and download the file
+            const blob = new Blob([htmlContent], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${selectedCategory?.name || 'cluster_2_export'}_${dayjs().format('YYYY-MM-DD')}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            toast.success('Word document exported successfully!');
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            toast.error('Failed to export PDF file');
+            console.error('Error exporting Word document:', error);
+            toast.error('Failed to export Word document');
         }
     };
 
     /** -----------------------------
-     * Dropdown menu
+     * Dropdown menu - Updated to remove PDF and add Word
      * ----------------------------- */
     const exportItems = [
-        { 
-            key: 'excel', 
-            icon: <FileExcelOutlined />, 
-            label: 'Export to Excel', 
-            onClick: exportToExcel 
+        {
+            key: 'excel',
+            icon: <FileExcelOutlined />,
+            label: 'Export to Excel',
+            onClick: exportToExcel
         },
-        { 
-            key: 'pdf', 
-            icon: <FilePdfOutlined />, 
-            label: 'Export to PDF', 
-            onClick: exportToPDF 
+        {
+            key: 'word',
+            icon: <FileWordOutlined />,
+            label: 'Export to Word',
+            onClick: exportToWord
         }
     ];
 
     return (
-        <Dropdown 
-            menu={{ items: exportItems }} 
+        <Dropdown
+            menu={{ items: exportItems }}
             placement="bottomRight"
             disabled={activities.length === 0}
         >
-            <Button 
-                type="primary" 
-                icon={<DownloadOutlined />} 
+            <Button
+                type="primary"
+                icon={<DownloadOutlined />}
                 size="large"
                 disabled={activities.length === 0}
             >
@@ -841,7 +1466,7 @@ const ExportButton = ({
 
 const Cluster2 = () => {
     // Error handling states
-    const [error, setError] = useState(null); 
+    const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
     const [retryCount, setRetryCount] = useState(0);
 
@@ -858,6 +1483,10 @@ const Cluster2 = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
+
+    // Bulk mode states
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkRecords, setBulkRecords] = useState([{}]);
 
     // View mode state (web view or excel view)
     const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
@@ -881,37 +1510,40 @@ const Cluster2 = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Updated Cluster 2 Categories configuration to match your database structure
+    // Excel Import Modal State
+    const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
+
+    // Cluster 2 Categories configuration
     const cluster2Categories = [
         {
             id: 'visit_plan',
             name: 'Visit Plan',
             table: 'cluster_2_visit_plan',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
+            type: 'Visit Planning',
+            icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#1890ff',
-            hasTimeFields: false
+            hasResponsibleBDM: false
         },
         {
             id: 'meetings',
             name: 'Meetings',
             table: 'cluster_2_meetings',
-            type: 'Meeting',
-            icon: <CalendarOutlined />,
+            type: 'Meeting Management',
+            icon: <TeamOutlined />,
             dateField: 'date',
             color: '#fa8c16',
-            hasTimeFields: false
+            hasResponsibleBDM: true
         },
         {
             id: 'special_task',
             name: 'Special Task',
             table: 'cluster_2_special_task',
-            type: 'Task',
-            icon: <CheckCircleOutlined />,
+            type: 'Special Tasks',
+            icon: <FlagOutlined />,
             dateField: 'date',
             color: '#52c41a',
-            hasTimeFields: false
+            hasResponsibleBDM: true
         }
     ];
 
@@ -1147,7 +1779,7 @@ const Cluster2 = () => {
                 const { data: deptDataAlt, error: deptErrorAlt } = await supabase
                     .from('departments')
                     .select('id')
-                    .ilike('name', '%cluster 2%')
+                    .ilike('name', '%Cluster 2%')
                     .single();
 
                 if (deptErrorAlt) throw deptErrorAlt;
@@ -1315,7 +1947,6 @@ const Cluster2 = () => {
                     const { data } = await query;
                     if (data) {
                         // For Cluster 2, we'll include all activities since there's no specific user assignment
-                        // You can modify this logic based on your user assignment requirements
                         categoryActivities = data;
                     }
 
@@ -1366,6 +1997,8 @@ const Cluster2 = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             safeSetState(setViewMode, 'web'); // Reset to web view when category changes
+            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
+            safeSetState(setBulkRecords, [{}]); // Reset bulk records
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1396,6 +2029,12 @@ const Cluster2 = () => {
         try {
             safeSetState(setEditingRecord, null);
             form.resetFields();
+
+            // Initialize bulk records if in bulk mode
+            if (bulkMode) {
+                safeSetState(setBulkRecords, [{}]);
+            }
+
             safeSetState(setModalVisible, true);
         } catch (error) {
             handleError(error, 'creating new record');
@@ -1495,6 +2134,100 @@ const Cluster2 = () => {
         }
     };
 
+    const handleBulkCreate = async (records) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            if (!records || records.length === 0) {
+                toast.warning('No records to create');
+                return;
+            }
+
+            // Validate records
+            const validRecords = records.filter(record => {
+                // Basic validation - check required fields based on category
+                if (!record.date) return false;
+
+                switch (selectedCategory.id) {
+                    case 'visit_plan':
+                        return record.name;
+                    case 'meetings':
+                        return record.subject;
+                    case 'special_task':
+                        return record.task;
+                    default:
+                        return true;
+                }
+            });
+
+            if (validRecords.length === 0) {
+                toast.error('Please fill in all required fields for at least one record');
+                return;
+            }
+
+            if (validRecords.length !== records.length) {
+                toast.warning(`Only ${validRecords.length} out of ${records.length} records are valid and will be created`);
+            }
+
+            setLoading(true);
+
+            // Prepare data for submission
+            const submitData = validRecords.map(record => {
+                const preparedRecord = { ...record };
+
+                // Convert dayjs objects to proper formats
+                Object.keys(preparedRecord).forEach(key => {
+                    try {
+                        const value = preparedRecord[key];
+                        if (dayjs.isDayjs(value)) {
+                            preparedRecord[key] = value.format('YYYY-MM-DD');
+                        }
+                    } catch (dateError) {
+                        console.warn(`Error converting date field ${key}:`, dateError);
+                    }
+                });
+
+                return preparedRecord;
+            });
+
+            // Insert all records
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(submitData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each created record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'cluster_2',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+            }
+
+            toast.success(`Successfully created ${data.length} record(s)`);
+
+            // Reset and close
+            setModalVisible(false);
+            setBulkRecords([{}]);
+            fetchTableData();
+
+        } catch (error) {
+            handleError(error, 'bulk creating records');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDiscussionClick = (record) => {
         try {
             if (!selectedCategory) {
@@ -1506,6 +2239,22 @@ const Cluster2 = () => {
         } catch (error) {
             handleError(error, 'opening discussion');
         }
+    };
+
+    const handleExcelImportClick = () => {
+        try {
+            if (!selectedCategory) {
+                toast.warning('Please select a category first');
+                return;
+            }
+            safeSetState(setExcelImportModalVisible, true);
+        } catch (error) {
+            handleError(error, 'opening Excel import');
+        }
+    };
+
+    const handleExcelImportComplete = () => {
+        fetchTableData(); // Refresh table data after import
     };
 
     const handleFormSubmit = async (values) => {
@@ -1647,12 +2396,10 @@ const Cluster2 = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-
-
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return [
-
+                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
@@ -1662,7 +2409,7 @@ const Cluster2 = () => {
 
                 case 'meetings':
                     return [
-
+                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1671,7 +2418,7 @@ const Cluster2 = () => {
 
                 case 'special_task':
                     return [
-
+                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
@@ -1679,7 +2426,7 @@ const Cluster2 = () => {
                     ];
 
                 default:
-                    return ;
+                    return [];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1732,11 +2479,36 @@ const Cluster2 = () => {
                 </>
             );
 
+            // Add responsible_bdm field for categories that have it
+            const responsibleBDMField = selectedCategory.hasResponsibleBDM ? (
+                <Form.Item
+                    name="responsible_bdm"
+                    label="Responsible BDM"
+                    rules={[{ required: true, message: 'Please select responsible BDM' }]}
+                >
+                    <Select
+                        placeholder="Select responsible BDM"
+                        showSearch
+                        optionFilterProp="children"
+                        filterOption={(input, option) =>
+                            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                        }
+                    >
+                        {profiles.map(profile => (
+                            <Option key={profile.id} value={profile.id}>
+                                {profile.full_name} ({profile.email})
+                            </Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            ) : null;
+
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return (
                         <>
                             {commonFields}
+                            {responsibleBDMField}
                             <Form.Item
                                 name="name"
                                 label="Name"
@@ -1757,6 +2529,7 @@ const Cluster2 = () => {
                     return (
                         <>
                             {commonFields}
+                            {responsibleBDMField}
                             <Form.Item
                                 name="subject"
                                 label="Subject"
@@ -1771,10 +2544,11 @@ const Cluster2 = () => {
                     return (
                         <>
                             {commonFields}
+                            {responsibleBDMField}
                             <Form.Item
                                 name="task"
                                 label="Task"
-                                rules={[{ required: true, message: 'Please enter task' }]}
+                                rules={[{ required: true, message: 'Please enter task details' }]}
                             >
                                 <TextArea rows={3} placeholder="Enter task details" />
                             </Form.Item>
@@ -1865,8 +2639,8 @@ const Cluster2 = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{ 
-                    marginBottom: 16, 
+                style={{
+                    marginBottom: 16,
                     backgroundColor: '#fafafa',
                     borderRadius: '12px',
                     border: '2px solid #1890ff20'
@@ -1967,8 +2741,8 @@ const Cluster2 = () => {
                     style={{ marginBottom: 24 }}
                     extra={
                         <Space>
-                            <Radio.Group 
-                                value={viewMode} 
+                            <Radio.Group
+                                value={viewMode}
                                 onChange={(e) => setViewMode(e.target.value)}
                                 buttonStyle="solid"
                             >
@@ -1979,6 +2753,32 @@ const Cluster2 = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
+
+                            {/* Add Bulk Mode Toggle */}
+                            <Switch
+                                checkedChildren="Multiple"
+                                unCheckedChildren="Single"
+                                checked={bulkMode}
+                                onChange={(checked) => {
+                                    setBulkMode(checked);
+                                    if (checked) {
+                                        // Initialize with one empty record when switching to bulk mode
+                                        setBulkRecords([{}]);
+                                    }
+                                }}
+                            />
+
+                            {/* Excel Import Button */}
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={handleExcelImportClick}
+                                size="large"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
+                                Upload Excel
+                            </Button>
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -1986,7 +2786,7 @@ const Cluster2 = () => {
                                 loading={loading}
                                 size="large"
                             >
-                                Add New Record
+                                Add New Record{bulkMode ? 's (Multiple)' : ''}
                             </Button>
                         </Space>
                     }
@@ -2111,9 +2911,18 @@ const Cluster2 = () => {
                                 <Space direction="vertical">
                                     <Text>No records found for selected criteria</Text>
                                     <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
-                                    <Button type="primary" onClick={handleCreate}>
-                                        <PlusOutlined /> Create First Record
-                                    </Button>
+                                    <div>
+                                        <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
+                                            <PlusOutlined /> Create First Record
+                                        </Button>
+                                        <Button
+                                            type="default"
+                                            icon={<UploadOutlined />}
+                                            onClick={handleExcelImportClick}
+                                        >
+                                            Upload Excel Data
+                                        </Button>
+                                    </div>
                                 </Space>
                             }
                         />
@@ -2136,11 +2945,11 @@ const Cluster2 = () => {
                             <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
                             <Title level={4}>Ready to Export Data</Title>
                             <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or Word format.
                             </Text>
                             <Alert
                                 message="Excel View Mode"
-                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                description="In Excel View mode, you can export the data to XLSX or Word format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
                                 type="info"
                                 showIcon
                             />
@@ -2154,36 +2963,105 @@ const Cluster2 = () => {
                 title={
                     <Space>
                         {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-                        {editingRecord ? 'Edit' : 'Create'} {selectedCategory?.name} Record
+                        {editingRecord ? 'Edit' : bulkMode ? 'Create Multiple' : 'Create'} {selectedCategory?.name} Record
+                        {bulkMode && !editingRecord && (
+                            <Tag color="orange">Bulk Mode: {bulkRecords.length} records</Tag>
+                        )}
                     </Space>
                 }
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setBulkRecords([{}]); // Reset bulk records when closing
+                }}
                 footer={null}
-                width={600}
+                width={bulkMode && !editingRecord ? 800 : 600}
                 destroyOnClose
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleFormSubmit}
-                >
-                    {getFormFields()}
-
-                    <Divider />
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setModalVisible(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="primary" htmlType="submit" size="large">
-                                {editingRecord ? 'Update' : 'Create'} Record
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                {editingRecord ? (
+                    // Single Edit Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Update Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                ) : bulkMode ? (
+                    // Bulk Create Mode
+                    <div>
+                        <BulkFormFields
+                            records={bulkRecords}
+                            onChange={setBulkRecords}
+                            category={selectedCategory}
+                            priorityOptions={priorityOptions}
+                            safeDayjs={safeDayjs}
+                            profiles={profiles}
+                        />
+                        <Divider />
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button
+                                    onClick={() => {
+                                        setModalVisible(false);
+                                        setBulkRecords([{}]);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={() => handleBulkCreate(bulkRecords)}
+                                    size="large"
+                                    loading={loading}
+                                >
+                                    Create {bulkRecords.length} Record{bulkRecords.length > 1 ? 's' : ''}
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                ) : (
+                    // Single Create Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Create Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
+
+            {/* Excel Import Modal */}
+            <ExcelImportModal
+                visible={excelImportModalVisible}
+                onCancel={() => setExcelImportModalVisible(false)}
+                selectedCategory={selectedCategory}
+                onImportComplete={handleExcelImportComplete}
+                profiles={profiles}
+            />
 
             {/* User Availability Modal */}
             <Modal
@@ -2313,14 +3191,20 @@ const Cluster2 = () => {
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
                                     <li>In Web View: Use Edit/Delete actions and Discuss features</li>
-                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
+                                    <li>In Excel View: Export data to XLSX or Word for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
                                     <li>Use "Check Team Availability" to view team schedules</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
+                                    <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
+                                    <li>Use "Upload Excel" to import data from Excel files with validation</li>
+                                    <li>For categories with Responsible BDM field, use Bulk Records feature instead of Excel import</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different Cluster 2 activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
+                                    Bulk mode allows creating multiple records at once for better productivity.
+                                    Excel import feature helps in bulk data entry with proper validation.
+                                    Categories with Responsible BDM field require manual assignment and cannot use Excel import.
                                 </Text>
                             </div>
                         }
