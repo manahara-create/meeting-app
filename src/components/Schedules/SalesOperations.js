@@ -851,7 +851,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             const errors = [];
             const validatedRow = {
                 department_id: '0d9e7bc7-37e5-4e00-80a2-a6f48235f4da', // Sales Operations department ID
-                category_id: selectedCategory.categoryId
+                category_id: selectedCategory.categoryId // Use the actual category ID
             };
 
             // Check required fields based on category
@@ -1115,7 +1115,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
     );
 };
 
-// Export Button Component - Updated to remove PDF and add Word export
+// Export Button Component
 const ExportButton = ({
     activities = [],
     selectedCategory = null,
@@ -1403,11 +1403,13 @@ const SalesOperations = () => {
     // Excel Import Modal State
     const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
 
+    // Fixed category definitions with proper category IDs
     const salesOperationsCategories = [
         {
             id: 'meetings',
             name: 'Meetings',
             table: 'sales_operations_meetings',
+            categoryId: '7e6b608c-bfe9-432b-a98c-0b9abd6c999a', // Fixed category ID
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'date',
@@ -1418,6 +1420,7 @@ const SalesOperations = () => {
             id: 'special_tasks',
             name: 'Special Tasks',
             table: 'sales_operations_special_tasks',
+            categoryId: '317f69ca-0ea2-447f-b82b-1d99541d77e8', // Fixed category ID
             type: 'Task',
             icon: <CheckCircleOutlined />,
             dateField: 'date',
@@ -1425,7 +1428,6 @@ const SalesOperations = () => {
             hasTimeFields: false,
         },
     ];
-
 
     // Priority options
     const priorityOptions = [
@@ -1589,7 +1591,7 @@ const SalesOperations = () => {
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchAllProfiles(), // Updated to fetch all profiles
+                fetchAllProfiles(),
             ]);
 
             // Set default date range after initialization
@@ -1629,7 +1631,6 @@ const SalesOperations = () => {
         }
     };
 
-    // Updated to fetch all profiles from the database
     const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
@@ -1661,10 +1662,10 @@ const SalesOperations = () => {
                 .from(selectedCategory.table)
                 .select('*')
                 .eq('department_id', '0d9e7bc7-37e5-4e00-80a2-a6f48235f4da') // Sales Operations department ID
-                .eq('category_id', selectedCategory.categoryId)
+                .eq('category_id', selectedCategory.categoryId) // Use the actual category ID
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
-                .order('priority', { ascending: false }) // Sort by priority (high to low)
+                .order('priority', { ascending: false })
                 .order(selectedCategory.dateField, { ascending: true });
 
             // Apply priority filter if selected
@@ -1728,9 +1729,9 @@ const SalesOperations = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
-            safeSetState(setViewMode, 'web'); // Reset to web view when category changes
-            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
-            safeSetState(setBulkRecords, [{}]); // Reset bulk records
+            safeSetState(setViewMode, 'web');
+            safeSetState(setBulkMode, false);
+            safeSetState(setBulkRecords, [{}]);
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1873,7 +1874,7 @@ const SalesOperations = () => {
                 const preparedRecord = {
                     ...record,
                     department_id: '0d9e7bc7-37e5-4e00-80a2-a6f48235f4da', // Sales Operations department ID
-                    category_id: selectedCategory.categoryId
+                    category_id: selectedCategory.categoryId // Use the actual category ID
                 };
 
                 // Convert dayjs objects to proper formats
@@ -1966,7 +1967,7 @@ const SalesOperations = () => {
             const submitData = {
                 ...values,
                 department_id: '0d9e7bc7-37e5-4e00-80a2-a6f48235f4da', // Sales Operations department ID
-                category_id: selectedCategory.categoryId
+                category_id: selectedCategory.categoryId // Use the actual category ID
             };
 
             // Convert dayjs objects to proper formats with error handling
@@ -2658,7 +2659,7 @@ const SalesOperations = () => {
                 destroyOnClose
             >
                 {editingRecord ? (
-                    // Single Edit Mode (existing code)
+                    // Single Edit Mode
                     <Form
                         form={form}
                         layout="vertical"
@@ -2711,7 +2712,7 @@ const SalesOperations = () => {
                         </div>
                     </div>
                 ) : (
-                    // Single Create Mode (existing code)
+                    // Single Create Mode
                     <Form
                         form={form}
                         layout="vertical"
