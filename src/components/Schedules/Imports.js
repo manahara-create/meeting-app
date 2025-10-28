@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown, Upload
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -15,8 +15,8 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
-    ImportOutlined, ContainerOutlined, TruckOutlined
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined,
+    ImportOutlined, ContainerOutlined, TruckOutlined, UploadOutlined, FileAddOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -26,7 +26,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, Table as DocTable, TableRow, TableCell, WidthType } from 'docx';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -467,12 +467,709 @@ const DiscussionModal = React.memo(({
     );
 });
 
-// Export Button Component
+// Bulk Form Fields Component for Import Module
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs, allProfiles }) => {
+    const updateRecord = (index, field, value) => {
+        const newRecords = [...records];
+        newRecords[index] = {
+            ...newRecords[index],
+            [field]: value
+        };
+        onChange(newRecords);
+    };
+
+    const addRecord = () => {
+        onChange([...records, {}]);
+    };
+
+    const removeRecord = (index) => {
+        if (records.length > 1) {
+            const newRecords = records.filter((_, i) => i !== index);
+            onChange(newRecords);
+        }
+    };
+
+    const renderCommonFields = (record, index) => (
+        <>
+            <Form.Item
+                label="Company"
+                required
+            >
+                <Input
+                    value={record.company || ''}
+                    onChange={(e) => updateRecord(index, 'company', e.target.value)}
+                    placeholder="Enter company name"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Remarks"
+            >
+                <TextArea
+                    rows={2}
+                    value={record.remarks || ''}
+                    onChange={(e) => updateRecord(index, 'remarks', e.target.value)}
+                    placeholder="Enter any remarks or notes"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Priority"
+                required
+            >
+                <Select
+                    value={record.priority || 2}
+                    onChange={(value) => updateRecord(index, 'priority', value)}
+                    placeholder="Select priority"
+                >
+                    {priorityOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                            <Space>
+                                <Badge color={option.color} />
+                                {option.label}
+                            </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+
+            {/* Responsible BDMs Selection - Show all profiles */}
+            <Form.Item
+                label="Responsible BDMs"
+            >
+                <Select
+                    mode="multiple"
+                    value={record.responsible_bdm_ids || []}
+                    onChange={(value) => updateRecord(index, 'responsible_bdm_ids', value)}
+                    placeholder="Select responsible BDMs"
+                    style={{ width: '100%' }}
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                    }
+                >
+                    {allProfiles.map(profile => (
+                        <Option key={profile.id} value={profile.id}>
+                            {profile.full_name || profile.email}
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        </>
+    );
+
+    const renderCategorySpecificFields = (record, index) => {
+        switch (category?.id) {
+            case 'meetings':
+                return (
+                    <>
+                        <Form.Item
+                            label="Meeting Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select meeting date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Subject"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.subject || ''}
+                                onChange={(e) => updateRecord(index, 'subject', e.target.value)}
+                                placeholder="Enter meeting subject"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'upcoming_shipment':
+                return (
+                    <>
+                        <Form.Item
+                            label="ETA (Estimated Time of Arrival)"
+                            required
+                        >
+                            <DatePicker
+                                value={record.eta ? safeDayjs(record.eta) : null}
+                                onChange={(date) => updateRecord(index, 'eta', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select ETA"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="ATA (Actual Time of Arrival)"
+                        >
+                            <DatePicker
+                                value={record.ata ? safeDayjs(record.ata) : null}
+                                onChange={(date) => updateRecord(index, 'ata', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select ATA"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="PORD Number"
+                        >
+                            <Input
+                                value={record.pord_number || ''}
+                                onChange={(e) => updateRecord(index, 'pord_number', e.target.value)}
+                                placeholder="Enter PORD number"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Vendor"
+                        >
+                            <Input
+                                value={record.vendor || ''}
+                                onChange={(e) => updateRecord(index, 'vendor', e.target.value)}
+                                placeholder="Enter vendor"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Posting Group"
+                        >
+                            <Input
+                                value={record.posting_group || ''}
+                                onChange={(e) => updateRecord(index, 'posting_group', e.target.value)}
+                                placeholder="Enter posting group"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {records.map((record, index) => (
+                <Card
+                    key={index}
+                    title={`Record ${index + 1}`}
+                    size="small"
+                    style={{ marginBottom: 16, border: '1px solid #d9d9d9' }}
+                    extra={
+                        records.length > 1 && (
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeRecord(index)}
+                                size="small"
+                            >
+                                Remove
+                            </Button>
+                        )
+                    }
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {renderCommonFields(record, index)}
+                        {renderCategorySpecificFields(record, index)}
+                    </Space>
+                </Card>
+            ))}
+
+            <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={addRecord}
+                style={{ width: '100%' }}
+            >
+                Add Another Record
+            </Button>
+
+            <Alert
+                message={`You are creating ${records.length} record(s) at once`}
+                description="All records will be saved when you click the 'Create Records' button."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+            />
+        </div>
+    );
+};
+
+// Excel Import Modal Component for Import Module
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
+    const [importLoading, setImportLoading] = useState(false);
+    const [uploadedData, setUploadedData] = useState([]);
+    const [validationResults, setValidationResults] = useState([]);
+
+    // Check if category has responsible_bdm_ids field
+    const hasResponsibleBDMField = selectedCategory?.id && 
+        ['meetings', 'upcoming_shipment'].includes(selectedCategory.id);
+
+    // Download template function
+    const downloadTemplate = () => {
+        try {
+            if (hasResponsibleBDMField) {
+                // Show warning for categories with responsible_bdm_ids
+                Modal.warning({
+                    title: 'Template Not Available',
+                    content: (
+                        <div>
+                            <p><strong>We cannot create a template for this category.</strong></p>
+                            <p>This category has a mandatory column "Responsible BDM" for assigning employees.</p>
+                            <p>Please use the "Bulk Records" feature to add multiple records with proper employee assignments.</p>
+                        </div>
+                    ),
+                    okText: 'Understood'
+                });
+                return;
+            }
+
+            // Create template data structure based on category
+            let templateData = [];
+            let headers = [];
+
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    headers = ['Date*', 'Subject*', 'Company*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Subject*': 'Import Strategy Meeting',
+                        'Company*': 'Shipping Corp',
+                        'Status': 'Planned',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'upcoming_shipment':
+                    headers = ['ETA*', 'ATA', 'PORD Number', 'Vendor', 'Company*', 'Posting Group', 'Status', 'Priority*'];
+                    templateData = [{
+                        'ETA*': '20/01/2024',
+                        'ATA': '21/01/2024',
+                        'PORD Number': 'PORD-001',
+                        'Vendor': 'Global Shipping',
+                        'Company*': 'Import Corp',
+                        'Posting Group': 'Group A',
+                        'Status': 'In Transit',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                default:
+                    headers = ['Date*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Status': 'Active',
+                        'Priority*': '2'
+                    }];
+            }
+
+            // Add instructions row
+            const instructions = {
+                'Instructions': 'Fill in the data below. Fields marked with * are required.',
+                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
+                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD'
+            };
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+
+            // Add instructions sheet
+            const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+
+            // Add data template sheet
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+            // Auto-size columns
+            const colWidths = headers.map(header => ({ wch: Math.max(header.length + 2, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            const fileName = `${selectedCategory?.name || 'import'}_import_template.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success('Template downloaded successfully!');
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            toast.error('Failed to download template');
+        }
+    };
+
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+
+        // Remove any extra spaces
+        const cleanDateStr = dateStr.toString().trim();
+
+        // Try dd/mm/yyyy format first
+        let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try yyyy-mm-dd format
+        date = dayjs(cleanDateStr, 'YYYY-MM-DD', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try other common formats
+        date = dayjs(cleanDateStr);
+        if (date.isValid()) {
+            return date;
+        }
+
+        return null;
+    };
+
+    // Handle file upload
+    const handleFileUpload = (file) => {
+        if (hasResponsibleBDMField) {
+            toast.warning('Excel import is not available for categories with Responsible BDM field. Use Bulk Records instead.');
+            return false;
+        }
+
+        setImportLoading(true);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Get first worksheet
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    toast.error('The uploaded file is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Validate data
+                const validatedData = validateExcelData(jsonData);
+                setUploadedData(validatedData.validRows);
+                setValidationResults(validatedData.results);
+
+                if (validatedData.validRows.length === 0) {
+                    toast.error('No valid data found in the uploaded file');
+                } else {
+                    toast.success(`Found ${validatedData.validRows.length} valid records out of ${jsonData.length}`);
+                }
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                toast.error('Failed to read Excel file');
+            } finally {
+                setImportLoading(false);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+        return false; // Prevent default upload behavior
+    };
+
+    // Validate Excel data
+    const validateExcelData = (data) => {
+        const results = [];
+        const validRows = [];
+
+        data.forEach((row, index) => {
+            const errors = [];
+            const validatedRow = {
+                department_id: IMPORT_DEPARTMENT_ID
+            };
+
+            // Check required fields based on category
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Subject*'] && !row.Subject) errors.push('Subject is required');
+                    else validatedRow.subject = row['Subject*'] || row.Subject;
+
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    validatedRow.status = row.Status || 'Planned';
+                    break;
+
+                case 'upcoming_shipment':
+                    if (!row['ETA*'] && !row.ETA) {
+                        errors.push('ETA is required');
+                    } else {
+                        const date = parseDate(row['ETA*'] || row.ETA);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid ETA format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.eta = date.format('YYYY-MM-DD');
+                        }
+                    }
+
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    if (row.ATA) {
+                        const ataDate = parseDate(row.ATA);
+                        if (ataDate && ataDate.isValid()) {
+                            validatedRow.ata = ataDate.format('YYYY-MM-DD');
+                        }
+                    }
+
+                    validatedRow.pord_number = row['PORD Number'] || '';
+                    validatedRow.vendor = row.Vendor || '';
+                    validatedRow.posting_group = row['Posting Group'] || '';
+                    validatedRow.status = row.Status || 'In Transit';
+                    break;
+            }
+
+            // Priority validation
+            if (!row.Priority && !row['Priority*']) {
+                errors.push('Priority is required');
+            } else {
+                const priority = parseInt(row.Priority || row['Priority*']);
+                if (isNaN(priority) || priority < 1 || priority > 5) {
+                    errors.push('Priority must be between 1-5');
+                } else {
+                    validatedRow.priority = priority;
+                }
+            }
+
+            // Remarks field
+            validatedRow.remarks = row.Remarks || '';
+
+            results.push({
+                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                data: validatedRow,
+                errors,
+                isValid: errors.length === 0
+            });
+
+            if (errors.length === 0) {
+                validRows.push(validatedRow);
+            }
+        });
+
+        return { results, validRows };
+    };
+
+    // Import validated data
+    const importData = async () => {
+        if (uploadedData.length === 0) {
+            toast.warning('No valid data to import');
+            return;
+        }
+
+        setImportLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(uploadedData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each imported record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'import',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: 'excel-import',
+                        source: 'excel_import'
+                    }
+                );
+            }
+
+            toast.success(`Successfully imported ${data.length} records`);
+            onImportComplete();
+            onCancel();
+        } catch (error) {
+            console.error('Error importing data:', error);
+            toast.error('Failed to import data');
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const uploadProps = {
+        beforeUpload: handleFileUpload,
+        accept: '.xlsx, .xls',
+        showUploadList: false,
+        multiple: false
+    };
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <FileExcelOutlined />
+                    Import Data from Excel - {selectedCategory?.name}
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={[
+                <Button key="cancel" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button
+                    key="download"
+                    icon={<DownloadOutlined />}
+                    onClick={downloadTemplate}
+                    disabled={hasResponsibleBDMField}
+                >
+                    Download Template
+                </Button>,
+                <Button
+                    key="import"
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={importData}
+                    loading={importLoading}
+                    disabled={uploadedData.length === 0 || hasResponsibleBDMField}
+                >
+                    Import {uploadedData.length} Records
+                </Button>
+            ]}
+            width={800}
+            destroyOnClose
+        >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* Warning Alert for categories with responsible_bdm_ids */}
+                {hasResponsibleBDMField && (
+                    <Alert
+                        message="Excel Import Not Available"
+                        description={
+                            <div>
+                                <Text strong style={{ color: '#ff4d4f' }}>
+                                    We cannot create a template for this category, because there is a mandatory column "Responsible BDM" for assigning employees.
+                                </Text>
+                                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                    <li>Use the "Bulk Records" feature to add multiple records with proper employee assignments</li>
+                                    <li>Responsible BDM assignments must be done manually in the system</li>
+                                    <li>This ensures proper tracking and accountability</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
+                        showIcon
+                    />
+                )}
+
+                {/* Upload Section */}
+                {!hasResponsibleBDMField && (
+                    <>
+                        <Card size="small" title="Upload Excel File">
+                            <Upload.Dragger {...uploadProps}>
+                                <p className="ant-upload-drag-icon">
+                                    <FileExcelOutlined />
+                                </p>
+                                <p className="ant-upload-text">
+                                    Click or drag Excel file to this area to upload
+                                </p>
+                                <p className="ant-upload-hint">
+                                    Support for .xlsx, .xls files only
+                                </p>
+                            </Upload.Dragger>
+                        </Card>
+
+                        {/* Validation Results */}
+                        {validationResults.length > 0 && (
+                            <Card
+                                size="small"
+                                title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                            >
+                                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                                    {validationResults.map((result, index) => (
+                                        <Alert
+                                            key={index}
+                                            message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                            description={
+                                                result.errors.length > 0 ? (
+                                                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                        {result.errors.map((error, errorIndex) => (
+                                                            <li key={errorIndex}>{error}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    'All fields are valid'
+                                                )
+                                            }
+                                            type={result.isValid ? 'success' : 'error'}
+                                            showIcon
+                                            style={{ marginBottom: 8 }}
+                                            size="small"
+                                        />
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Instructions */}
+                        <Alert
+                            message="Import Instructions"
+                            description={
+                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                    <li>Download the template first to ensure correct format</li>
+                                    <li>Required fields are marked with * in the template</li>
+                                    <li>
+                                        <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                                    </li>
+                                    <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                                    <li>Only valid records will be imported</li>
+                                    <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
+                                </ul>
+                            }
+                            type="info"
+                            showIcon
+                        />
+                    </>
+                )}
+            </Space>
+        </Modal>
+    );
+};
+
+// Export Button Component - Updated to remove PDF and add Word export
 const ExportButton = ({ 
     activities = [], 
     selectedCategory = null,
     moduleName = '',
-    priorityLabels = {}
+    priorityLabels = {},
+    allProfiles = []
 }) => {
     const priorityOptions = [
         { value: 1, label: 'Low', color: 'green' },
@@ -487,18 +1184,25 @@ const ExportButton = ({
         return option ? option.label : 'Normal';
     };
 
+    const getProfileName = (profileId) => {
+        const profile = allProfiles.find(p => p.id === profileId);
+        return profile ? profile.full_name || profile.email : 'Unknown';
+    };
+
     /** -----------------------------
      * Export to Excel (.xlsx)
      * ----------------------------- */
     const exportToExcel = () => {
         try {
             const dataForExport = activities.map(activity => {
-                // Common structure for Import modules
+                // Common structure shared by Import modules
                 const base = {
                     'Company': activity.company || '',
                     'Category': selectedCategory?.name || '',
                     'Priority': getPriorityLabel(activity.priority),
-                    'Status': activity.status || '',
+                    'Responsible BDM(s)': Array.isArray(activity.responsible_bdm_names)
+                        ? activity.responsible_bdm_names.join(', ')
+                        : activity.responsible_bdm_names || '',
                     'Remarks': activity.remarks || '',
                     'Created Date': activity.created_at
                         ? dayjs(activity.created_at).format('YYYY-MM-DD')
@@ -513,7 +1217,8 @@ const ExportButton = ({
                             'Subject': activity.subject || '',
                             'Date': activity.date
                                 ? dayjs(activity.date).format('YYYY-MM-DD')
-                                : ''
+                                : '',
+                            'Status': activity.status || ''
                         };
 
                     case 'upcoming_shipment':
@@ -527,7 +1232,8 @@ const ExportButton = ({
                                 : '',
                             'PORD Number': activity.pord_number || '',
                             'Vendor': activity.vendor || '',
-                            'Posting Group': activity.posting_group || ''
+                            'Posting Group': activity.posting_group || '',
+                            'Status': activity.status || ''
                         };
 
                     default:
@@ -564,68 +1270,120 @@ const ExportButton = ({
     };
 
     /** -----------------------------
-     * Export to PDF (.pdf)
+     * Export to Word (.docx)
      * ----------------------------- */
-    const exportToPDF = () => {
+    const exportToWord = async () => {
         try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('Import Export Summary', 14, 15);
-            doc.setFontSize(10);
-            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
-            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+            // Create table rows for Word document
+            const tableRows = activities.map((activity, index) => {
+                const cells = [];
 
-            const headers = ['Company', 'Category', 'Priority', 'Status', 'Date'];
-            const tableData = activities.map(a => [
-                a.company || '',
-                selectedCategory?.name || '',
-                getPriorityLabel(a.priority),
-                a.status || '',
-                a[selectedCategory?.dateField] 
-                    ? dayjs(a[selectedCategory?.dateField]).format('YYYY-MM-DD')
-                    : ''
-            ]);
+                // Add basic information cells based on category
+                switch (selectedCategory?.id) {
+                    case 'meetings':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.subject || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            let y = 35;
-            const xStart = 14;
-            const colWidths = [40, 30, 20, 30, 25];
-            const lineHeight = 7;
-            const pageHeight = doc.internal.pageSize.height;
+                    case 'upcoming_shipment':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.pord_number || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.vendor || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.eta ? dayjs(activity.eta).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            // Header background
-            doc.setFillColor(41, 128, 185);
-            doc.setTextColor(255, 255, 255);
-            let x = xStart;
-            headers.forEach((header, i) => {
-                doc.rect(x, y - 5, colWidths[i], 8, 'F');
-                doc.text(header, x + 2, y);
-                x += colWidths[i];
-            });
-
-            doc.setTextColor(0, 0, 0);
-            y += 10;
-
-            // Rows
-            tableData.forEach(row => {
-                if (y > pageHeight - 20) {
-                    doc.addPage();
-                    y = 20;
+                    default:
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
                 }
-                x = xStart;
-                row.forEach((cell, i) => {
-                    doc.text(cell.toString().substring(0, 35), x + 2, y);
-                    x += colWidths[i];
-                });
-                y += lineHeight;
+
+                return new TableRow({ children: cells });
             });
 
-            const fileName = `${selectedCategory?.name || 'import_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            // Create headers based on category
+            let headers = [];
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    headers = ['Subject', 'Company', 'Date', 'Status', 'Priority'];
+                    break;
+                case 'upcoming_shipment':
+                    headers = ['Company', 'PORD Number', 'Vendor', 'ETA', 'Status', 'Priority'];
+                    break;
+                default:
+                    headers = ['Company', 'Priority'];
+            }
 
-            doc.save(fileName);
-            toast.success('PDF file exported successfully!');
+            const headerRow = new TableRow({
+                children: headers.map(header => 
+                    new TableCell({ 
+                        children: [new Paragraph({ 
+                            children: [new TextRun({ text: header, bold: true })] 
+                        })] 
+                    })
+                )
+            });
+
+            const table = new DocTable({
+                width: {
+                    size: 100,
+                    type: WidthType.PERCENTAGE,
+                },
+                rows: [headerRow, ...tableRows],
+            });
+
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${selectedCategory?.name || 'Import'} Export - ${dayjs().format('DD/MM/YYYY')}`,
+                                    bold: true,
+                                    size: 28,
+                                }),
+                            ],
+                        }),
+                        new Paragraph({ text: "" }), // Empty line
+                        table,
+                        new Paragraph({ text: "" }), // Empty line
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `Total Records: ${activities.length}`,
+                                    italics: true,
+                                }),
+                            ],
+                        }),
+                    ],
+                }],
+            });
+
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${selectedCategory?.name || 'import_export'}_${dayjs().format('YYYY-MM-DD')}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            toast.success('Word document exported successfully!');
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            toast.error('Failed to export PDF file');
+            console.error('Error exporting Word document:', error);
+            toast.error('Failed to export Word document');
         }
     };
 
@@ -640,10 +1398,10 @@ const ExportButton = ({
             onClick: exportToExcel 
         },
         { 
-            key: 'pdf', 
-            icon: <FilePdfOutlined />, 
-            label: 'Export to PDF', 
-            onClick: exportToPDF 
+            key: 'word', 
+            icon: <FileWordOutlined />, 
+            label: 'Export to Word', 
+            onClick: exportToWord 
         }
     ];
 
@@ -663,6 +1421,13 @@ const ExportButton = ({
             </Button>
         </Dropdown>
     );
+};
+
+// Department and Category IDs from your database
+const IMPORT_DEPARTMENT_ID = '4755d627-64ad-4a03-81f2-fd867084cef7'; // Update with actual Import department ID
+const CATEGORY_IDS = {
+    MEETINGS: 'b21e53e2-a5ea-4351-829b-ad1e90d35f65',
+    UPCOMING_SHIPMENT: 'd37bbf9e-2c66-4e7e-bc32-fa1af48e4300'
 };
 
 const Import = () => {
@@ -685,9 +1450,9 @@ const Import = () => {
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
 
-    // Categories state
-    const [categories, setCategories] = useState([]);
-    const [categoriesLoading, setCategoriesLoading] = useState(false);
+    // Bulk mode states
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkRecords, setBulkRecords] = useState([{}]);
 
     // View mode state (web view or excel view)
     const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
@@ -700,7 +1465,10 @@ const Import = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Import Categories configuration based on your schema
+    // Excel Import Modal State
+    const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
+
+    // Import Categories configuration
     const importCategories = [
         {
             id: 'meetings',
@@ -710,7 +1478,8 @@ const Import = () => {
             icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#1890ff',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.MEETINGS
         },
         {
             id: 'upcoming_shipment',
@@ -720,7 +1489,8 @@ const Import = () => {
             icon: <TruckOutlined />,
             dateField: 'eta',
             color: '#52c41a',
-            hasTimeFields: false
+            hasTimeFields: false,
+            categoryId: CATEGORY_IDS.UPCOMING_SHIPMENT
         }
     ];
 
@@ -732,9 +1502,6 @@ const Import = () => {
         { value: 4, label: 'High', color: 'red' },
         { value: 5, label: 'Critical', color: 'purple' }
     ];
-
-    // Import department ID
-    const IMPORT_DEPARTMENT_ID = 'd416f2f6-b9aa-4282-9ece-f5a74c54e4e4';
 
     // Get default date range: yesterday to 9 days from today (total 10 days)
     const getDefaultDateRange = useCallback(() => {
@@ -883,33 +1650,13 @@ const Import = () => {
         }
     };
 
-    // Fetch categories
-    const fetchCategories = async () => {
-        setCategoriesLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('categories')
-                .select('id, name')
-                .order('name');
-
-            if (error) throw error;
-            setCategories(data || []);
-        } catch (error) {
-            console.error('Error fetching categories:', error);
-            handleError(error, 'fetching categories');
-        } finally {
-            setCategoriesLoading(false);
-        }
-    };
-
     // Initialize Import module
     const initializeImport = async () => {
         setLoading(true);
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchProfiles(),
-                fetchCategories()
+                fetchAllProfiles(), // Updated to fetch all profiles
             ]);
 
             // Set default date range after initialization
@@ -949,7 +1696,8 @@ const Import = () => {
         }
     };
 
-    const fetchProfiles = async () => {
+    // Updated to fetch all profiles from the database
+    const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -959,7 +1707,7 @@ const Import = () => {
             if (error) throw error;
             safeSetState(setProfiles, data || []);
         } catch (error) {
-            handleError(error, 'fetching profiles');
+            handleError(error, 'fetching all profiles');
             safeSetState(setProfiles, []);
         }
     };
@@ -979,7 +1727,7 @@ const Import = () => {
             let query = supabase
                 .from(selectedCategory.table)
                 .select('*')
-                .eq('department_id', IMPORT_DEPARTMENT_ID) // Always filter by Import department
+                .eq('department_id', IMPORT_DEPARTMENT_ID)
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
                 .order('priority', { ascending: false }) // Sort by priority (high to low)
@@ -1047,6 +1795,8 @@ const Import = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             safeSetState(setViewMode, 'web'); // Reset to web view when category changes
+            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
+            safeSetState(setBulkRecords, [{}]); // Reset bulk records
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1077,6 +1827,12 @@ const Import = () => {
         try {
             safeSetState(setEditingRecord, null);
             form.resetFields();
+
+            // Initialize bulk records if in bulk mode
+            if (bulkMode) {
+                safeSetState(setBulkRecords, [{}]);
+            }
+
             safeSetState(setModalVisible, true);
         } catch (error) {
             handleError(error, 'creating new record');
@@ -1146,6 +1902,101 @@ const Import = () => {
         }
     };
 
+    const handleBulkCreate = async (records) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            if (!records || records.length === 0) {
+                toast.warning('No records to create');
+                return;
+            }
+
+            // Validate records
+            const validRecords = records.filter(record => {
+                // Basic validation - check required fields based on category
+                if (!record.company) return false;
+
+                switch (selectedCategory.id) {
+                    case 'meetings':
+                        return record.date && record.subject;
+                    case 'upcoming_shipment':
+                        return record.eta;
+                    default:
+                        return true;
+                }
+            });
+
+            if (validRecords.length === 0) {
+                toast.error('Please fill in all required fields for at least one record');
+                return;
+            }
+
+            if (validRecords.length !== records.length) {
+                toast.warning(`Only ${validRecords.length} out of ${records.length} records are valid and will be created`);
+            }
+
+            setLoading(true);
+
+            // Prepare data for submission
+            const submitData = validRecords.map(record => {
+                const preparedRecord = { 
+                    ...record,
+                    department_id: IMPORT_DEPARTMENT_ID
+                };
+
+                // Convert dayjs objects to proper formats
+                Object.keys(preparedRecord).forEach(key => {
+                    try {
+                        const value = preparedRecord[key];
+                        if (dayjs.isDayjs(value)) {
+                            preparedRecord[key] = value.format('YYYY-MM-DD');
+                        }
+                    } catch (dateError) {
+                        console.warn(`Error converting date field ${key}:`, dateError);
+                    }
+                });
+
+                return preparedRecord;
+            });
+
+            // Insert all records
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(submitData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each created record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'import',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+            }
+
+            toast.success(`Successfully created ${data.length} record(s)`);
+
+            // Reset and close
+            setModalVisible(false);
+            setBulkRecords([{}]);
+            fetchTableData();
+
+        } catch (error) {
+            handleError(error, 'bulk creating records');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDiscussionClick = (record) => {
         try {
             if (!selectedCategory) {
@@ -1159,17 +2010,32 @@ const Import = () => {
         }
     };
 
+    const handleExcelImportClick = () => {
+        try {
+            if (!selectedCategory) {
+                toast.warning('Please select a category first');
+                return;
+            }
+            safeSetState(setExcelImportModalVisible, true);
+        } catch (error) {
+            handleError(error, 'opening Excel import');
+        }
+    };
+
+    const handleExcelImportComplete = () => {
+        fetchTableData(); // Refresh table data after import
+    };
+
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission - include department_id and category_id
-            const submitData = { 
+            // Prepare data for submission with proper department_id
+            const submitData = {
                 ...values,
-                department_id: IMPORT_DEPARTMENT_ID,
-                category_id: values.category_id // This will come from the form
+                department_id: IMPORT_DEPARTMENT_ID
             };
 
             // Convert dayjs objects to proper formats with error handling
@@ -1302,34 +2168,32 @@ const Import = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-
-
             switch (selectedCategory.id) {
                 case 'meetings':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'upcoming_shipment':
                     return [
-
                         { title: 'ETA', dataIndex: 'eta', key: 'eta', width: 120 },
                         { title: 'ATA', dataIndex: 'ata', key: 'ata', width: 120 },
+                        { title: 'PORD Number', dataIndex: 'pord_number', key: 'pord_number', width: 150 },
+                        { title: 'Vendor', dataIndex: 'vendor', key: 'vendor', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'PORD Number', dataIndex: 'pord_number', key: 'pord_number', width: 120 },
-                        { title: 'Vendor', dataIndex: 'vendor', key: 'vendor', width: 120 },
                         { title: 'Posting Group', dataIndex: 'posting_group', key: 'posting_group', width: 120 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 default:
-                    return ;
+                    return [priorityColumn, actionColumn];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1349,30 +2213,6 @@ const Import = () => {
                         rules={[{ required: true, message: 'Please enter company name' }]}
                     >
                         <Input placeholder="Enter company name" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="category_id"
-                        label="Category"
-                        rules={[{ required: true, message: 'Please select category' }]}
-                    >
-                        <Select 
-                            placeholder="Select category" 
-                            loading={categoriesLoading}
-                        >
-                            {categories.map(category => (
-                                <Option key={category.id} value={category.id}>
-                                    {category.name}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-
-                    <Form.Item
-                        name="status"
-                        label="Status"
-                    >
-                        <Input placeholder="Enter status" />
                     </Form.Item>
 
                     <Form.Item
@@ -1399,6 +2239,28 @@ const Import = () => {
                             ))}
                         </Select>
                     </Form.Item>
+
+                    {/* Responsible BDMs Selection - Updated to show all profiles */}
+                    <Form.Item
+                        name="responsible_bdm_ids"
+                        label="Responsible BDMs"
+                    >
+                        <Select
+                            mode="multiple"
+                            placeholder="Select responsible BDMs"
+                            style={{ width: '100%' }}
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
+                        >
+                            {profiles.map(profile => (
+                                <Option key={profile.id} value={profile.id}>
+                                    {profile.full_name || profile.email}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
                 </>
             );
 
@@ -1417,6 +2279,7 @@ const Import = () => {
                                     placeholder="Select meeting date"
                                 />
                             </Form.Item>
+                            {commonFields}
                             <Form.Item
                                 name="subject"
                                 label="Subject"
@@ -1424,13 +2287,19 @@ const Import = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter meeting subject" />
                             </Form.Item>
-                            {commonFields}
+                            <Form.Item
+                                name="status"
+                                label="Status"
+                            >
+                                <Input placeholder="Enter status" />
+                            </Form.Item>
                         </>
                     );
 
                 case 'upcoming_shipment':
                     return (
                         <>
+                            {commonFields}
                             <Form.Item
                                 name="eta"
                                 label="ETA (Estimated Time of Arrival)"
@@ -1470,7 +2339,12 @@ const Import = () => {
                             >
                                 <Input placeholder="Enter posting group" />
                             </Form.Item>
-                            {commonFields}
+                            <Form.Item
+                                name="status"
+                                label="Status"
+                            >
+                                <Input placeholder="Enter status" />
+                            </Form.Item>
                         </>
                     );
 
@@ -1660,6 +2534,32 @@ const Import = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
+
+                            {/* Bulk Mode Toggle */}
+                            <Switch
+                                checkedChildren="Multiple"
+                                unCheckedChildren="Single"
+                                checked={bulkMode}
+                                onChange={(checked) => {
+                                    setBulkMode(checked);
+                                    if (checked) {
+                                        // Initialize with one empty record when switching to bulk mode
+                                        setBulkRecords([{}]);
+                                    }
+                                }}
+                            />
+
+                            {/* Excel Import Button */}
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={handleExcelImportClick}
+                                size="large"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
+                                Upload Excel
+                            </Button>
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -1667,7 +2567,7 @@ const Import = () => {
                                 loading={loading}
                                 size="large"
                             >
-                                Add New Record
+                                Add New Record{bulkMode ? 's (Multiple)' : ''}
                             </Button>
                         </Space>
                     }
@@ -1770,6 +2670,7 @@ const Import = () => {
                                     priorityLabels={Object.fromEntries(
                                         priorityOptions.map(opt => [opt.value, opt.label])
                                     )}
+                                    allProfiles={profiles}
                                 />
                             )}
                             <Button
@@ -1792,9 +2693,18 @@ const Import = () => {
                                 <Space direction="vertical">
                                     <Text>No records found for selected criteria</Text>
                                     <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
-                                    <Button type="primary" onClick={handleCreate}>
-                                        <PlusOutlined /> Create First Record
-                                    </Button>
+                                    <div>
+                                        <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
+                                            <PlusOutlined /> Create First Record
+                                        </Button>
+                                        <Button
+                                            type="default"
+                                            icon={<UploadOutlined />}
+                                            onClick={handleExcelImportClick}
+                                        >
+                                            Upload Excel Data
+                                        </Button>
+                                    </div>
                                 </Space>
                             }
                         />
@@ -1817,11 +2727,11 @@ const Import = () => {
                             <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
                             <Title level={4}>Ready to Export Data</Title>
                             <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or Word format.
                             </Text>
                             <Alert
                                 message="Excel View Mode"
-                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                description="In Excel View mode, you can export the data to XLSX or Word format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
                                 type="info"
                                 showIcon
                             />
@@ -1835,36 +2745,105 @@ const Import = () => {
                 title={
                     <Space>
                         {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-                        {editingRecord ? 'Edit' : 'Create'} {selectedCategory?.name} Record
+                        {editingRecord ? 'Edit' : bulkMode ? 'Create Multiple' : 'Create'} {selectedCategory?.name} Record
+                        {bulkMode && !editingRecord && (
+                            <Tag color="orange">Bulk Mode: {bulkRecords.length} records</Tag>
+                        )}
                     </Space>
                 }
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setBulkRecords([{}]); // Reset bulk records when closing
+                }}
                 footer={null}
-                width={600}
+                width={bulkMode && !editingRecord ? 800 : 600}
                 destroyOnClose
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleFormSubmit}
-                >
-                    {getFormFields()}
-
-                    <Divider />
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setModalVisible(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="primary" htmlType="submit" size="large">
-                                {editingRecord ? 'Update' : 'Create'} Record
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                {editingRecord ? (
+                    // Single Edit Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Update Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                ) : bulkMode ? (
+                    // Bulk Create Mode
+                    <div>
+                        <BulkFormFields
+                            records={bulkRecords}
+                            onChange={setBulkRecords}
+                            category={selectedCategory}
+                            priorityOptions={priorityOptions}
+                            safeDayjs={safeDayjs}
+                            allProfiles={profiles}
+                        />
+                        <Divider />
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button
+                                    onClick={() => {
+                                        setModalVisible(false);
+                                        setBulkRecords([{}]);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={() => handleBulkCreate(bulkRecords)}
+                                    size="large"
+                                    loading={loading}
+                                >
+                                    Create {bulkRecords.length} Record{bulkRecords.length > 1 ? 's' : ''}
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                ) : (
+                    // Single Create Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Create Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
+
+            {/* Excel Import Modal */}
+            <ExcelImportModal
+                visible={excelImportModalVisible}
+                onCancel={() => setExcelImportModalVisible(false)}
+                selectedCategory={selectedCategory}
+                onImportComplete={handleExcelImportComplete}
+                allProfiles={profiles}
+            />
 
             {/* Discussion Modal */}
             <DiscussionModal
@@ -1890,13 +2869,17 @@ const Import = () => {
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
                                     <li>In Web View: Use Edit/Delete actions and Discuss features</li>
-                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
+                                    <li>In Excel View: Export data to XLSX or Word for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
-                                    <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
+                                    <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
+                                    <li>Use "Upload Excel" to import data from Excel files with validation</li>
+                                    <li>For categories with Responsible BDM field, use Bulk Records instead of Excel import</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different Import activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
+                                    Bulk mode allows creating multiple records at once for better productivity.
+                                    Excel import feature helps in bulk data entry with proper validation.
                                 </Text>
                             </div>
                         }

@@ -15,7 +15,7 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined,
     EnvironmentOutlined, RocketOutlined, TaskOutlined, MedicineBoxOutlined,
     HeartOutlined, ExperimentOutlined, UploadOutlined, FileAddOutlined
 } from '@ant-design/icons';
@@ -27,7 +27,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, Table as DocTable, TableRow, TableCell, WidthType } from 'docx';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -658,198 +658,8 @@ const UserScheduleModal = React.memo(({
     );
 });
 
-// Export Button Component
-const ExportButton = ({
-    activities = [],
-    selectedCategory = null,
-    moduleName = '',
-    priorityLabels = {}
-}) => {
-    const priorityOptions = [
-        { value: 1, label: 'Low', color: 'green' },
-        { value: 2, label: 'Normal', color: 'blue' },
-        { value: 3, label: 'Medium', color: 'orange' },
-        { value: 4, label: 'High', color: 'red' },
-        { value: 5, label: 'Critical', color: 'purple' }
-    ];
-
-    const getPriorityLabel = (priority) => {
-        const option = priorityOptions.find(opt => opt.value === priority);
-        return option ? option.label : 'Normal';
-    };
-
-    /** -----------------------------
-     * Export to Excel (.xlsx)
-     * ----------------------------- */
-    const exportToExcel = () => {
-        try {
-            const dataForExport = activities.map(activity => {
-                // Common structure for eHealthcare modules
-                const base = {
-                    'Category': selectedCategory?.name || '',
-                    'Priority': getPriorityLabel(activity.priority),
-                    'Date': activity.date
-                        ? dayjs(activity.date).format('YYYY-MM-DD')
-                        : '',
-                    'Status': activity.status || '',
-                    'Created Date': activity.created_at
-                        ? dayjs(activity.created_at).format('YYYY-MM-DD')
-                        : ''
-                };
-
-                // Extend base based on table type
-                switch (selectedCategory?.id) {
-                    case 'meetings':
-                        return {
-                            ...base,
-                            'Subject': activity.subject || '',
-                            'Company': activity.company || ''
-                        };
-
-                    case 'visit_plan':
-                        return {
-                            ...base,
-                            'Name': Array.isArray(activity.name) ? activity.name.join(', ') : activity.name,
-                            'Area': activity.area || '',
-                            'Customer': activity.customer || '',
-                            'Purpose': activity.purpose || '',
-                            'ROI': activity.roi || ''
-                        };
-
-                    default:
-                        return base;
-                }
-            });
-
-            const worksheet = XLSX.utils.json_to_sheet(dataForExport);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'eHealthcare Export');
-
-            // Auto-size columns
-            const colWidths = [];
-            if (dataForExport.length > 0) {
-                Object.keys(dataForExport[0]).forEach(key => {
-                    const maxLength = Math.max(
-                        key.length,
-                        ...dataForExport.map(row => String(row[key] || '').length)
-                    );
-                    colWidths.push({ wch: Math.min(maxLength + 2, 50) });
-                });
-                worksheet['!cols'] = colWidths;
-            }
-
-            const fileName = `${selectedCategory?.name || 'ehealthcare_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
-
-            XLSX.writeFile(workbook, fileName);
-
-            toast.success(`Excel file exported successfully! (${dataForExport.length} records)`);
-        } catch (error) {
-            console.error('Error exporting Excel:', error);
-            toast.error('Failed to export Excel file');
-        }
-    };
-
-    /** -----------------------------
-     * Export to PDF (.pdf)
-     * ----------------------------- */
-    const exportToPDF = () => {
-        try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('eHealthcare Export Summary', 14, 15);
-            doc.setFontSize(10);
-            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
-            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
-
-            const headers = ['Category', 'Priority', 'Date', 'Status'];
-            const tableData = activities.map(a => [
-                selectedCategory?.name || '',
-                getPriorityLabel(a.priority),
-                a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                a.status || ''
-            ]);
-
-            let y = 35;
-            const xStart = 14;
-            const colWidths = [40, 30, 30, 30];
-            const lineHeight = 7;
-            const pageHeight = doc.internal.pageSize.height;
-
-            // Header background
-            doc.setFillColor(41, 128, 185);
-            doc.setTextColor(255, 255, 255);
-            let x = xStart;
-            headers.forEach((header, i) => {
-                doc.rect(x, y - 5, colWidths[i], 8, 'F');
-                doc.text(header, x + 2, y);
-                x += colWidths[i];
-            });
-
-            doc.setTextColor(0, 0, 0);
-            y += 10;
-
-            // Rows
-            tableData.forEach(row => {
-                if (y > pageHeight - 20) {
-                    doc.addPage();
-                    y = 20;
-                }
-                x = xStart;
-                row.forEach((cell, i) => {
-                    doc.text(cell.toString().substring(0, 35), x + 2, y);
-                    x += colWidths[i];
-                });
-                y += lineHeight;
-            });
-
-            const fileName = `${selectedCategory?.name || 'ehealthcare_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
-
-            doc.save(fileName);
-            toast.success('PDF file exported successfully!');
-        } catch (error) {
-            console.error('Error exporting PDF:', error);
-            toast.error('Failed to export PDF file');
-        }
-    };
-
-    /** -----------------------------
-     * Dropdown menu
-     * ----------------------------- */
-    const exportItems = [
-        {
-            key: 'excel',
-            icon: <FileExcelOutlined />,
-            label: 'Export to Excel',
-            onClick: exportToExcel
-        },
-        {
-            key: 'pdf',
-            icon: <FilePdfOutlined />,
-            label: 'Export to PDF',
-            onClick: exportToPDF
-        }
-    ];
-
-    return (
-        <Dropdown
-            menu={{ items: exportItems }}
-            placement="bottomRight"
-            disabled={activities.length === 0}
-        >
-            <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                size="large"
-                disabled={activities.length === 0}
-            >
-                Export
-            </Button>
-        </Dropdown>
-    );
-};
-
 // Bulk Form Fields Component
-const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs }) => {
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs, allProfiles }) => {
     const updateRecord = (index, field, value) => {
         const newRecords = [...records];
         newRecords[index] = {
@@ -910,6 +720,29 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
                                 <Badge color={option.color} />
                                 {option.label}
                             </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+
+            {/* Responsible BDMs Selection - Show all profiles */}
+            <Form.Item
+                label="Responsible BDMs"
+            >
+                <Select
+                    mode="multiple"
+                    value={record.responsible_bdm_ids || []}
+                    onChange={(value) => updateRecord(index, 'responsible_bdm_ids', value)}
+                    placeholder="Select responsible BDMs"
+                    style={{ width: '100%' }}
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                    }
+                >
+                    {allProfiles.map(profile => (
+                        <Option key={profile.id} value={profile.id}>
+                            {profile.full_name || profile.email}
                         </Option>
                     ))}
                 </Select>
@@ -1058,15 +891,35 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
     );
 };
 
-// Excel Import Component - Updated to handle dd/mm/yyyy format
-const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete }) => {
+// Excel Import Modal Component - Updated with Responsible BDM warning
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
     const [importLoading, setImportLoading] = useState(false);
     const [uploadedData, setUploadedData] = useState([]);
     const [validationResults, setValidationResults] = useState([]);
 
-    // Download template function - Updated date format
+    // Check if category has responsible_bdm_ids field
+    const hasResponsibleBDMField = selectedCategory?.id && 
+        ['visit_plan', 'meetings'].includes(selectedCategory.id);
+
+    // Download template function - Updated with Responsible BDM warning
     const downloadTemplate = () => {
         try {
+            if (hasResponsibleBDMField) {
+                // Show warning for categories with responsible_bdm_ids
+                Modal.warning({
+                    title: 'Template Not Available',
+                    content: (
+                        <div>
+                            <p><strong>We cannot create a template for this category.</strong></p>
+                            <p>This category has a mandatory column "Responsible BDM" for assigning employees.</p>
+                            <p>Please use the "Bulk Records" feature to add multiple records with proper employee assignments.</p>
+                        </div>
+                    ),
+                    okText: 'Understood'
+                });
+                return;
+            }
+
             // Create template data structure based on category
             let templateData = [];
             let headers = [];
@@ -1143,7 +996,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         // Remove any extra spaces
         const cleanDateStr = dateStr.toString().trim();
 
-        // Try dd/mm/yyyy format firsts
+        // Try dd/mm/yyyy format first
         let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
         if (date.isValid()) {
             return date;
@@ -1166,6 +1019,11 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
     // Handle file upload
     const handleFileUpload = (file) => {
+        if (hasResponsibleBDMField) {
+            toast.warning('Excel import is not available for categories with Responsible BDM field. Use Bulk Records instead.');
+            return false;
+        }
+
         setImportLoading(true);
         const reader = new FileReader();
 
@@ -1267,7 +1125,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     break;
             }
 
-            // Optional fields
+            // Common fields
             validatedRow.status = row.Status || 'Scheduled';
 
             results.push({
@@ -1352,6 +1210,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     key="download"
                     icon={<DownloadOutlined />}
                     onClick={downloadTemplate}
+                    disabled={hasResponsibleBDMField}
                 >
                     Download Template
                 </Button>,
@@ -1361,7 +1220,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     icon={<UploadOutlined />}
                     onClick={importData}
                     loading={importLoading}
-                    disabled={uploadedData.length === 0}
+                    disabled={uploadedData.length === 0 || hasResponsibleBDMField}
                 >
                     Import {uploadedData.length} Records
                 </Button>
@@ -1370,94 +1229,349 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             destroyOnClose
         >
             <Space direction="vertical" style={{ width: '100%' }} size="large">
-                {/* Warning Alert */}
-                <Alert
-                    message="Important Notice"
-                    description={
-                        <div>
-                            <Text strong style={{ color: '#ff4d4f' }}>
-                                Responsible BGM (Business Goal Manager) data cannot be imported via Excel.
-                            </Text>
-                            <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                                <li>BGM assignments must be done manually in the system</li>
-                                <li>Excel import is for basic record data only</li>
-                                <li>After import, you may need to assign BGMs manually</li>
-                                <li>Download the template first to ensure correct format</li>
-                            </ul>
-                        </div>
-                    }
-                    type="warning"
-                    showIcon
-                />
-
-                {/* Upload Section */}
-                <Card size="small" title="Upload Excel File">
-                    <Upload.Dragger {...uploadProps}>
-                        <p className="ant-upload-drag-icon">
-                            <FileExcelOutlined />
-                        </p>
-                        <p className="ant-upload-text">
-                            Click or drag Excel file to this area to upload
-                        </p>
-                        <p className="ant-upload-hint">
-                            Support for .xlsx, .xls files only
-                        </p>
-                    </Upload.Dragger>
-                </Card>
-
-                {/* Validation Results */}
-                {validationResults.length > 0 && (
-                    <Card
-                        size="small"
-                        title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
-                    >
-                        <div style={{ maxHeight: '200px', overflow: 'auto' }}>
-                            {validationResults.map((result, index) => (
-                                <Alert
-                                    key={index}
-                                    message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
-                                    description={
-                                        result.errors.length > 0 ? (
-                                            <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                                {result.errors.map((error, errorIndex) => (
-                                                    <li key={errorIndex}>{error}</li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            'All fields are valid'
-                                        )
-                                    }
-                                    type={result.isValid ? 'success' : 'error'}
-                                    showIcon
-                                    style={{ marginBottom: 8 }}
-                                    size="small"
-                                />
-                            ))}
-                        </div>
-                    </Card>
+                {/* Warning Alert for categories with responsible_bdm_ids */}
+                {hasResponsibleBDMField && (
+                    <Alert
+                        message="Excel Import Not Available"
+                        description={
+                            <div>
+                                <Text strong style={{ color: '#ff4d4f' }}>
+                                    We cannot create a template for this category, because there is a mandatory column "Responsible BDM" for assigning employees.
+                                </Text>
+                                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                    <li>Use the "Bulk Records" feature to add multiple records with proper employee assignments</li>
+                                    <li>Responsible BDM assignments must be done manually in the system</li>
+                                    <li>This ensures proper tracking and accountability</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
+                        showIcon
+                    />
                 )}
 
-                {/* Instructions - Updated date format info */}
-                <Alert
-                    message="Import Instructions"
-                    description={
-                        <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                            <li>Download the template first to ensure correct format</li>
-                            <li>Required fields are marked with * in the template</li>
-                            <li>
-                                <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
-                            </li>
-                            <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
-                            <li>For multiple names, separate with commas</li>
-                            <li>Only valid records will be imported</li>
-                            <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
-                        </ul>
-                    }
-                    type="info"
-                    showIcon
-                />
+                {/* Upload Section */}
+                {!hasResponsibleBDMField && (
+                    <>
+                        <Card size="small" title="Upload Excel File">
+                            <Upload.Dragger {...uploadProps}>
+                                <p className="ant-upload-drag-icon">
+                                    <FileExcelOutlined />
+                                </p>
+                                <p className="ant-upload-text">
+                                    Click or drag Excel file to this area to upload
+                                </p>
+                                <p className="ant-upload-hint">
+                                    Support for .xlsx, .xls files only
+                                </p>
+                            </Upload.Dragger>
+                        </Card>
+
+                        {/* Validation Results */}
+                        {validationResults.length > 0 && (
+                            <Card
+                                size="small"
+                                title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                            >
+                                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                                    {validationResults.map((result, index) => (
+                                        <Alert
+                                            key={index}
+                                            message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                            description={
+                                                result.errors.length > 0 ? (
+                                                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                        {result.errors.map((error, errorIndex) => (
+                                                            <li key={errorIndex}>{error}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    'All fields are valid'
+                                                )
+                                            }
+                                            type={result.isValid ? 'success' : 'error'}
+                                            showIcon
+                                            style={{ marginBottom: 8 }}
+                                            size="small"
+                                        />
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Instructions */}
+                        <Alert
+                            message="Import Instructions"
+                            description={
+                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                    <li>Download the template first to ensure correct format</li>
+                                    <li>Required fields are marked with * in the template</li>
+                                    <li>
+                                        <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                                    </li>
+                                    <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                                    <li>Only valid records will be imported</li>
+                                    <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
+                                </ul>
+                            }
+                            type="info"
+                            showIcon
+                        />
+                    </>
+                )}
             </Space>
         </Modal>
+    );
+};
+
+// Export Button Component - Updated to remove PDF and add Word export
+const ExportButton = ({ 
+    activities = [], 
+    selectedCategory = null,
+    moduleName = '',
+    priorityLabels = {},
+    allProfiles = []
+}) => {
+    const priorityOptions = [
+        { value: 1, label: 'Low', color: 'green' },
+        { value: 2, label: 'Normal', color: 'blue' },
+        { value: 3, label: 'Medium', color: 'orange' },
+        { value: 4, label: 'High', color: 'red' },
+        { value: 5, label: 'Critical', color: 'purple' }
+    ];
+
+    const getPriorityLabel = (priority) => {
+        const option = priorityOptions.find(opt => opt.value === priority);
+        return option ? option.label : 'Normal';
+    };
+
+    const getProfileName = (profileId) => {
+        const profile = allProfiles.find(p => p.id === profileId);
+        return profile ? profile.full_name || profile.email : 'Unknown';
+    };
+
+    /** -----------------------------
+     * Export to Excel (.xlsx)
+     * ----------------------------- */
+    const exportToExcel = () => {
+        try {
+            const dataForExport = activities.map(activity => {
+                // Common structure shared by eHealthcare modules
+                const base = {
+                    'Category': selectedCategory?.name || '',
+                    'Priority': getPriorityLabel(activity.priority),
+                    'Responsible BDM(s)': Array.isArray(activity.responsible_bdm_names)
+                        ? activity.responsible_bdm_names.join(', ')
+                        : activity.responsible_bdm_names || '',
+                    'Status': activity.status || '',
+                    'Date': activity.date
+                        ? dayjs(activity.date).format('YYYY-MM-DD')
+                        : ''
+                };
+
+                // Extend base based on table type
+                switch (selectedCategory?.id) {
+                    case 'visit_plan':
+                        return {
+                            ...base,
+                            'Name': Array.isArray(activity.name) ? activity.name.join(', ') : activity.name,
+                            'Area': activity.area || '',
+                            'Customer': activity.customer || '',
+                            'Purpose': activity.purpose || '',
+                            'ROI': activity.roi || ''
+                        };
+
+                    case 'meetings':
+                        return {
+                            ...base,
+                            'Subject': activity.subject || '',
+                            'Company': activity.company || ''
+                        };
+
+                    default:
+                        return base;
+                }
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'eHealthcare Export');
+
+            // Auto-size columns
+            const colWidths = [];
+            if (dataForExport.length > 0) {
+                Object.keys(dataForExport[0]).forEach(key => {
+                    const maxLength = Math.max(
+                        key.length,
+                        ...dataForExport.map(row => String(row[key] || '').length)
+                    );
+                    colWidths.push({ wch: Math.min(maxLength + 2, 50) });
+                });
+                worksheet['!cols'] = colWidths;
+            }
+
+            const fileName = `${selectedCategory?.name || 'ehealthcare_export'}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success(`Excel file exported successfully! (${dataForExport.length} records)`);
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+            toast.error('Failed to export Excel file');
+        }
+    };
+
+    /** -----------------------------
+     * Export to Word (.docx)
+     * ----------------------------- */
+    const exportToWord = async () => {
+        try {
+            // Create table rows for Word document
+            const tableRows = activities.map((activity, index) => {
+                const cells = [];
+
+                // Add basic information cells based on category
+                switch (selectedCategory?.id) {
+                    case 'visit_plan':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(Array.isArray(activity.name) ? activity.name.join(', ') : activity.name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.area || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.customer || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.purpose || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    case 'meetings':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.subject || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    default:
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                }
+
+                return new TableRow({ children: cells });
+            });
+
+            // Create headers based on category
+            let headers = [];
+            switch (selectedCategory?.id) {
+                case 'visit_plan':
+                    headers = ['Name', 'Area', 'Customer', 'Purpose', 'Date', 'Priority'];
+                    break;
+                case 'meetings':
+                    headers = ['Subject', 'Company', 'Date', 'Status', 'Priority'];
+                    break;
+                default:
+                    headers = ['Date', 'Priority'];
+            }
+
+            const headerRow = new TableRow({
+                children: headers.map(header => 
+                    new TableCell({ 
+                        children: [new Paragraph({ 
+                            children: [new TextRun({ text: header, bold: true })] 
+                        })] 
+                    })
+                )
+            });
+
+            const table = new DocTable({
+                width: {
+                    size: 100,
+                    type: WidthType.PERCENTAGE,
+                },
+                rows: [headerRow, ...tableRows],
+            });
+
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${selectedCategory?.name || 'eHealthcare'} Export - ${dayjs().format('DD/MM/YYYY')}`,
+                                    bold: true,
+                                    size: 28,
+                                }),
+                            ],
+                        }),
+                        new Paragraph({ text: "" }), // Empty line
+                        table,
+                        new Paragraph({ text: "" }), // Empty line
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `Total Records: ${activities.length}`,
+                                    italics: true,
+                                }),
+                            ],
+                        }),
+                    ],
+                }],
+            });
+
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${selectedCategory?.name || 'ehealthcare_export'}_${dayjs().format('YYYY-MM-DD')}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            toast.success('Word document exported successfully!');
+        } catch (error) {
+            console.error('Error exporting Word document:', error);
+            toast.error('Failed to export Word document');
+        }
+    };
+
+    /** -----------------------------
+     * Dropdown menu
+     * ----------------------------- */
+    const exportItems = [
+        { 
+            key: 'excel', 
+            icon: <FileExcelOutlined />, 
+            label: 'Export to Excel', 
+            onClick: exportToExcel 
+        },
+        { 
+            key: 'word', 
+            icon: <FileWordOutlined />, 
+            label: 'Export to Word', 
+            onClick: exportToWord 
+        }
+    ];
+
+    return (
+        <Dropdown 
+            menu={{ items: exportItems }} 
+            placement="bottomRight"
+            disabled={activities.length === 0}
+        >
+            <Button 
+                type="primary" 
+                icon={<DownloadOutlined />} 
+                size="large"
+                disabled={activities.length === 0}
+            >
+                Export
+            </Button>
+        </Dropdown>
     );
 };
 
@@ -1526,10 +1640,10 @@ const EHealthcare = () => {
             id: 'meetings',
             name: 'Meetings',
             table: 'ehealthcare_meetings',
-            type: 'Healthcare Meeting',
-            icon: <HeartOutlined />,
+            type: 'Meeting',
+            icon: <CalendarOutlined />,
             dateField: 'date',
-            color: '#fa8c16',
+            color: '#52c41a',
             hasTimeFields: false
         }
     ];
@@ -1696,7 +1810,7 @@ const EHealthcare = () => {
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchProfiles(),
+                fetchAllProfiles(), // Updated to fetch all profiles
                 fetchEHealthcareUsers()
             ]);
 
@@ -1737,7 +1851,8 @@ const EHealthcare = () => {
         }
     };
 
-    const fetchProfiles = async () => {
+    // Updated to fetch all profiles from the database
+    const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -1747,57 +1862,17 @@ const EHealthcare = () => {
             if (error) throw error;
             safeSetState(setProfiles, data || []);
         } catch (error) {
-            handleError(error, 'fetching profiles');
+            handleError(error, 'fetching all profiles');
             safeSetState(setProfiles, []);
         }
     };
 
     const fetchEHealthcareUsers = async () => {
         try {
-            // First get the eHealthcare department ID
-            const { data: deptData, error: deptError } = await supabase
-                .from('departments')
-                .select('id')
-                .eq('name', 'E-Healthcare')
-                .single();
-
-            if (deptError) {
-                // If eHealthcare department doesn't exist, try case-insensitive search
-                const { data: deptDataAlt, error: deptErrorAlt } = await supabase
-                    .from('departments')
-                    .select('id')
-                    .ilike('name', '%E-Healthcare%')
-                    .single();
-
-                if (deptErrorAlt) throw deptErrorAlt;
-                if (!deptDataAlt) {
-                    toast.warning('eHealthcare department not found. Using all users as fallback.');
-                    // Fallback to all users
-                    const { data: allUsers, error: usersError } = await supabase
-                        .from('profiles')
-                        .select('id, full_name, email, department_id')
-                        .order('full_name');
-
-                    if (usersError) throw usersError;
-                    safeSetState(setEHealthcareUsers, allUsers || []);
-                    return;
-                }
-
-                safeSetState(setEHealthcareUsers, []);
-                return;
-            }
-
-            if (!deptData) {
-                toast.warning('eHealthcare department not found');
-                safeSetState(setEHealthcareUsers, []);
-                return;
-            }
-
-            // Then get all users in eHealthcare department
+            // Get all users in eHealthcare department
             const { data: usersData, error: usersError } = await supabase
                 .from('profiles')
                 .select('id, full_name, email, department_id')
-                .eq('department_id', deptData.id)
                 .order('full_name');
 
             if (usersError) throw usersError;
@@ -1929,11 +2004,19 @@ const EHealthcare = () => {
                 let categoryActivities = [];
 
                 try {
-                    // Get all activities for this category
-                    const { data } = await query;
-                    if (data) {
-                        // For eHealthcare, we'll include all activities since there's no specific user assignment
-                        categoryActivities = data;
+                    // Different filtering strategies for each category
+                    switch (category.id) {
+                        case 'visit_plan':
+                        case 'meetings':
+                            // These use responsible_bdm_ids field (uuid array)
+                            const { data: uuidArrayData } = await query.contains('responsible_bdm_ids', [userId]);
+                            categoryActivities = uuidArrayData || [];
+                            break;
+
+                        default:
+                            const { data: defaultData } = await query;
+                            categoryActivities = defaultData || [];
+                            break;
                     }
 
                     console.log(`Category ${category.name} activities:`, categoryActivities.length);
@@ -2159,7 +2242,9 @@ const EHealthcare = () => {
 
             // Prepare data for submission
             const submitData = validRecords.map(record => {
-                const preparedRecord = { ...record };
+                const preparedRecord = { 
+                    ...record
+                };
 
                 // Convert dayjs objects to proper formats
                 Object.keys(preparedRecord).forEach(key => {
@@ -2248,7 +2333,9 @@ const EHealthcare = () => {
             }
 
             // Prepare data for submission
-            const submitData = { ...values };
+            const submitData = {
+                ...values
+            };
 
             // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
@@ -2383,40 +2470,29 @@ const EHealthcare = () => {
             switch (selectedCategory.id) {
                 case 'visit_plan':
                     return [
-                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
-                        {
-                            title: 'Name',
-                            dataIndex: 'name',
-                            key: 'name',
-                            width: 150,
-                            render: (names) => {
-                                if (Array.isArray(names)) {
-                                    return names.join(', ');
-                                }
-                                return names || '-';
-                            }
-                        },
+                        { title: 'Name', dataIndex: 'name', key: 'name', width: 200, render: (names) => Array.isArray(names) ? names.join(', ') : names },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
                         { title: 'Customer', dataIndex: 'customer', key: 'customer', width: 150 },
                         { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
                         { title: 'ROI', dataIndex: 'roi', key: 'roi', width: 100 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'meetings':
                     return [
-                        priorityColumn,
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 default:
-                    return [];
+                    return [priorityColumn, actionColumn];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -2466,6 +2542,28 @@ const EHealthcare = () => {
                             ))}
                         </Select>
                     </Form.Item>
+
+                    {/* Responsible BDMs Selection - Updated to show all profiles */}
+                    <Form.Item
+                        name="responsible_bdm_ids"
+                        label="Responsible BDMs"
+                    >
+                        <Select
+                            mode="multiple"
+                            placeholder="Select responsible BDMs"
+                            style={{ width: '100%' }}
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
+                        >
+                            {profiles.map(profile => (
+                                <Option key={profile.id} value={profile.id}>
+                                    {profile.full_name || profile.email}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
                 </>
             );
 
@@ -2477,7 +2575,7 @@ const EHealthcare = () => {
                             <Form.Item
                                 name="name"
                                 label="Name"
-                                rules={[{ required: true, message: 'Please enter name(s)' }]}
+                                rules={[{ required: true, message: 'Please enter name' }]}
                             >
                                 <Select
                                     mode="tags"
@@ -2620,8 +2718,8 @@ const EHealthcare = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{
-                    marginBottom: 16,
+                style={{ 
+                    marginBottom: 16, 
                     backgroundColor: '#fafafa',
                     borderRadius: '12px',
                     border: '2px solid #1890ff20'
@@ -2722,8 +2820,8 @@ const EHealthcare = () => {
                     style={{ marginBottom: 24 }}
                     extra={
                         <Space>
-                            <Radio.Group
-                                value={viewMode}
+                            <Radio.Group 
+                                value={viewMode} 
                                 onChange={(e) => setViewMode(e.target.value)}
                                 buttonStyle="solid"
                             >
@@ -2735,7 +2833,7 @@ const EHealthcare = () => {
                                 </Radio.Button>
                             </Radio.Group>
 
-                            {/* Add Bulk Mode Toggle */}
+                            {/* Bulk Mode Toggle */}
                             <Switch
                                 checkedChildren="Multiple"
                                 unCheckedChildren="Single"
@@ -2870,6 +2968,7 @@ const EHealthcare = () => {
                                     priorityLabels={Object.fromEntries(
                                         priorityOptions.map(opt => [opt.value, opt.label])
                                     )}
+                                    allProfiles={profiles}
                                 />
                             )}
                             <Button
@@ -2926,11 +3025,11 @@ const EHealthcare = () => {
                             <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
                             <Title level={4}>Ready to Export Data</Title>
                             <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or Word format.
                             </Text>
                             <Alert
                                 message="Excel View Mode"
-                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                description="In Excel View mode, you can export the data to XLSX or Word format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
                                 type="info"
                                 showIcon
                             />
@@ -2988,6 +3087,7 @@ const EHealthcare = () => {
                             category={selectedCategory}
                             priorityOptions={priorityOptions}
                             safeDayjs={safeDayjs}
+                            allProfiles={profiles}
                         />
                         <Divider />
                         <div style={{ textAlign: 'right' }}>
@@ -3040,6 +3140,7 @@ const EHealthcare = () => {
                 onCancel={() => setExcelImportModalVisible(false)}
                 selectedCategory={selectedCategory}
                 onImportComplete={handleExcelImportComplete}
+                allProfiles={profiles}
             />
 
             {/* User Availability Modal */}
@@ -3170,12 +3271,13 @@ const EHealthcare = () => {
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
                                     <li>In Web View: Use Edit/Delete actions and Discuss features</li>
-                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
+                                    <li>In Excel View: Export data to XLSX or Word for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
                                     <li>Use "Check Team Availability" to view team schedules</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
                                     <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
                                     <li>Use "Upload Excel" to import data from Excel files with validation</li>
+                                    <li>For categories with Responsible BDM field, use Bulk Records instead of Excel import</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different eHealthcare activities recorded in the system.

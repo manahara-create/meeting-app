@@ -168,7 +168,7 @@ const CategoryCard = ({ category, isSelected, onClick, loading = false }) => (
         }}>
             {category.icon}
         </div>
-        <Title level={6} style={{ margin: 0, color: isSelected ? '#1890ff' : '#000' }}>
+        <Title level={5} style={{ margin: 0, color: isSelected ? '#1890ff' : '#000' }}>
             {category.name}
         </Title>
         <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -879,7 +879,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 case 'visit_plan':
                     headers = ['Date*', 'Name*', 'Area', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '16/01/2024',
+                        'Date*': '15/01/2024',
                         'Name*': 'John Doe',
                         'Area': 'North Region',
                         'Status': 'Scheduled',
@@ -890,7 +890,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 case 'meetings':
                     headers = ['Date*', 'Subject*', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '16/01/2024',
+                        'Date*': '15/01/2024',
                         'Subject*': 'Quarterly Review',
                         'Status': 'Planned',
                         'Priority*': '2'
@@ -900,7 +900,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 case 'special_task':
                     headers = ['Date*', 'Task*', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '16/01/2024',
+                        'Date*': '15/01/2024',
                         'Task*': 'Complete project documentation',
                         'Status': 'In Progress',
                         'Priority*': '3'
@@ -910,7 +910,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 default:
                     headers = ['Date*', 'Status', 'Priority*'];
                     templateData = [{
-                        'Date*': '16/01/2024',
+                        'Date*': '15/01/2024',
                         'Status': 'Active',
                         'Priority*': '2'
                     }];
@@ -922,7 +922,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             // Add instructions sheet
             const instructions = {
                 'Instructions': 'Fill in the data below. Fields marked with * are required.',
-                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 6=Critical',
+                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
                 'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD'
             };
 
@@ -1559,7 +1559,7 @@ const Cluster6 = () => {
 
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-    const [Cluster6Users, setCluster6Users] = useState([]);
+    const [cluster6Users, setCluster6Users] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [userSchedule, setUserSchedule] = useState([]);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -1580,7 +1580,7 @@ const Cluster6 = () => {
     const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
 
     // Cluster 6 Categories configuration
-    const Cluster6Categories = [
+    const cluster6Categories = [
         {
             id: 'visit_plan',
             name: 'Visit Plan',
@@ -1971,7 +1971,7 @@ const Cluster6 = () => {
             let allActivities = [];
 
             // Get user details
-            const user = Cluster6Users.find(u => u.id === userId);
+            const user = cluster6Users.find(u => u.id === userId);
             if (!user) {
                 console.warn('User not found in Cluster 6 users list');
                 safeSetState(setUserSchedule, []);
@@ -1994,7 +1994,7 @@ const Cluster6 = () => {
             if (personalError) console.error('Personal meetings error:', personalError);
 
             // 2. Cluster 6 activities
-            for (const category of Cluster6Categories) {
+            for (const category of cluster6Categories) {
                 console.log(`Checking category: ${category.name}`);
 
                 let query = supabase
@@ -2776,12 +2776,12 @@ const Cluster6 = () => {
                 style={{ marginBottom: 24 }}
                 extra={
                     <Tag color="blue">
-                        {Cluster6Categories.length} Categories Available
+                        {cluster6Categories.length} Categories Available
                     </Tag>
                 }
             >
                 <Row gutter={[16, 16]}>
-                    {Cluster6Categories.map((category) => (
+                    {cluster6Categories.map((category) => (
                         <Col xs={24} sm={12} md={8} lg={6} key={category.id}>
                             <CategoryCard
                                 category={category}
@@ -3163,14 +3163,14 @@ const Cluster6 = () => {
 
                     {/* Cluster 6 Users List */}
                     <Card size="small" title="Cluster 6 Team Members">
-                        {Cluster6Users.length === 0 ? (
+                        {cluster6Users.length === 0 ? (
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description="No Cluster 6 team members found"
                             />
                         ) : (
                             <List
-                                dataSource={Cluster6Users}
+                                dataSource={cluster6Users}
                                 renderItem={user => (
                                     <List.Item
                                         actions={[

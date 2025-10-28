@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown, Upload
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -15,9 +15,8 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
-    RocketOutlined, CodeOutlined, FileSearchOutlined, BuildOutlined,
-    UsergroupAddOutlined, BookOutlined, TrophyOutlined
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined,
+    UploadOutlined, FileAddOutlined, BookOutlined, TrophyOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -27,7 +26,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, Table as DocTable, TableRow, TableCell, WidthType } from 'docx';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -177,510 +176,781 @@ const CategoryCard = ({ category, isSelected, onClick, loading = false }) => (
     </Card>
 );
 
-// Chat Message Component
-const ChatMessage = ({ message, currentUser, profiles }) => {
-    const senderProfile = profiles.find(p => p.id === message.sender_id);
+// Bulk Form Fields Component
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs, allProfiles }) => {
+    const updateRecord = (index, field, value) => {
+        const newRecords = [...records];
+        newRecords[index] = {
+            ...newRecords[index],
+            [field]: value
+        };
+        onChange(newRecords);
+    };
+
+    const addRecord = () => {
+        onChange([...records, {}]);
+    };
+
+    const removeRecord = (index) => {
+        if (records.length > 1) {
+            const newRecords = records.filter((_, i) => i !== index);
+            onChange(newRecords);
+        }
+    };
+
+    const renderCommonFields = (record, index) => (
+        <>
+            <Form.Item
+                label="Priority"
+                required
+            >
+                <Select
+                    value={record.priority || 2}
+                    onChange={(value) => updateRecord(index, 'priority', value)}
+                    placeholder="Select priority"
+                >
+                    {priorityOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                            <Space>
+                                <Badge color={option.color} />
+                                {option.label}
+                            </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        </>
+    );
+
+    const renderCategorySpecificFields = (record, index) => {
+        switch (category?.id) {
+            case 'meetings':
+                return (
+                    <>
+                        <Form.Item
+                            label="Meeting Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select meeting date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Start Time"
+                        >
+                            <TimePicker
+                                value={record.start_time ? safeDayjs(record.start_time, 'HH:mm') : null}
+                                onChange={(time) => updateRecord(index, 'start_time', time)}
+                                style={{ width: '100%' }}
+                                format="HH:mm"
+                                placeholder="Select start time"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="End Time"
+                        >
+                            <TimePicker
+                                value={record.end_time ? safeDayjs(record.end_time, 'HH:mm') : null}
+                                onChange={(time) => updateRecord(index, 'end_time', time)}
+                                style={{ width: '100%' }}
+                                format="HH:mm"
+                                placeholder="Select end time"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Subject"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.subject || ''}
+                                onChange={(e) => updateRecord(index, 'subject', e.target.value)}
+                                placeholder="Enter meeting subject"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'training':
+                return (
+                    <>
+                        <Form.Item
+                            label="Training Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select training date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Start Time"
+                        >
+                            <TimePicker
+                                value={record.start_time ? safeDayjs(record.start_time, 'HH:mm') : null}
+                                onChange={(time) => updateRecord(index, 'start_time', time)}
+                                style={{ width: '100%' }}
+                                format="HH:mm"
+                                placeholder="Select start time"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="End Time"
+                        >
+                            <TimePicker
+                                value={record.end_time ? safeDayjs(record.end_time, 'HH:mm') : null}
+                                onChange={(time) => updateRecord(index, 'end_time', time)}
+                                style={{ width: '100%' }}
+                                format="HH:mm"
+                                placeholder="Select end time"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Department"
+                        >
+                            <Input
+                                value={record.department || ''}
+                                onChange={(e) => updateRecord(index, 'department', e.target.value)}
+                                placeholder="Enter department"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Training Program"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.training_program || ''}
+                                onChange={(e) => updateRecord(index, 'training_program', e.target.value)}
+                                placeholder="Enter training program"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Trainer Names"
+                        >
+                            <Select
+                                mode="tags"
+                                value={Array.isArray(record.trainer_names) ? record.trainer_names : []}
+                                onChange={(value) => updateRecord(index, 'trainer_names', value)}
+                                placeholder="Enter trainer names (press Enter to add multiple)"
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'special_events_n_tasks':
+                return (
+                    <>
+                        <Form.Item
+                            label="Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Task"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.task || ''}
+                                onChange={(e) => updateRecord(index, 'task', e.target.value)}
+                                placeholder="Enter task"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Date Range (days)"
+                        >
+                            <InputNumber
+                                value={record.date_range || ''}
+                                onChange={(value) => updateRecord(index, 'date_range', value)}
+                                style={{ width: '100%' }}
+                                placeholder="Enter date range in days"
+                                min={1}
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
 
     return (
-        <div style={{
-            display: 'flex',
-            marginBottom: 16,
-            justifyContent: message.sender_id === currentUser?.id ? 'flex-end' : 'flex-start'
-        }}>
-            <div style={{
-                maxWidth: '70%',
-                display: 'flex',
-                flexDirection: message.sender_id === currentUser?.id ? 'row-reverse' : 'row',
-                alignItems: 'flex-start'
-            }}>
-                <div>
-                    <div style={{
-                        padding: '8px 12px',
-                        borderRadius: '12px',
-                        backgroundColor: message.sender_id === currentUser?.id ? '#1890ff' : '#f0f0f0',
-                        color: message.sender_id === currentUser?.id ? 'white' : 'black'
-                    }}>
-                        {message.content}
-                    </div>
-                    <Text type="secondary" style={{ fontSize: '12px', marginTop: 4, display: 'block' }}>
-                        {senderProfile?.full_name || 'Unknown User'} • {dayjs(message.created_at).format('DD/MM/YYYY HH:mm')}
-                        {message.read_at && ` • Read ${dayjs(message.read_at).format('DD/MM/YYYY HH:mm')}`}
-                    </Text>
-                </div>
-            </div>
+        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {records.map((record, index) => (
+                <Card
+                    key={index}
+                    title={`Record ${index + 1}`}
+                    size="small"
+                    style={{ marginBottom: 16, border: '1px solid #d9d9d9' }}
+                    extra={
+                        records.length > 1 && (
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeRecord(index)}
+                                size="small"
+                            >
+                                Remove
+                            </Button>
+                        )
+                    }
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {renderCommonFields(record, index)}
+                        {renderCategorySpecificFields(record, index)}
+                    </Space>
+                </Card>
+            ))}
+
+            <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={addRecord}
+                style={{ width: '100%' }}
+            >
+                Add Another Record
+            </Button>
+
+            <Alert
+                message={`You are creating ${records.length} record(s) at once`}
+                description="All records will be saved when you click the 'Create Records' button."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+            />
         </div>
     );
 };
 
-// Discussion Modal Component
-const DiscussionModal = React.memo(({
-    visible,
-    onCancel,
-    record,
-    category,
-    currentUser,
-    profiles
-}) => {
-    const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [sending, setSending] = useState(false);
-    const [subscription, setSubscription] = useState(null);
+// Excel Import Modal Component
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
+    const [importLoading, setImportLoading] = useState(false);
+    const [uploadedData, setUploadedData] = useState([]);
+    const [validationResults, setValidationResults] = useState([]);
 
-    // Get the correct feedback table name for HR
-    const getFeedbackTable = useCallback(() => {
-        if (!category) return null;
+    // Check if category has responsible_bdm_ids field
+    const hasResponsibleBDMField = selectedCategory?.hasResponsibleBDM || false;
 
-        const tableMap = {
-            'meetings': 'hr_meetings_fb',
-            'training': 'hr_training_fb',
-            'special_events_n_tasks': 'hr_special_events_n_tasks_fb'
+    // Download template function
+    const downloadTemplate = () => {
+        try {
+            if (hasResponsibleBDMField) {
+                // Show warning for categories with responsible_bdm_ids
+                Modal.warning({
+                    title: 'Template Not Available',
+                    content: (
+                        <div>
+                            <p><strong>We cannot create a template for this category.</strong></p>
+                            <p>This category has a mandatory column "Responsible BDM" for assigning employees.</p>
+                            <p>Please use the "Bulk Records" feature to add multiple records with proper employee assignments.</p>
+                        </div>
+                    ),
+                    okText: 'Understood'
+                });
+                return;
+            }
+
+            // Create template data structure based on category
+            let templateData = [];
+            let headers = [];
+
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    headers = ['Date*', 'Start Time', 'End Time', 'Subject*', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Start Time': '09:00',
+                        'End Time': '10:00',
+                        'Subject*': 'Team Meeting',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'training':
+                    headers = ['Date*', 'Start Time', 'End Time', 'Department', 'Training Program*', 'Trainer Names', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Start Time': '09:00',
+                        'End Time': '17:00',
+                        'Department': 'HR',
+                        'Training Program*': 'Leadership Training',
+                        'Trainer Names': 'John Doe, Jane Smith',
+                        'Status': 'Scheduled',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'special_events_n_tasks':
+                    headers = ['Date*', 'Task*', 'Status', 'Date Range', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Task*': 'Annual Review',
+                        'Status': 'In Progress',
+                        'Date Range': '5',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                default:
+                    headers = ['Date*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Status': 'Active',
+                        'Priority*': '2'
+                    }];
+            }
+
+            // Add instructions row
+            const instructions = {
+                'Instructions': 'Fill in the data below. Fields marked with * are required.',
+                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
+                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD',
+                'Time Format': 'HH:mm (e.g., 09:00)'
+            };
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+
+            // Add instructions sheet
+            const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+
+            // Add data template sheet
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+            // Auto-size columns
+            const colWidths = headers.map(header => ({ wch: Math.max(header.length + 2, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            const fileName = `${selectedCategory?.name || 'hr'}_import_template.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success('Template downloaded successfully!');
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            toast.error('Failed to download template');
+        }
+    };
+
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const cleanDateStr = dateStr.toString().trim();
+        
+        // Try dd/mm/yyyy format first
+        let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
+        if (date.isValid()) return date;
+        
+        // Try yyyy-mm-dd format
+        date = dayjs(cleanDateStr, 'YYYY-MM-DD', true);
+        if (date.isValid()) return date;
+        
+        // Try other common formats
+        date = dayjs(cleanDateStr);
+        return date.isValid() ? date : null;
+    };
+
+    const parseTime = (timeStr) => {
+        if (!timeStr) return null;
+        const cleanTimeStr = timeStr.toString().trim();
+        
+        // Try HH:mm format
+        let time = dayjs(cleanTimeStr, 'HH:mm', true);
+        if (time.isValid()) return time.format('HH:mm:ss');
+        
+        // Try HH:mm:ss format
+        time = dayjs(cleanTimeStr, 'HH:mm:ss', true);
+        if (time.isValid()) return time.format('HH:mm:ss');
+        
+        return null;
+    };
+
+    // Handle file upload
+    const handleFileUpload = (file) => {
+        if (hasResponsibleBDMField) {
+            toast.warning('Excel import is not available for categories with Responsible BDM field. Use Bulk Records instead.');
+            return false;
+        }
+
+        setImportLoading(true);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Get first worksheet
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    toast.error('The uploaded file is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Validate data
+                const validatedData = validateExcelData(jsonData);
+                setUploadedData(validatedData.validRows);
+                setValidationResults(validatedData.results);
+
+                if (validatedData.validRows.length === 0) {
+                    toast.error('No valid data found in the uploaded file');
+                } else {
+                    toast.success(`Found ${validatedData.validRows.length} valid records out of ${jsonData.length}`);
+                }
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                toast.error('Failed to read Excel file');
+            } finally {
+                setImportLoading(false);
+            }
         };
 
-        return tableMap[category.id] || null;
-    }, [category]);
+        reader.readAsArrayBuffer(file);
+        return false; // Prevent default upload behavior
+    };
 
-    const feedbackTable = getFeedbackTable();
+    // Validate Excel data
+    const validateExcelData = (data) => {
+        const results = [];
+        const validRows = [];
 
-    const fetchMessages = useCallback(async () => {
-        if (!record?.id || !category || !feedbackTable) {
-            console.warn('Missing required data for fetching messages:', { record, category, feedbackTable });
+        data.forEach((row, index) => {
+            const errors = [];
+            const validatedRow = {};
+
+            // Check required fields based on category
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Subject*'] && !row.Subject) errors.push('Subject is required');
+                    else validatedRow.subject = row['Subject*'] || row.Subject;
+
+                    if (row['Start Time'] || row['Start Time*']) {
+                        const time = parseTime(row['Start Time'] || row['Start Time*']);
+                        if (time) validatedRow.start_time = time;
+                    }
+                    if (row['End Time'] || row['End Time*']) {
+                        const time = parseTime(row['End Time'] || row['End Time*']);
+                        if (time) validatedRow.end_time = time;
+                    }
+                    break;
+
+                case 'training':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Training Program*'] && !row['Training Program']) errors.push('Training Program is required');
+                    else validatedRow.training_program = row['Training Program*'] || row['Training Program'];
+
+                    if (row['Start Time'] || row['Start Time*']) {
+                        const time = parseTime(row['Start Time'] || row['Start Time*']);
+                        if (time) validatedRow.start_time = time;
+                    }
+                    if (row['End Time'] || row['End Time*']) {
+                        const time = parseTime(row['End Time'] || row['End Time*']);
+                        if (time) validatedRow.end_time = time;
+                    }
+
+                    validatedRow.department = row.Department || '';
+                    validatedRow.status = row.Status || 'Scheduled';
+                    
+                    if (row['Trainer Names']) {
+                        validatedRow.trainer_names = Array.isArray(row['Trainer Names']) 
+                            ? row['Trainer Names'] 
+                            : row['Trainer Names'].split(',').map(name => name.trim());
+                    }
+                    break;
+
+                case 'special_events_n_tasks':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Task*'] && !row.Task) errors.push('Task is required');
+                    else validatedRow.task = row['Task*'] || row.Task;
+
+                    validatedRow.status = row.Status || 'Active';
+                    validatedRow.date_range = row['Date Range'] || null;
+                    break;
+            }
+
+            // Priority validation
+            if (!row.Priority && !row['Priority*']) {
+                errors.push('Priority is required');
+            } else {
+                const priority = parseInt(row.Priority || row['Priority*']);
+                if (isNaN(priority) || priority < 1 || priority > 5) {
+                    errors.push('Priority must be between 1-5');
+                } else {
+                    validatedRow.priority = priority;
+                }
+            }
+
+            results.push({
+                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                data: validatedRow,
+                errors,
+                isValid: errors.length === 0
+            });
+
+            if (errors.length === 0) {
+                validRows.push(validatedRow);
+            }
+        });
+
+        return { results, validRows };
+    };
+
+    // Import validated data
+    const importData = async () => {
+        if (uploadedData.length === 0) {
+            toast.warning('No valid data to import');
             return;
         }
 
-        setLoading(true);
+        setImportLoading(true);
         try {
             const { data, error } = await supabase
-                .from(feedbackTable)
-                .select('*')
-                .eq('meeting_id', record.id)
-                .order('created_at', { ascending: true });
+                .from(selectedCategory.table)
+                .insert(uploadedData)
+                .select();
 
             if (error) throw error;
-            setMessages(data || []);
-        } catch (error) {
-            console.error('Error fetching messages:', error);
-            toast.error('Failed to load messages');
-        } finally {
-            setLoading(false);
-        }
-    }, [record, category, feedbackTable]);
 
-    const setupRealtimeSubscription = useCallback(() => {
-        if (!record?.id || !feedbackTable) return;
-
-        try {
-            const subscription = supabase
-                .channel(`discussion_${record.id}`)
-                .on(
-                    'postgres_changes',
+            // Send notifications for each imported record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'hr',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
                     {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: feedbackTable,
-                        filter: `meeting_id=eq.${record.id}`
-                    },
-                    (payload) => {
-                        setMessages(prev => [...prev, payload.new]);
+                        tableName: selectedCategory.table,
+                        userId: 'excel-import',
+                        source: 'excel_import'
                     }
-                )
-                .subscribe();
+                );
+            }
 
-            setSubscription(subscription);
+            toast.success(`Successfully imported ${data.length} records`);
+            onImportComplete();
+            onCancel();
         } catch (error) {
-            console.error('Error setting up realtime subscription:', error);
-        }
-    }, [record, feedbackTable]);
-
-    const sendMessage = async () => {
-        if (!newMessage.trim() || !currentUser || !record?.id || !feedbackTable) {
-            toast.warning('Cannot send message: Missing required data');
-            return;
-        }
-
-        setSending(true);
-        try {
-            const { error } = await supabase
-                .from(feedbackTable)
-                .insert([{
-                    meeting_id: record.id,
-                    sender_id: currentUser.id,
-                    content: newMessage.trim(),
-                    created_at: new Date().toISOString()
-                }]);
-
-            if (error) throw error;
-
-            await notifyDepartmentOperation(
-                'hr',
-                category.name,
-                NOTIFICATION_TYPES.DISCUSSION,
-                record,
-                {
-                    tableName: feedbackTable,
-                    userId: currentUser.id,
-                    message: 'New message in discussion'
-                }
-            );
-
-            setNewMessage('');
-        } catch (error) {
-            console.error('Error sending message:', error);
-            toast.error('Failed to send message');
+            console.error('Error importing data:', error);
+            toast.error('Failed to import data');
         } finally {
-            setSending(false);
+            setImportLoading(false);
         }
     };
 
-    const markMessagesAsRead = useCallback(async () => {
-        if (!currentUser || messages.length === 0 || !feedbackTable) return;
-
-        try {
-            const unreadMessages = messages.filter(
-                msg => msg.sender_id !== currentUser.id && !msg.read_at
-            );
-
-            if (unreadMessages.length === 0) return;
-
-            const { error } = await supabase
-                .from(feedbackTable)
-                .update({ read_at: new Date().toISOString() })
-                .in('id', unreadMessages.map(msg => msg.id));
-
-            if (error) throw error;
-        } catch (error) {
-            console.error('Error marking messages as read:', error);
-        }
-    }, [currentUser, messages, feedbackTable]);
-
-    useEffect(() => {
-        if (visible && record && category) {
-            fetchMessages();
-            setupRealtimeSubscription();
-        }
-
-        return () => {
-            if (subscription) {
-                subscription.unsubscribe();
-            }
-        };
-    }, [visible, record, category, fetchMessages, setupRealtimeSubscription]);
-
-    useEffect(() => {
-        if (messages.length > 0) {
-            markMessagesAsRead();
-        }
-    }, [messages, markMessagesAsRead]);
-
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    };
-
-    // Don't render if required data is missing
-    if (!category || !record) {
-        return (
-            <Modal
-                title="Discussion"
-                open={visible}
-                onCancel={onCancel}
-                footer={null}
-                width={700}
-            >
-                <Alert
-                    message="Unable to load discussion"
-                    description="Required data is missing. Please try again."
-                    type="error"
-                    showIcon
-                />
-            </Modal>
-        );
-    }
-
-    return (
-        <Modal
-            title={
-                <Space>
-                    <WechatOutlined />
-                    Discussion: {record?.subject || record?.training_program || record?.task || 'Record'}
-                    {record?.date && ` - ${dayjs(record.date).format('DD/MM/YYYY')}`}
-                    <PriorityBadge priority={record.priority} />
-                </Space>
-            }
-            open={visible}
-            onCancel={onCancel}
-            footer={null}
-            width={700}
-            style={{ top: 20 }}
-            destroyOnClose
-        >
-            <div style={{ display: 'flex', flexDirection: 'column', height: '60vh' }}>
-                {/* Messages Area */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
-                    {loading ? (
-                        <div style={{ textAlign: 'center', padding: '20px' }}>
-                            <Spin tip="Loading messages..." />
-                        </div>
-                    ) : messages.length === 0 ? (
-                        <Empty
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="No messages yet. Start the discussion!"
-                        />
-                    ) : (
-                        messages.map(message => (
-                            <ChatMessage
-                                key={message.id}
-                                message={message}
-                                currentUser={currentUser}
-                                profiles={profiles}
-                            />
-                        ))
-                    )}
-                </div>
-
-                {/* Input Area */}
-                <div style={{ borderTop: '1px solid #d9d9d9', paddingTop: 16 }}>
-                    <Space.Compact style={{ width: '100%' }}>
-                        <Input.TextArea
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Type your message... (Press Enter to send)"
-                            autoSize={{ minRows: 1, maxRows: 4 }}
-                            disabled={sending}
-                        />
-                        <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            onClick={sendMessage}
-                            loading={sending}
-                            disabled={!newMessage.trim() || !feedbackTable}
-                        >
-                            Send
-                        </Button>
-                    </Space.Compact>
-                </div>
-            </div>
-        </Modal>
-    );
-});
-
-// User Schedule Modal Component
-const UserScheduleModal = React.memo(({
-    visible,
-    onCancel,
-    user,
-    schedule,
-    loading,
-    dateRange
-}) => {
-    const getScheduleItemColor = (item) => {
-        try {
-            switch (item.type) {
-                case 'personal_meeting':
-                    return 'blue';
-                case 'hr_activity':
-                    return 'green';
-                default:
-                    return 'gray';
-            }
-        } catch (error) {
-            return 'gray';
-        }
-    };
-
-    const getScheduleItemIcon = (item) => {
-        try {
-            switch (item.type) {
-                case 'personal_meeting':
-                    return <UserOutlined />;
-                case 'hr_activity':
-                    return <CalendarOutlined />;
-                default:
-                    return <ScheduleOutlined />;
-            }
-        } catch (error) {
-            return <ScheduleOutlined />;
-        }
-    };
-
-    const getActivityType = (item) => {
-        try {
-            if (item.type === 'personal_meeting') return 'Personal Meeting';
-            if (item.type === 'hr_activity') return `HR ${item.activity_type}`;
-            return 'Activity';
-        } catch (error) {
-            return 'Activity';
-        }
-    };
-
-    const getActivityDescription = (item) => {
-        try {
-            if (item.type === 'personal_meeting') {
-                return item.description || 'No description available';
-            }
-            if (item.type === 'hr_activity') {
-                return item.subject || item.training_program || item.task || 'No description available';
-            }
-            return 'No description available';
-        } catch (error) {
-            return 'Description not available';
-        }
-    };
-
-    const safeDayjs = (date) => {
-        try {
-            if (!date) return dayjs();
-            return dayjs.isDayjs(date) ? date : dayjs(date);
-        } catch (error) {
-            return dayjs();
-        }
-    };
-
-    const formatTime = (time) => {
-        try {
-            if (!time) return '-';
-            return dayjs(time, 'HH:mm:ss').format('HH:mm');
-        } catch (error) {
-            return time || '-';
-        }
+    const uploadProps = {
+        beforeUpload: handleFileUpload,
+        accept: '.xlsx, .xls',
+        showUploadList: false,
+        multiple: false
     };
 
     return (
         <Modal
             title={
                 <Space>
-                    <ScheduleOutlined />
-                    Detailed Schedule for {user?.full_name || user?.email}
-                    <Tag color="blue">
-                        {dateRange[0] ? safeDayjs(dateRange[0]).format('DD/MM/YYYY') : ''} - {dateRange[1] ? safeDayjs(dateRange[1]).format('DD/MM/YYYY') : ''}
-                    </Tag>
+                    <FileExcelOutlined />
+                    Import Data from Excel - {selectedCategory?.name}
                 </Space>
             }
             open={visible}
             onCancel={onCancel}
             footer={[
-                <Button key="close" onClick={onCancel} icon={<CloseOutlined />}>
-                    Close
+                <Button key="cancel" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button
+                    key="download"
+                    icon={<DownloadOutlined />}
+                    onClick={downloadTemplate}
+                    disabled={hasResponsibleBDMField}
+                >
+                    Download Template
+                </Button>,
+                <Button
+                    key="import"
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={importData}
+                    loading={importLoading}
+                    disabled={uploadedData.length === 0 || hasResponsibleBDMField}
+                >
+                    Import {uploadedData.length} Records
                 </Button>
             ]}
             width={800}
-            style={{ top: 20 }}
             destroyOnClose
         >
-            {loading ? (
-                <LoadingSpinner tip="Loading user schedule..." />
-            ) : schedule.length > 0 ? (
-                <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-                    <Timeline>
-                        {schedule.map((item, index) => (
-                            <Timeline.Item
-                                key={index}
-                                color={getScheduleItemColor(item)}
-                                dot={getScheduleItemIcon(item)}
-                            >
-                                <div style={{ padding: '8px 0' }}>
-                                    <Descriptions
-                                        size="small"
-                                        column={1}
-                                        bordered
-                                        style={{ marginBottom: 16 }}
-                                    >
-                                        <Descriptions.Item label="Activity Type">
-                                            <Space>
-                                                <Tag color={getScheduleItemColor(item)}>
-                                                    {getActivityType(item)}
-                                                </Tag>
-                                                <PriorityBadge priority={item.priority} />
-                                            </Space>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Title">
-                                            <Text strong>
-                                                {item.subject || item.training_program || item.task || 'Activity'}
-                                            </Text>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Date">
-                                            <Space>
-                                                <CalendarOutlined />
-                                                {safeDayjs(item.date).format('DD/MM/YYYY')}
-                                            </Space>
-                                        </Descriptions.Item>
-
-                                        {(item.start_time || item.end_time) && (
-                                            <Descriptions.Item label="Time">
-                                                <Space>
-                                                    <ClockCircleOutlined />
-                                                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
-                                                </Space>
-                                            </Descriptions.Item>
-                                        )}
-
-                                        <Descriptions.Item label="Description">
-                                            <Text type="secondary">
-                                                {getActivityDescription(item)}
-                                            </Text>
-                                        </Descriptions.Item>
-
-                                        {item.department && (
-                                            <Descriptions.Item label="Department">
-                                                <Tag color="blue">{item.department}</Tag>
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.status && (
-                                            <Descriptions.Item label="Status">
-                                                <Tag color={
-                                                    item.status.toLowerCase() === 'completed' ? 'green' : 
-                                                    item.status.toLowerCase() === 'in progress' ? 'orange' : 'blue'
-                                                }>
-                                                    {item.status}
-                                                </Tag>
-                                            </Descriptions.Item>
-                                        )}
-                                        {item.trainer_names && Array.isArray(item.trainer_names) && item.trainer_names.length > 0 && (
-                                            <Descriptions.Item label="Trainers">
-                                                <Space wrap>
-                                                    {item.trainer_names.map((trainer, idx) => (
-                                                        <Tag key={idx} color="purple">{trainer}</Tag>
-                                                    ))}
-                                                </Space>
-                                            </Descriptions.Item>
-                                        )}
-                                    </Descriptions>
-                                </div>
-                            </Timeline.Item>
-                        ))}
-                    </Timeline>
-
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* Warning Alert for categories with responsible_bdm_ids */}
+                {hasResponsibleBDMField && (
                     <Alert
-                        message={`Total ${schedule.length} scheduled items found`}
-                        type="info"
+                        message="Excel Import Not Available"
+                        description={
+                            <div>
+                                <Text strong style={{ color: '#ff4d4f' }}>
+                                    We cannot create a template for this category, because there is a mandatory column "Responsible BDM" for assigning employees.
+                                </Text>
+                                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                    <li>Use the "Bulk Records" feature to add multiple records with proper employee assignments</li>
+                                    <li>Responsible BDM assignments must be done manually in the system</li>
+                                    <li>This ensures proper tracking and accountability</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
                         showIcon
-                        style={{ marginTop: 16 }}
                     />
-                </div>
-            ) : (
-                <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                        <Space direction="vertical">
-                            <Text>No scheduled activities found for this period</Text>
-                            <Text type="secondary">User is available during {dateRange[0] ? safeDayjs(dateRange[0]).format('DD/MM/YYYY') : ''} to {dateRange[1] ? safeDayjs(dateRange[1]).format('DD/MM/YYYY') : ''}</Text>
-                        </Space>
-                    }
-                />
-            )}
+                )}
+
+                {/* Upload Section */}
+                {!hasResponsibleBDMField && (
+                    <>
+                        <Card size="small" title="Upload Excel File">
+                            <Upload.Dragger {...uploadProps}>
+                                <p className="ant-upload-drag-icon">
+                                    <FileExcelOutlined />
+                                </p>
+                                <p className="ant-upload-text">
+                                    Click or drag Excel file to this area to upload
+                                </p>
+                                <p className="ant-upload-hint">
+                                    Support for .xlsx, .xls files only
+                                </p>
+                            </Upload.Dragger>
+                        </Card>
+
+                        {/* Validation Results */}
+                        {validationResults.length > 0 && (
+                            <Card
+                                size="small"
+                                title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                            >
+                                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                                    {validationResults.map((result, index) => (
+                                        <Alert
+                                            key={index}
+                                            message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                            description={
+                                                result.errors.length > 0 ? (
+                                                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                        {result.errors.map((error, errorIndex) => (
+                                                            <li key={errorIndex}>{error}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    'All fields are valid'
+                                                )
+                                            }
+                                            type={result.isValid ? 'success' : 'error'}
+                                            showIcon
+                                            style={{ marginBottom: 8 }}
+                                            size="small"
+                                        />
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Instructions */}
+                        <Alert
+                            message="Import Instructions"
+                            description={
+                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                    <li>Download the template first to ensure correct format</li>
+                                    <li>Required fields are marked with * in the template</li>
+                                    <li>
+                                        <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                                    </li>
+                                    <li>
+                                        <Text strong>Time format: HH:mm (e.g., 09:00) or HH:mm:ss</Text>
+                                    </li>
+                                    <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                                    <li>Only valid records will be imported</li>
+                                </ul>
+                            }
+                            type="info"
+                            showIcon
+                        />
+                    </>
+                )}
+            </Space>
         </Modal>
     );
-});
+};
 
-// Export Button Component
+// Export Button Component - Updated to remove PDF and add Word export
 const ExportButton = ({ 
     activities = [], 
     selectedCategory = null,
     moduleName = '',
-    priorityLabels = {}
+    priorityLabels = {},
+    allProfiles = []
 }) => {
     const priorityOptions = [
         { value: 1, label: 'Low', color: 'green' },
@@ -785,65 +1055,133 @@ const ExportButton = ({
     };
 
     /** -----------------------------
-     * Export to PDF (.pdf)
+     * Export to Word (.docx)
      * ----------------------------- */
-    const exportToPDF = () => {
+    const exportToWord = async () => {
         try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('HR Export Summary', 14, 15);
-            doc.setFontSize(10);
-            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
-            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+            // Create table rows for Word document
+            const tableRows = activities.map((activity, index) => {
+                const cells = [];
 
-            const headers = ['Category', 'Date', 'Priority', 'Details'];
-            const tableData = activities.map(a => [
-                selectedCategory?.name || '',
-                a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                getPriorityLabel(a.priority),
-                a.subject || a.training_program || a.task || 'No details'
-            ]);
+                // Add basic information cells based on category
+                switch (selectedCategory?.id) {
+                    case 'meetings':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.subject || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(formatTime(activity.start_time))] }),
+                            new TableCell({ children: [new Paragraph(formatTime(activity.end_time))] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            let y = 35;
-            const xStart = 14;
-            const colWidths = [30, 30, 25, 105];
-            const lineHeight = 7;
-            const pageHeight = doc.internal.pageSize.height;
+                    case 'training':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.training_program || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.department || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(formatTime(activity.start_time))] }),
+                            new TableCell({ children: [new Paragraph(formatTime(activity.end_time))] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            // Header background
-            doc.setFillColor(41, 128, 185);
-            doc.setTextColor(255, 255, 255);
-            let x = xStart;
-            headers.forEach((header, i) => {
-                doc.rect(x, y - 5, colWidths[i], 8, 'F');
-                doc.text(header, x + 2, y);
-                x += colWidths[i];
-            });
+                    case 'special_events_n_tasks':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.task || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date_range ? `${activity.date_range} days` : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            doc.setTextColor(0, 0, 0);
-            y += 10;
-
-            // Rows
-            tableData.forEach(row => {
-                if (y > pageHeight - 20) {
-                    doc.addPage();
-                    y = 20;
+                    default:
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
                 }
-                x = xStart;
-                row.forEach((cell, i) => {
-                    doc.text(cell.toString().substring(0, 35), x + 2, y);
-                    x += colWidths[i];
-                });
-                y += lineHeight;
+
+                return new TableRow({ children: cells });
             });
 
-            const fileName = `${selectedCategory?.name || 'hr_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            // Create headers based on category
+            let headers = [];
+            switch (selectedCategory?.id) {
+                case 'meetings':
+                    headers = ['Subject', 'Date', 'Start Time', 'End Time', 'Priority'];
+                    break;
+                case 'training':
+                    headers = ['Training Program', 'Department', 'Date', 'Start Time', 'End Time', 'Priority'];
+                    break;
+                case 'special_events_n_tasks':
+                    headers = ['Task', 'Date', 'Status', 'Date Range', 'Priority'];
+                    break;
+                default:
+                    headers = ['Date', 'Priority'];
+            }
 
-            doc.save(fileName);
-            toast.success('PDF file exported successfully!');
+            const headerRow = new TableRow({
+                children: headers.map(header => 
+                    new TableCell({ 
+                        children: [new Paragraph({ 
+                            children: [new TextRun({ text: header, bold: true })] 
+                        })] 
+                    })
+                )
+            });
+
+            const table = new DocTable({
+                width: {
+                    size: 100,
+                    type: WidthType.PERCENTAGE,
+                },
+                rows: [headerRow, ...tableRows],
+            });
+
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${selectedCategory?.name || 'HR'} Export - ${dayjs().format('DD/MM/YYYY')}`,
+                                    bold: true,
+                                    size: 28,
+                                }),
+                            ],
+                        }),
+                        new Paragraph({ text: "" }), // Empty line
+                        table,
+                        new Paragraph({ text: "" }), // Empty line
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `Total Records: ${activities.length}`,
+                                    italics: true,
+                                }),
+                            ],
+                        }),
+                    ],
+                }],
+            });
+
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${selectedCategory?.name || 'hr_export'}_${dayjs().format('YYYY-MM-DD')}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            toast.success('Word document exported successfully!');
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            toast.error('Failed to export PDF file');
+            console.error('Error exporting Word document:', error);
+            toast.error('Failed to export Word document');
         }
     };
 
@@ -858,10 +1196,10 @@ const ExportButton = ({
             onClick: exportToExcel 
         },
         { 
-            key: 'pdf', 
-            icon: <FilePdfOutlined />, 
-            label: 'Export to PDF', 
-            onClick: exportToPDF 
+            key: 'word', 
+            icon: <FileWordOutlined />, 
+            label: 'Export to Word', 
+            onClick: exportToWord 
         }
     ];
 
@@ -903,27 +1241,18 @@ const HR = () => {
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
 
+    // Bulk mode states
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkRecords, setBulkRecords] = useState([{}]);
+
     // View mode state (web view or excel view)
     const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
 
-    // User Availability States
-    const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-    const [hrUsers, setHRUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [userSchedule, setUserSchedule] = useState([]);
-    const [availabilityLoading, setAvailabilityLoading] = useState(false);
-    const [availabilityDateRange, setAvailabilityDateRange] = useState([null, null]);
-
-    // Discussion States
-    const [discussionModalVisible, setDiscussionModalVisible] = useState(false);
-    const [selectedRecord, setSelectedRecord] = useState(null);
-    const [unreadCounts, setUnreadCounts] = useState({});
-
-    // User Schedule Modal State
-    const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
-
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
+
+    // Excel Import Modal State
+    const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
 
     // HR Categories configuration
     const hrCategories = [
@@ -931,31 +1260,34 @@ const HR = () => {
             id: 'meetings',
             name: 'Meetings',
             table: 'hr_meetings',
-            type: 'HR Meeting',
-            icon: <UsergroupAddOutlined />,
+            type: 'Meeting',
+            icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#1890ff',
-            hasTimeFields: true
+            hasTimeFields: true,
+            hasResponsibleBDM: false // Updated to show all profiles
         },
         {
             id: 'training',
-            name: 'Training',
-            table: 'hr_training',
-            type: 'Training Program',
+            name: 'Training Programs',
+            table: 'hr_training_programs',
+            type: 'Training',
             icon: <BookOutlined />,
             dateField: 'date',
-            color: '#fa8c16',
-            hasTimeFields: true
+            color: '#52c41a',
+            hasTimeFields: true,
+            hasResponsibleBDM: false // Updated to show all profiles
         },
         {
             id: 'special_events_n_tasks',
             name: 'Special Events & Tasks',
             table: 'hr_special_events_n_tasks',
-            type: 'HR Activity',
+            type: 'Task',
             icon: <TrophyOutlined />,
             dateField: 'date',
-            color: '#52c41a',
-            hasTimeFields: false
+            color: '#fa8c16',
+            hasTimeFields: false,
+            hasResponsibleBDM: true // This category has responsible BDM field
         }
     ];
 
@@ -1121,8 +1453,7 @@ const HR = () => {
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchProfiles(),
-                fetchHRUsers()
+                fetchAllProfiles(), // Updated to fetch all profiles
             ]);
 
             // Set default date range after initialization
@@ -1162,7 +1493,8 @@ const HR = () => {
         }
     };
 
-    const fetchProfiles = async () => {
+    // Updated to fetch all profiles from the database
+    const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -1172,41 +1504,8 @@ const HR = () => {
             if (error) throw error;
             safeSetState(setProfiles, data || []);
         } catch (error) {
-            handleError(error, 'fetching profiles');
+            handleError(error, 'fetching all profiles');
             safeSetState(setProfiles, []);
-        }
-    };
-
-    const fetchHRUsers = async () => {
-        try {
-            // Use the specific HR department ID you provided
-            const hrDepartmentId = '4f64ea9f-879c-4232-b658-3599098bff26';
-            
-            // Get all users in HR department
-            const { data: usersData, error: usersError } = await supabase
-                .from('profiles')
-                .select('id, full_name, email, department_id')
-                .eq('department_id', hrDepartmentId)
-                .order('full_name');
-
-            if (usersError) {
-                console.error('Error fetching HR users:', usersError);
-                // Fallback to all users if department not found
-                const { data: allUsers, error: allUsersError } = await supabase
-                    .from('profiles')
-                    .select('id, full_name, email, department_id')
-                    .order('full_name');
-
-                if (allUsersError) throw allUsersError;
-                safeSetState(setHRUsers, allUsers || []);
-                toast.warning('Using all users as fallback for HR department');
-                return;
-            }
-
-            safeSetState(setHRUsers, usersData || []);
-        } catch (error) {
-            handleError(error, 'fetching HR users');
-            safeSetState(setHRUsers, []);
         }
     };
 
@@ -1227,7 +1526,7 @@ const HR = () => {
                 .select('*')
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
-                .order('priority', { ascending: false })
+                .order('priority', { ascending: false }) // Sort by priority (high to low)
                 .order(selectedCategory.dateField, { ascending: true });
 
             // Apply priority filter if selected
@@ -1239,143 +1538,11 @@ const HR = () => {
 
             if (error) throw error;
             safeSetState(setTableData, data || []);
-
-            // Fetch unread counts after loading table data
-            if (data && data.length > 0) {
-                fetchUnreadCounts(data, selectedCategory);
-            }
         } catch (error) {
             handleError(error, `fetching ${selectedCategory?.name} data`);
             safeSetState(setTableData, []);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchUnreadCounts = async (records, category) => {
-        if (!currentUser || !records.length || !category) return;
-
-        try {
-            const tableMap = {
-                'meetings': 'hr_meetings_fb',
-                'training': 'hr_training_fb',
-                'special_events_n_tasks': 'hr_special_events_n_tasks_fb'
-            };
-
-            const feedbackTable = tableMap[category.id];
-            if (!feedbackTable) return;
-
-            const counts = {};
-
-            for (const record of records) {
-                const { data, error } = await supabase
-                    .from(feedbackTable)
-                    .select('id')
-                    .eq('meeting_id', record.id)
-                    .neq('sender_id', currentUser.id)
-                    .is('read_at', null);
-
-                if (!error) {
-                    counts[record.id] = data?.length || 0;
-                }
-            }
-
-            safeSetState(setUnreadCounts, counts);
-        } catch (error) {
-            console.error('Error fetching unread counts:', error);
-        }
-    };
-
-    const fetchUserSchedule = async (userId, startDate, endDate) => {
-        setAvailabilityLoading(true);
-        try {
-            const formattedStart = safeDayjs(startDate).format('YYYY-MM-DD');
-            const formattedEnd = safeDayjs(endDate).format('YYYY-MM-DD');
-
-            let allActivities = [];
-
-            // Get user details
-            const user = hrUsers.find(u => u.id === userId);
-            if (!user) {
-                console.warn('User not found in HR users list');
-                safeSetState(setUserSchedule, []);
-                return;
-            }
-
-            const userName = user.full_name || user.email;
-            console.log(`Fetching schedule for user: ${userName} (${userId})`);
-
-            // 1. Personal meetings for the specific user
-            const { data: personalMeetings, error: personalError } = await supabase
-                .from('personal_meetings')
-                .select('*')
-                .eq('user_id', userId)
-                .gte('start_date', formattedStart)
-                .lte('end_date', formattedEnd)
-                .order('priority', { ascending: false })
-                .order('start_date', { ascending: true });
-
-            if (personalError) console.error('Personal meetings error:', personalError);
-
-            // 2. HR activities
-            for (const category of hrCategories) {
-                console.log(`Checking category: ${category.name}`);
-
-                let query = supabase
-                    .from(category.table)
-                    .select('*')
-                    .gte(category.dateField, formattedStart)
-                    .lte(category.dateField, formattedEnd)
-                    .order('priority', { ascending: false })
-                    .order(category.dateField, { ascending: true });
-
-                let categoryActivities = [];
-
-                try {
-                    // Get all activities for this category
-                    const { data } = await query;
-                    if (data) {
-                        // For HR, we'll include all activities since there's no specific user assignment
-                        categoryActivities = data;
-                    }
-
-                    console.log(`Category ${category.name} activities:`, categoryActivities.length);
-
-                    // Add category info to activities
-                    if (categoryActivities.length > 0) {
-                        allActivities.push(...categoryActivities.map(activity => ({
-                            ...activity,
-                            type: 'hr_activity',
-                            activity_type: category.name,
-                            source_table: category.table,
-                            category_id: category.id
-                        })));
-                    }
-
-                } catch (categoryError) {
-                    console.error(`Error fetching ${category.name}:`, categoryError);
-                }
-            }
-
-            // Combine all activities
-            const userSchedule = [
-                ...(personalMeetings || []).map(meeting => ({
-                    ...meeting,
-                    type: 'personal_meeting',
-                    category_id: 'personal_meeting'
-                })),
-                ...allActivities
-            ];
-
-            console.log('Total schedule items:', userSchedule.length);
-            safeSetState(setUserSchedule, userSchedule);
-
-        } catch (error) {
-            console.error('Error in fetchUserSchedule:', error);
-            handleError(error, 'fetching user schedule');
-            safeSetState(setUserSchedule, []);
-        } finally {
-            setAvailabilityLoading(false);
         }
     };
 
@@ -1386,6 +1553,8 @@ const HR = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             safeSetState(setViewMode, 'web'); // Reset to web view when category changes
+            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
+            safeSetState(setBulkRecords, [{}]); // Reset bulk records
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1416,6 +1585,12 @@ const HR = () => {
         try {
             safeSetState(setEditingRecord, null);
             form.resetFields();
+
+            // Initialize bulk records if in bulk mode
+            if (bulkMode) {
+                safeSetState(setBulkRecords, [{}]);
+            }
+
             safeSetState(setModalVisible, true);
         } catch (error) {
             handleError(error, 'creating new record');
@@ -1435,6 +1610,12 @@ const HR = () => {
             try {
                 if (record.date) {
                     formattedRecord.date = safeDayjs(record.date);
+                }
+                if (record.start_time) {
+                    formattedRecord.start_time = safeDayjs(record.start_time, 'HH:mm:ss');
+                }
+                if (record.end_time) {
+                    formattedRecord.end_time = safeDayjs(record.end_time, 'HH:mm:ss');
                 }
             } catch (dateError) {
                 console.warn('Error formatting dates for editing:', dateError);
@@ -1477,55 +1658,116 @@ const HR = () => {
         }
     };
 
-    const handleUserAvailabilityClick = () => {
+    const handleBulkCreate = async (records) => {
         try {
-            // Set default date range for availability modal
-            const defaultRange = getDefaultDateRange();
-
-            safeSetState(setAvailabilityModalVisible, true);
-            safeSetState(setSelectedUser, null);
-            safeSetState(setUserSchedule, []);
-            safeSetState(setAvailabilityDateRange, defaultRange);
-        } catch (error) {
-            handleError(error, 'opening availability modal');
-        }
-    };
-
-    const handleUserSelect = async (user) => {
-        try {
-            safeSetState(setSelectedUser, user);
-
-            if (availabilityDateRange[0] && availabilityDateRange[1]) {
-                await fetchUserSchedule(user.id, availabilityDateRange[0], availabilityDateRange[1]);
-                // Open the schedule modal after fetching data
-                safeSetState(setScheduleModalVisible, true);
-            } else {
-                toast.warning('Please select a date range first');
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
             }
+
+            if (!records || records.length === 0) {
+                toast.warning('No records to create');
+                return;
+            }
+
+            // Validate records
+            const validRecords = records.filter(record => {
+                // Basic validation - check required fields based on category
+                switch (selectedCategory.id) {
+                    case 'meetings':
+                        return record.date && record.subject;
+                    case 'training':
+                        return record.date && record.training_program;
+                    case 'special_events_n_tasks':
+                        return record.date && record.task;
+                    default:
+                        return true;
+                }
+            });
+
+            if (validRecords.length === 0) {
+                toast.error('Please fill in all required fields for at least one record');
+                return;
+            }
+
+            if (validRecords.length !== records.length) {
+                toast.warning(`Only ${validRecords.length} out of ${records.length} records are valid and will be created`);
+            }
+
+            setLoading(true);
+
+            // Prepare data for submission
+            const submitData = validRecords.map(record => {
+                const preparedRecord = { ...record };
+
+                // Convert dayjs objects to proper formats
+                Object.keys(preparedRecord).forEach(key => {
+                    try {
+                        const value = preparedRecord[key];
+                        if (dayjs.isDayjs(value)) {
+                            if (key === 'date') {
+                                preparedRecord[key] = value.format('YYYY-MM-DD');
+                            } else if (key === 'start_time' || key === 'end_time') {
+                                preparedRecord[key] = value.format('HH:mm:ss');
+                            }
+                        }
+                    } catch (dateError) {
+                        console.warn(`Error converting field ${key}:`, dateError);
+                    }
+                });
+
+                return preparedRecord;
+            });
+
+            // Insert all records
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(submitData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each created record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'hr',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+            }
+
+            toast.success(`Successfully created ${data.length} record(s)`);
+
+            // Reset and close
+            setModalVisible(false);
+            setBulkRecords([{}]);
+            fetchTableData();
+
         } catch (error) {
-            handleError(error, 'selecting user');
+            handleError(error, 'bulk creating records');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleAvailabilityDateChange = (dates) => {
-        try {
-            safeSetState(setAvailabilityDateRange, dates || [null, null]);
-        } catch (error) {
-            handleError(error, 'changing availability date range');
-        }
-    };
-
-    const handleDiscussionClick = (record) => {
+    const handleExcelImportClick = () => {
         try {
             if (!selectedCategory) {
                 toast.warning('Please select a category first');
                 return;
             }
-            safeSetState(setSelectedRecord, record);
-            safeSetState(setDiscussionModalVisible, true);
+            safeSetState(setExcelImportModalVisible, true);
         } catch (error) {
-            handleError(error, 'opening discussion');
+            handleError(error, 'opening Excel import');
         }
+    };
+
+    const handleExcelImportComplete = () => {
+        fetchTableData(); // Refresh table data after import
     };
 
     const handleFormSubmit = async (values) => {
@@ -1542,8 +1784,13 @@ const HR = () => {
                 try {
                     const value = submitData[key];
                     if (dayjs.isDayjs(value)) {
-                        // Convert date to YYYY-MM-DD format
-                        submitData[key] = value.format('YYYY-MM-DD');
+                        if (key === 'date') {
+                            // Convert date to YYYY-MM-DD format
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        } else if (key === 'start_time' || key === 'end_time') {
+                            // Convert time to HH:mm:ss format
+                            submitData[key] = value.format('HH:mm:ss');
+                        }
                     }
                 } catch (dateError) {
                     console.warn(`Error converting date field ${key}:`, dateError);
@@ -1614,22 +1861,9 @@ const HR = () => {
                 title: 'Actions',
                 key: 'actions',
                 fixed: 'right',
-                width: 180,
+                width: 150,
                 render: (_, record) => (
                     <Space size="small">
-                        <Tooltip title="Discuss">
-                            <Badge count={unreadCounts[record.id] || 0} size="small">
-                                <Button
-                                    type={unreadCounts[record.id] > 0 ? "primary" : "default"}
-                                    icon={<MessageOutlined />}
-                                    onClick={() => handleDiscussionClick(record)}
-                                    size="small"
-                                    danger={unreadCounts[record.id] > 0}
-                                >
-                                    Discuss
-                                </Button>
-                            </Badge>
-                        </Tooltip>
                         <Button
                             type="link"
                             icon={<EditOutlined />}
@@ -1667,64 +1901,53 @@ const HR = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-
-
             const formatTime = (time) => {
                 try {
-                    if (!time) return '-';
+                    if (!time) return '';
                     return dayjs(time, 'HH:mm:ss').format('HH:mm');
                 } catch (error) {
-                    return time || '-';
+                    return time || '';
                 }
             };
 
             switch (selectedCategory.id) {
                 case 'meetings':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 100, render: formatTime },
                         { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100, render: formatTime },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'training':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 100, render: formatTime },
                         { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100, render: formatTime },
                         { title: 'Department', dataIndex: 'department', key: 'department', width: 120 },
                         { title: 'Training Program', dataIndex: 'training_program', key: 'training_program', width: 200 },
-                        { 
-                            title: 'Trainer Names', 
-                            dataIndex: 'trainer_names', 
-                            key: 'trainer_names', 
-                            width: 150,
-                            render: (names) => {
-                                if (Array.isArray(names)) {
-                                    return names.join(', ');
-                                }
-                                return names || '-';
-                            }
-                        },
+                        { title: 'Trainer Names', dataIndex: 'trainer_names', key: 'trainer_names', width: 150, 
+                          render: (names) => Array.isArray(names) ? names.join(', ') : names },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'special_events_n_tasks':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
                         { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
-                        { title: 'Date Range', dataIndex: 'date_range', key: 'date_range', width: 100 },
+                        { title: 'Date Range', dataIndex: 'date_range', key: 'date_range', width: 100, 
+                          render: (range) => range ? `${range} days` : '' },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 default:
-                    return ;
+                    return [priorityColumn, actionColumn];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1924,28 +2147,15 @@ const HR = () => {
     const getStats = () => {
         try {
             if (!selectedCategory || !tableData.length) {
-                return { 
-                    totalRecords: 0, 
-                    meetingsCount: 0, 
-                    trainingCount: 0, 
-                    specialTasksCount: 0 
-                };
+                return { totalRecords: 0, meetingsCount: 0, trainingCount: 0, specialTasksCount: 0 };
             }
 
             const totalRecords = tableData.length;
             
-            // Calculate category-specific stats
-            const meetingsCount = tableData.filter(item => 
-                selectedCategory.id === 'meetings'
-            ).length;
-
-            const trainingCount = tableData.filter(item => 
-                selectedCategory.id === 'training'
-            ).length;
-
-            const specialTasksCount = tableData.filter(item => 
-                selectedCategory.id === 'special_events_n_tasks'
-            ).length;
+            // Count records by category
+            const meetingsCount = selectedCategory.id === 'meetings' ? totalRecords : 0;
+            const trainingCount = selectedCategory.id === 'training' ? totalRecords : 0;
+            const specialTasksCount = selectedCategory.id === 'special_events_n_tasks' ? totalRecords : 0;
 
             return { totalRecords, meetingsCount, trainingCount, specialTasksCount };
         } catch (error) {
@@ -2002,7 +2212,7 @@ const HR = () => {
                 <Row justify="space-between" align="middle" gutter={[16, 16]}>
                     <Col xs={24} sm={12} md={8}>
                         <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-                            <UsergroupAddOutlined /> HR Department
+                            <TeamOutlined /> HR Department
                         </Title>
                     </Col>
                     <Col xs={24} sm={12} md={8}>
@@ -2026,18 +2236,6 @@ const HR = () => {
                                     onChange={handleAutoRefreshToggle}
                                 />
                             </Space>
-                        </Space>
-                    </Col>
-                    <Col xs={24} sm={12} md={8}>
-                        <Space style={{ float: 'right' }}>
-                            <Button
-                                type="primary"
-                                icon={<UserOutlined />}
-                                onClick={handleUserAvailabilityClick}
-                                size="large"
-                            >
-                                Check Team Availability
-                            </Button>
                         </Space>
                     </Col>
                 </Row>
@@ -2105,6 +2303,32 @@ const HR = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
+
+                            {/* Bulk Mode Toggle */}
+                            <Switch
+                                checkedChildren="Multiple"
+                                unCheckedChildren="Single"
+                                checked={bulkMode}
+                                onChange={(checked) => {
+                                    setBulkMode(checked);
+                                    if (checked) {
+                                        // Initialize with one empty record when switching to bulk mode
+                                        setBulkRecords([{}]);
+                                    }
+                                }}
+                            />
+
+                            {/* Excel Import Button */}
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={handleExcelImportClick}
+                                size="large"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
+                                Upload Excel
+                            </Button>
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -2112,7 +2336,7 @@ const HR = () => {
                                 loading={loading}
                                 size="large"
                             >
-                                Add New Record
+                                Add New Record{bulkMode ? 's (Multiple)' : ''}
                             </Button>
                         </Space>
                     }
@@ -2164,27 +2388,7 @@ const HR = () => {
 
             {/* Statistics */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
-                <>
-                    <HRStatistics stats={stats} loading={loading} />
-
-                    {/* Progress Bar for Completion Rate */}
-                    <Card style={{ marginBottom: 24 }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Text strong>Overall Progress</Text>
-                            <Progress
-                                percent={Math.round((stats.totalRecords / (stats.totalRecords + 10)) * 100)}
-                                status="active"
-                                strokeColor={{
-                                    '0%': '#108ee9',
-                                    '100%': '#87d068',
-                                }}
-                            />
-                            <Text type="secondary">
-                                {stats.totalRecords} total records across all categories
-                            </Text>
-                        </Space>
-                    </Card>
-                </>
+                <HRStatistics stats={stats} loading={loading} />
             )}
 
             {/* Data Table or Export Button */}
@@ -2215,6 +2419,7 @@ const HR = () => {
                                     priorityLabels={Object.fromEntries(
                                         priorityOptions.map(opt => [opt.value, opt.label])
                                     )}
+                                    allProfiles={profiles}
                                 />
                             )}
                             <Button
@@ -2237,9 +2442,18 @@ const HR = () => {
                                 <Space direction="vertical">
                                     <Text>No records found for selected criteria</Text>
                                     <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
-                                    <Button type="primary" onClick={handleCreate}>
-                                        <PlusOutlined /> Create First Record
-                                    </Button>
+                                    <div>
+                                        <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
+                                            <PlusOutlined /> Create First Record
+                                        </Button>
+                                        <Button
+                                            type="default"
+                                            icon={<UploadOutlined />}
+                                            onClick={handleExcelImportClick}
+                                        >
+                                            Upload Excel Data
+                                        </Button>
+                                    </div>
                                 </Space>
                             }
                         />
@@ -2262,11 +2476,11 @@ const HR = () => {
                             <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
                             <Title level={4}>Ready to Export Data</Title>
                             <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or Word format.
                             </Text>
                             <Alert
                                 message="Excel View Mode"
-                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                description="In Excel View mode, you can export the data to XLSX or Word format for offline analysis. Switch to Web View for editing and deleting features."
                                 type="info"
                                 showIcon
                             />
@@ -2280,149 +2494,104 @@ const HR = () => {
                 title={
                     <Space>
                         {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-                        {editingRecord ? 'Edit' : 'Create'} {selectedCategory?.name} Record
+                        {editingRecord ? 'Edit' : bulkMode ? 'Create Multiple' : 'Create'} {selectedCategory?.name} Record
+                        {bulkMode && !editingRecord && (
+                            <Tag color="orange">Bulk Mode: {bulkRecords.length} records</Tag>
+                        )}
                     </Space>
                 }
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setBulkRecords([{}]); // Reset bulk records when closing
+                }}
                 footer={null}
-                width={600}
+                width={bulkMode && !editingRecord ? 800 : 600}
                 destroyOnClose
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleFormSubmit}
-                >
-                    {getFormFields()}
-
-                    <Divider />
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setModalVisible(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="primary" htmlType="submit" size="large">
-                                {editingRecord ? 'Update' : 'Create'} Record
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-            {/* User Availability Modal */}
-            <Modal
-                title={
-                    <Space>
-                        <UserOutlined />
-                        Check HR Team Availability
-                        <Tag color="blue">
-                            Default: {availabilityDateRange[0] ? safeDayjs(availabilityDateRange[0]).format('DD/MM/YYYY') : ''} - {availabilityDateRange[1] ? safeDayjs(availabilityDateRange[1]).format('DD/MM/YYYY') : ''}
-                        </Tag>
-                    </Space>
-                }
-                open={availabilityModalVisible}
-                onCancel={() => setAvailabilityModalVisible(false)}
-                footer={null}
-                width={800}
-                destroyOnClose
-            >
-                <Space direction="vertical" style={{ width: '100%' }} size="large">
-                    {/* Date Range Selection */}
-                    <Card size="small" title="Select Date Range">
-                        <RangePicker
-                            onChange={handleAvailabilityDateChange}
-                            value={availabilityDateRange}
-                            style={{ width: '100%' }}
-                            format="DD/MM/YYYY"
+                {editingRecord ? (
+                    // Single Edit Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Update Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                ) : bulkMode ? (
+                    // Bulk Create Mode
+                    <div>
+                        <BulkFormFields
+                            records={bulkRecords}
+                            onChange={setBulkRecords}
+                            category={selectedCategory}
+                            priorityOptions={priorityOptions}
+                            safeDayjs={safeDayjs}
+                            allProfiles={profiles}
                         />
-                        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-                            Default range: Yesterday to 9 days from today
-                        </Text>
-                    </Card>
-
-                    {/* HR Users List */}
-                    <Card size="small" title="HR Team Members">
-                        {hrUsers.length === 0 ? (
-                            <Empty
-                                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                description="No HR team members found"
-                            />
-                        ) : (
-                            <List
-                                dataSource={hrUsers}
-                                renderItem={user => (
-                                    <List.Item
-                                        actions={[
-                                            <Tooltip
-                                                key="view"
-                                                title={!availabilityDateRange[0] || !availabilityDateRange[1] ? "Please select date range first" : "View detailed schedule"}
-                                            >
-                                                <Button
-                                                    type="primary"
-                                                    icon={<EyeOutlined />}
-                                                    onClick={() => handleUserSelect(user)}
-                                                    disabled={!availabilityDateRange[0] || !availabilityDateRange[1]}
-                                                    loading={availabilityLoading && selectedUser?.id === user.id}
-                                                    size="small"
-                                                >
-                                                    View Schedule
-                                                </Button>
-                                            </Tooltip>
-                                        ]}
-                                    >
-                                        <List.Item.Meta
-                                            title={user.full_name || user.email}
-                                            description={
-                                                <Badge
-                                                    status="success"
-                                                    text="HR Team Member"
-                                                />
-                                            }
-                                        />
-                                    </List.Item>
-                                )}
-                            />
-                        )}
-                    </Card>
-
-                    {/* Availability Tips */}
-                    <Alert
-                        message="Availability Check Tips"
-                        description={
-                            <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                <li>Default date range is set to yesterday to 9 days from today</li>
-                                <li>Select a different date range if needed</li>
-                                <li>Click "View Schedule" to see user's detailed schedule in a popup</li>
-                                <li>The schedule popup shows comprehensive details of all activities</li>
-                                <li>Empty schedule means the user is available during the selected period</li>
-                            </ul>
-                        }
-                        type="info"
-                        showIcon
-                    />
-                </Space>
+                        <Divider />
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button
+                                    onClick={() => {
+                                        setModalVisible(false);
+                                        setBulkRecords([{}]);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={() => handleBulkCreate(bulkRecords)}
+                                    size="large"
+                                    loading={loading}
+                                >
+                                    Create {bulkRecords.length} Record{bulkRecords.length > 1 ? 's' : ''}
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                ) : (
+                    // Single Create Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Create Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
 
-            {/* User Schedule Modal */}
-            <UserScheduleModal
-                visible={scheduleModalVisible}
-                onCancel={() => setScheduleModalVisible(false)}
-                user={selectedUser}
-                schedule={userSchedule}
-                loading={availabilityLoading}
-                dateRange={availabilityDateRange}
-            />
-
-            {/* Discussion Modal */}
-            <DiscussionModal
-                visible={discussionModalVisible}
-                onCancel={() => setDiscussionModalVisible(false)}
-                record={selectedRecord}
-                category={selectedCategory}
-                currentUser={currentUser}
-                profiles={profiles}
+            {/* Excel Import Modal */}
+            <ExcelImportModal
+                visible={excelImportModalVisible}
+                onCancel={() => setExcelImportModalVisible(false)}
+                selectedCategory={selectedCategory}
+                onImportComplete={handleExcelImportComplete}
+                allProfiles={profiles}
             />
 
             {/* Instructions */}
@@ -2435,18 +2604,20 @@ const HR = () => {
                                 <Text strong>Follow these steps:</Text>
                                 <ol>
                                     <li>Click on any category card above to select a data type</li>
-                                    <li>Choose between Web View (for editing/discussion) or Excel View (for export)</li>
+                                    <li>Choose between Web View (for editing) or Excel View (for export)</li>
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
-                                    <li>In Web View: Use Edit/Delete actions and Discuss features</li>
-                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
-                                    <li>Red badge on Discuss button shows unread messages</li>
-                                    <li>Use "Check Team Availability" to view team schedules</li>
-                                    <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
+                                    <li>In Web View: Use Edit/Delete actions</li>
+                                    <li>In Excel View: Export data to XLSX or Word for offline analysis</li>
+                                    <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
+                                    <li>Use "Upload Excel" to import data from Excel files with validation</li>
+                                    <li>For categories with Responsible BDM field, use Bulk Records instead of Excel import</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different HR activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
+                                    Bulk mode allows creating multiple records at once for better productivity.
+                                    Excel import feature helps in bulk data entry with proper validation.
                                 </Text>
                             </div>
                         }

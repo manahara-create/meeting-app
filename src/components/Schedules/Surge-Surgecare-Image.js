@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown, Upload
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -15,11 +15,11 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined,
     ImportOutlined, ContainerOutlined, TruckOutlined, FileTextOutlined,
     RocketOutlined, UsergroupAddOutlined, ShopOutlined,
     BookOutlined, BankOutlined, ProjectOutlined, CarOutlined,
-    SolutionOutlined, ContactsOutlined, GiftOutlined
+    SolutionOutlined, ContactsOutlined, GiftOutlined, UploadOutlined, FileAddOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -29,7 +29,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, Table as DocTable, TableRow, TableCell, WidthType } from 'docx';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -473,12 +473,1081 @@ const DiscussionModal = React.memo(({
     );
 });
 
-// Export Button Component
+// Bulk Form Fields Component
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs, allProfiles }) => {
+    const updateRecord = (index, field, value) => {
+        const newRecords = [...records];
+        newRecords[index] = {
+            ...newRecords[index],
+            [field]: value
+        };
+        onChange(newRecords);
+    };
+
+    const addRecord = () => {
+        onChange([...records, {}]);
+    };
+
+    const removeRecord = (index) => {
+        if (records.length > 1) {
+            const newRecords = records.filter((_, i) => i !== index);
+            onChange(newRecords);
+        }
+    };
+
+    const renderCommonFields = (record, index) => (
+        <>
+            <Form.Item
+                label="Priority"
+                required
+            >
+                <Select
+                    value={record.priority || 2}
+                    onChange={(value) => updateRecord(index, 'priority', value)}
+                    placeholder="Select priority"
+                >
+                    {priorityOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                            <Space>
+                                <Badge color={option.color} />
+                                {option.label}
+                            </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        </>
+    );
+
+    const renderCategorySpecificFields = (record, index) => {
+        switch (category?.id) {
+            case 'college_session':
+                return (
+                    <>
+                        <Form.Item
+                            label="Session Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select session date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Company"
+                            required
+                        >
+                            <Input
+                                value={record.company || ''}
+                                onChange={(e) => updateRecord(index, 'company', e.target.value)}
+                                placeholder="Enter company name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="College"
+                            required
+                        >
+                            <Input
+                                value={record.college || ''}
+                                onChange={(e) => updateRecord(index, 'college', e.target.value)}
+                                placeholder="Enter college name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Session"
+                        >
+                            <Input
+                                value={record.session || ''}
+                                onChange={(e) => updateRecord(index, 'session', e.target.value)}
+                                placeholder="Enter session details"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Responsible BDM"
+                        >
+                            <Select
+                                mode="multiple"
+                                value={record.responsible_bdm_ids || []}
+                                onChange={(value) => updateRecord(index, 'responsible_bdm_ids', value)}
+                                placeholder="Select responsible BDMs"
+                                style={{ width: '100%' }}
+                                optionFilterProp="children"
+                                filterOption={(input, option) =>
+                                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                }
+                            >
+                                {allProfiles.map(profile => (
+                                    <Option key={profile.id} value={profile.id}>
+                                        {profile.full_name || profile.email}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                        <Form.Item
+                            label="Remarks"
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.remarks || ''}
+                                onChange={(e) => updateRecord(index, 'remarks', e.target.value)}
+                                placeholder="Enter any remarks"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'meetings':
+                return (
+                    <>
+                        <Form.Item
+                            label="Meeting Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select meeting date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Subject"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.subject || ''}
+                                onChange={(e) => updateRecord(index, 'subject', e.target.value)}
+                                placeholder="Enter meeting subject"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'principal_visit':
+                return (
+                    <>
+                        <Form.Item
+                            label="Company"
+                            required
+                        >
+                            <Input
+                                value={record.company || ''}
+                                onChange={(e) => updateRecord(index, 'company', e.target.value)}
+                                placeholder="Enter company name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Principal Name"
+                            required
+                        >
+                            <Input
+                                value={record.principle_name || ''}
+                                onChange={(e) => updateRecord(index, 'principle_name', e.target.value)}
+                                placeholder="Enter principal name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Visitors Name"
+                        >
+                            <Input
+                                value={record.visitors_name || ''}
+                                onChange={(e) => updateRecord(index, 'visitors_name', e.target.value)}
+                                placeholder="Enter visitors name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Visitors Job"
+                        >
+                            <Input
+                                value={record.visitors_job || ''}
+                                onChange={(e) => updateRecord(index, 'visitors_job', e.target.value)}
+                                placeholder="Enter visitors job title"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Start Time"
+                        >
+                            <DatePicker
+                                showTime
+                                value={record.start_time ? safeDayjs(record.start_time) : null}
+                                onChange={(date) => updateRecord(index, 'start_time', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY HH:mm"
+                                placeholder="Select start time"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="End Time"
+                        >
+                            <DatePicker
+                                showTime
+                                value={record.end_time ? safeDayjs(record.end_time) : null}
+                                onChange={(date) => updateRecord(index, 'end_time', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY HH:mm"
+                                placeholder="Select end time"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Purpose"
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.purpose || ''}
+                                onChange={(e) => updateRecord(index, 'purpose', e.target.value)}
+                                placeholder="Enter visit purpose"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Responsible BDM"
+                        >
+                            <Select
+                                mode="multiple"
+                                value={record.responsible_bdm_ids || []}
+                                onChange={(value) => updateRecord(index, 'responsible_bdm_ids', value)}
+                                placeholder="Select responsible BDMs"
+                                style={{ width: '100%' }}
+                                optionFilterProp="children"
+                                filterOption={(input, option) =>
+                                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                }
+                            >
+                                {allProfiles.map(profile => (
+                                    <Option key={profile.id} value={profile.id}>
+                                        {profile.full_name || profile.email}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </>
+                );
+
+            case 'promotional_activities':
+                return (
+                    <>
+                        <Form.Item
+                            label="Activity Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select activity date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Company"
+                            required
+                        >
+                            <Input
+                                value={record.company || ''}
+                                onChange={(e) => updateRecord(index, 'company', e.target.value)}
+                                placeholder="Enter company name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Promotional Activity"
+                            required
+                        >
+                            <Input
+                                value={record.promotional_activity || ''}
+                                onChange={(e) => updateRecord(index, 'promotional_activity', e.target.value)}
+                                placeholder="Enter promotional activity"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Type"
+                        >
+                            <Input
+                                value={record.type || ''}
+                                onChange={(e) => updateRecord(index, 'type', e.target.value)}
+                                placeholder="Enter activity type"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Responsible BDM"
+                        >
+                            <Select
+                                mode="multiple"
+                                value={record.responsible_bdm_ids || []}
+                                onChange={(value) => updateRecord(index, 'responsible_bdm_ids', value)}
+                                placeholder="Select responsible BDMs"
+                                style={{ width: '100%' }}
+                                optionFilterProp="children"
+                                filterOption={(input, option) =>
+                                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                }
+                            >
+                                {allProfiles.map(profile => (
+                                    <Option key={profile.id} value={profile.id}>
+                                        {profile.full_name || profile.email}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                        <Form.Item
+                            label="Remarks"
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.remarks || ''}
+                                onChange={(e) => updateRecord(index, 'remarks', e.target.value)}
+                                placeholder="Enter any remarks"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'special_tasks':
+                return (
+                    <>
+                        <Form.Item
+                            label="Task Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select task date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Task"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.task || ''}
+                                onChange={(e) => updateRecord(index, 'task', e.target.value)}
+                                placeholder="Enter task details"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'visit_plan':
+                return (
+                    <>
+                        <Form.Item
+                            label="Schedule Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.schedule_date ? safeDayjs(record.schedule_date) : null}
+                                onChange={(date) => updateRecord(index, 'schedule_date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select schedule date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Name"
+                            required
+                        >
+                            <Input
+                                value={record.name || ''}
+                                onChange={(e) => updateRecord(index, 'name', e.target.value)}
+                                placeholder="Enter name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Area"
+                        >
+                            <Input
+                                value={record.area || ''}
+                                onChange={(e) => updateRecord(index, 'area', e.target.value)}
+                                placeholder="Enter area"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Status"
+                        >
+                            <Input
+                                value={record.status || ''}
+                                onChange={(e) => updateRecord(index, 'status', e.target.value)}
+                                placeholder="Enter status"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {records.map((record, index) => (
+                <Card
+                    key={index}
+                    title={`Record ${index + 1}`}
+                    size="small"
+                    style={{ marginBottom: 16, border: '1px solid #d9d9d9' }}
+                    extra={
+                        records.length > 1 && (
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeRecord(index)}
+                                size="small"
+                            >
+                                Remove
+                            </Button>
+                        )
+                    }
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {renderCommonFields(record, index)}
+                        {renderCategorySpecificFields(record, index)}
+                    </Space>
+                </Card>
+            ))}
+
+            <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={addRecord}
+                style={{ width: '100%' }}
+            >
+                Add Another Record
+            </Button>
+
+            <Alert
+                message={`You are creating ${records.length} record(s) at once`}
+                description="All records will be saved when you click the 'Create Records' button."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+            />
+        </div>
+    );
+};
+
+// Excel Import Modal Component
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
+    const [importLoading, setImportLoading] = useState(false);
+    const [uploadedData, setUploadedData] = useState([]);
+    const [validationResults, setValidationResults] = useState([]);
+
+    // Check if category has responsible_bdm field
+    const hasResponsibleBdmField = selectedCategory?.id && 
+        ['college_session', 'principal_visit', 'promotional_activities'].includes(selectedCategory.id);
+
+    // Download template function
+    const downloadTemplate = () => {
+        try {
+            if (hasResponsibleBdmField) {
+                // Show warning for categories with responsible_bdm field
+                Modal.warning({
+                    title: 'Template Not Available',
+                    content: (
+                        <div>
+                            <p><strong>We cannot create a template for this category.</strong></p>
+                            <p>This category has a mandatory column "Responsible BDM" for assigning employees.</p>
+                            <p>Please use the "Bulk Records" feature to add multiple records with proper employee assignments.</p>
+                        </div>
+                    ),
+                    okText: 'Understood'
+                });
+                return;
+            }
+
+            // Create template data structure based on category
+            let templateData = [];
+            let headers = [];
+
+            switch (selectedCategory?.id) {
+                case 'college_session':
+                    headers = ['Date*', 'Company*', 'College*', 'Session', 'Remarks', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Company*': 'ABC Corp',
+                        'College*': 'ABC College',
+                        'Session': 'Morning Session',
+                        'Remarks': 'Regular session',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'meetings':
+                    headers = ['Date*', 'Subject*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Subject*': 'Quarterly Business Review',
+                        'Status': 'Planned',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'principal_visit':
+                    headers = ['Company*', 'Principle Name*', 'Visitors Name', 'Visitors Job', 'Start Time', 'End Time', 'Purpose', 'Priority*'];
+                    templateData = [{
+                        'Company*': 'ABC Corp',
+                        'Principle Name*': 'Dr. Smith',
+                        'Visitors Name': 'John Doe',
+                        'Visitors Job': 'Manager',
+                        'Start Time': '15/01/2024 09:00',
+                        'End Time': '15/01/2024 11:00',
+                        'Purpose': 'Business meeting',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'promotional_activities':
+                    headers = ['Date*', 'Company*', 'Promotional Activity*', 'Type', 'Remarks', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Company*': 'ABC Corp',
+                        'Promotional Activity*': 'Product Launch',
+                        'Type': 'Event',
+                        'Remarks': 'Major event',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'special_tasks':
+                    headers = ['Date*', 'Task*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Task*': 'Complete project documentation',
+                        'Status': 'In Progress',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'visit_plan':
+                    headers = ['Schedule Date*', 'Name*', 'Area', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Schedule Date*': '15/01/2024',
+                        'Name*': 'John Doe',
+                        'Area': 'North Region',
+                        'Status': 'Scheduled',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                default:
+                    headers = ['Date*', 'Status', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Status': 'Active',
+                        'Priority*': '2'
+                    }];
+            }
+
+            // Add instructions row
+            const instructions = {
+                'Instructions': 'Fill in the data below. Fields marked with * are required.',
+                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
+                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD',
+                'Time Format': 'DD/MM/YYYY HH:mm (e.g., 15/01/2024 09:00)'
+            };
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+
+            // Add instructions sheet
+            const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+
+            // Add data template sheet
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+            // Auto-size columns
+            const colWidths = headers.map(header => ({ wch: Math.max(header.length + 2, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            const fileName = `${selectedCategory?.name || 'surge_imaging'}_import_template.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success('Template downloaded successfully!');
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            toast.error('Failed to download template');
+        }
+    };
+
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+
+        // Remove any extra spaces
+        const cleanDateStr = dateStr.toString().trim();
+
+        // Try dd/mm/yyyy format first
+        let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try yyyy-mm-dd format
+        date = dayjs(cleanDateStr, 'YYYY-MM-DD', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try other common formats
+        date = dayjs(cleanDateStr);
+        if (date.isValid()) {
+            return date;
+        }
+
+        return null;
+    };
+
+    const parseDateTime = (dateTimeStr) => {
+        if (!dateTimeStr) return null;
+
+        // Remove any extra spaces
+        const cleanDateTimeStr = dateTimeStr.toString().trim();
+
+        // Try dd/mm/yyyy hh:mm format first
+        let dateTime = dayjs(cleanDateTimeStr, 'DD/MM/YYYY HH:mm', true);
+        if (dateTime.isValid()) {
+            return dateTime;
+        }
+
+        // Try yyyy-mm-dd hh:mm format
+        dateTime = dayjs(cleanDateTimeStr, 'YYYY-MM-DD HH:mm', true);
+        if (dateTime.isValid()) {
+            return dateTime;
+        }
+
+        // Try other common formats
+        dateTime = dayjs(cleanDateTimeStr);
+        if (dateTime.isValid()) {
+            return dateTime;
+        }
+
+        return null;
+    };
+
+    // Handle file upload
+    const handleFileUpload = (file) => {
+        if (hasResponsibleBdmField) {
+            toast.warning('Excel import is not available for categories with Responsible BDM field. Use Bulk Records instead.');
+            return false;
+        }
+
+        setImportLoading(true);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Get first worksheet
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    toast.error('The uploaded file is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Validate data
+                const validatedData = validateExcelData(jsonData);
+                setUploadedData(validatedData.validRows);
+                setValidationResults(validatedData.results);
+
+                if (validatedData.validRows.length === 0) {
+                    toast.error('No valid data found in the uploaded file');
+                } else {
+                    toast.success(`Found ${validatedData.validRows.length} valid records out of ${jsonData.length}`);
+                }
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                toast.error('Failed to read Excel file');
+            } finally {
+                setImportLoading(false);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+        return false; // Prevent default upload behavior
+    };
+
+    // Validate Excel data
+    const validateExcelData = (data) => {
+        const results = [];
+        const validRows = [];
+
+        data.forEach((row, index) => {
+            const errors = [];
+            const validatedRow = {
+                department_id: '4755d627-64ad-4a03-81f2-fd867084cef7', // Surge Imaging department ID
+                category_id: selectedCategory.categoryId
+            };
+
+            // Check required fields based on category
+            switch (selectedCategory?.id) {
+                case 'college_session':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    if (!row['College*'] && !row.College) errors.push('College is required');
+                    else validatedRow.college = row['College*'] || row.College;
+
+                    validatedRow.session = row.Session || '';
+                    validatedRow.remarks = row.Remarks || '';
+                    break;
+
+                case 'meetings':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Subject*'] && !row.Subject) errors.push('Subject is required');
+                    else validatedRow.subject = row['Subject*'] || row.Subject;
+
+                    validatedRow.status = row.Status || 'Planned';
+                    break;
+
+                case 'principal_visit':
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    if (!row['Principle Name*'] && !row['Principle Name']) errors.push('Principle Name is required');
+                    else validatedRow.principle_name = row['Principle Name*'] || row['Principle Name'];
+
+                    validatedRow.visitors_name = row['Visitors Name'] || '';
+                    validatedRow.visitors_job = row['Visitors Job'] || '';
+                    
+                    if (row['Start Time']) {
+                        const startTime = parseDateTime(row['Start Time']);
+                        if (startTime && startTime.isValid()) {
+                            validatedRow.start_time = startTime.format('YYYY-MM-DD HH:mm:ss');
+                        }
+                    }
+                    
+                    if (row['End Time']) {
+                        const endTime = parseDateTime(row['End Time']);
+                        if (endTime && endTime.isValid()) {
+                            validatedRow.end_time = endTime.format('YYYY-MM-DD HH:mm:ss');
+                        }
+                    }
+
+                    validatedRow.purpose = row.Purpose || '';
+                    break;
+
+                case 'promotional_activities':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    if (!row['Promotional Activity*'] && !row['Promotional Activity']) errors.push('Promotional Activity is required');
+                    else validatedRow.promotional_activity = row['Promotional Activity*'] || row['Promotional Activity'];
+
+                    validatedRow.type = row.Type || '';
+                    validatedRow.remarks = row.Remarks || '';
+                    break;
+
+                case 'special_tasks':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Task*'] && !row.Task) errors.push('Task is required');
+                    else validatedRow.task = row['Task*'] || row.Task;
+
+                    validatedRow.status = row.Status || 'Pending';
+                    break;
+
+                case 'visit_plan':
+                    if (!row['Schedule Date*'] && !row['Schedule Date']) {
+                        errors.push('Schedule Date is required');
+                    } else {
+                        const date = parseDate(row['Schedule Date*'] || row['Schedule Date']);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Schedule Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.schedule_date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Name*'] && !row.Name) errors.push('Name is required');
+                    else validatedRow.name = row['Name*'] || row.Name;
+
+                    validatedRow.area = row.Area || '';
+                    validatedRow.status = row.Status || 'Scheduled';
+                    break;
+            }
+
+            // Priority validation
+            if (!row.Priority && !row['Priority*']) {
+                errors.push('Priority is required');
+            } else {
+                const priority = parseInt(row.Priority || row['Priority*']);
+                if (isNaN(priority) || priority < 1 || priority > 5) {
+                    errors.push('Priority must be between 1-5');
+                } else {
+                    validatedRow.priority = priority;
+                }
+            }
+
+            results.push({
+                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                data: validatedRow,
+                errors,
+                isValid: errors.length === 0
+            });
+
+            if (errors.length === 0) {
+                validRows.push(validatedRow);
+            }
+        });
+
+        return { results, validRows };
+    };
+
+    // Import validated data
+    const importData = async () => {
+        if (uploadedData.length === 0) {
+            toast.warning('No valid data to import');
+            return;
+        }
+
+        setImportLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(uploadedData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each imported record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'surgi_imaging',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: 'excel-import',
+                        source: 'excel_import'
+                    }
+                );
+            }
+
+            toast.success(`Successfully imported ${data.length} records`);
+            onImportComplete();
+            onCancel();
+        } catch (error) {
+            console.error('Error importing data:', error);
+            toast.error('Failed to import data');
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const uploadProps = {
+        beforeUpload: handleFileUpload,
+        accept: '.xlsx, .xls',
+        showUploadList: false,
+        multiple: false
+    };
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <FileExcelOutlined />
+                    Import Data from Excel - {selectedCategory?.name}
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={[
+                <Button key="cancel" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button
+                    key="download"
+                    icon={<DownloadOutlined />}
+                    onClick={downloadTemplate}
+                    disabled={hasResponsibleBdmField}
+                >
+                    Download Template
+                </Button>,
+                <Button
+                    key="import"
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={importData}
+                    loading={importLoading}
+                    disabled={uploadedData.length === 0 || hasResponsibleBdmField}
+                >
+                    Import {uploadedData.length} Records
+                </Button>
+            ]}
+            width={800}
+            destroyOnClose
+        >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* Warning Alert for categories with responsible_bdm field */}
+                {hasResponsibleBdmField && (
+                    <Alert
+                        message="Excel Import Not Available"
+                        description={
+                            <div>
+                                <Text strong style={{ color: '#ff4d4f' }}>
+                                    We cannot create a template for this category, because there is a mandatory column "Responsible BDM" for assigning employees.
+                                </Text>
+                                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                    <li>Use the "Bulk Records" feature to add multiple records with proper employee assignments</li>
+                                    <li>Responsible BDM assignments must be done manually in the system</li>
+                                    <li>This ensures proper tracking and accountability</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
+                        showIcon
+                    />
+                )}
+
+                {/* Upload Section */}
+                {!hasResponsibleBdmField && (
+                    <>
+                        <Card size="small" title="Upload Excel File">
+                            <Upload.Dragger {...uploadProps}>
+                                <p className="ant-upload-drag-icon">
+                                    <FileExcelOutlined />
+                                </p>
+                                <p className="ant-upload-text">
+                                    Click or drag Excel file to this area to upload
+                                </p>
+                                <p className="ant-upload-hint">
+                                    Support for .xlsx, .xls files only
+                                </p>
+                            </Upload.Dragger>
+                        </Card>
+
+                        {/* Validation Results */}
+                        {validationResults.length > 0 && (
+                            <Card
+                                size="small"
+                                title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                            >
+                                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                                    {validationResults.map((result, index) => (
+                                        <Alert
+                                            key={index}
+                                            message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                            description={
+                                                result.errors.length > 0 ? (
+                                                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                        {result.errors.map((error, errorIndex) => (
+                                                            <li key={errorIndex}>{error}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    'All fields are valid'
+                                                )
+                                            }
+                                            type={result.isValid ? 'success' : 'error'}
+                                            showIcon
+                                            style={{ marginBottom: 8 }}
+                                            size="small"
+                                        />
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Instructions */}
+                        <Alert
+                            message="Import Instructions"
+                            description={
+                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                    <li>Download the template first to ensure correct format</li>
+                                    <li>Required fields are marked with * in the template</li>
+                                    <li>
+                                        <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                                    </li>
+                                    <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                                    <li>Only valid records will be imported</li>
+                                    <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
+                                </ul>
+                            }
+                            type="info"
+                            showIcon
+                        />
+                    </>
+                )}
+            </Space>
+        </Modal>
+    );
+};
+
+// Export Button Component - Updated to remove PDF and add Word export
 const ExportButton = ({ 
     activities = [], 
     selectedCategory = null,
     moduleName = '',
-    priorityLabels = {}
+    priorityLabels = {},
+    allProfiles = []
 }) => {
     const priorityOptions = [
         { value: 1, label: 'Low', color: 'green' },
@@ -493,14 +1562,20 @@ const ExportButton = ({
         return option ? option.label : 'Normal';
     };
 
+    const getProfileName = (profileId) => {
+        const profile = allProfiles.find(p => p.id === profileId);
+        return profile ? profile.full_name || profile.email : 'Unknown';
+    };
+
     /** -----------------------------
      * Export to Excel (.xlsx)
      * ----------------------------- */
     const exportToExcel = () => {
         try {
             const dataForExport = activities.map(activity => {
-                // Common structure for Surge Imaging modules
+                // Common structure shared by Surge Imaging modules
                 const base = {
+                    'Category': selectedCategory?.name || '',
                     'Priority': getPriorityLabel(activity.priority),
                     'Created Date': activity.created_at
                         ? dayjs(activity.created_at).format('YYYY-MM-DD')
@@ -512,15 +1587,12 @@ const ExportButton = ({
                     case 'college_session':
                         return {
                             ...base,
-                            'Company': activity.company || '',
-                            'College': activity.college || '',
-                            'Session': activity.session || '',
                             'Date': activity.date
                                 ? dayjs(activity.date).format('YYYY-MM-DD')
                                 : '',
-                            'Responsible BDM': Array.isArray(activity.responsible_bdm_name) 
-                                ? activity.responsible_bdm_name.join(', ')
-                                : activity.responsible_bdm_name || '',
+                            'Company': activity.company || '',
+                            'College': activity.college || '',
+                            'Session': activity.session || '',
                             'Remarks': activity.remarks || ''
                         };
 
@@ -541,30 +1613,24 @@ const ExportButton = ({
                             'Principal Name': activity.principle_name || '',
                             'Visitors Name': activity.visitors_name || '',
                             'Visitors Job': activity.visitors_job || '',
+                            'Purpose': activity.purpose || '',
                             'Start Time': activity.start_time
                                 ? dayjs(activity.start_time).format('YYYY-MM-DD HH:mm')
                                 : '',
                             'End Time': activity.end_time
                                 ? dayjs(activity.end_time).format('YYYY-MM-DD HH:mm')
-                                : '',
-                            'Purpose': activity.purpose || '',
-                            'Responsible BDM': Array.isArray(activity.responsible_bdm) 
-                                ? activity.responsible_bdm.join(', ')
-                                : activity.responsible_bdm || ''
+                                : ''
                         };
 
                     case 'promotional_activities':
                         return {
                             ...base,
-                            'Company': activity.company || '',
-                            'Promotional Activity': activity.promotional_activity || '',
-                            'Type': activity.type || '',
                             'Date': activity.date
                                 ? dayjs(activity.date).format('YYYY-MM-DD')
                                 : '',
-                            'Responsible BDM': Array.isArray(activity.responsible_bdm_names) 
-                                ? activity.responsible_bdm_names.join(', ')
-                                : activity.responsible_bdm_names || '',
+                            'Company': activity.company || '',
+                            'Promotional Activity': activity.promotional_activity || '',
+                            'Type': activity.type || '',
                             'Remarks': activity.remarks || ''
                         };
 
@@ -623,135 +1689,168 @@ const ExportButton = ({
     };
 
     /** -----------------------------
-     * Export to PDF (.pdf)
+     * Export to Word (.docx)
      * ----------------------------- */
-    const exportToPDF = () => {
+    const exportToWord = async () => {
         try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('Surge Imaging Export Summary', 14, 15);
-            doc.setFontSize(10);
-            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
-            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+            // Create table rows for Word document
+            const tableRows = activities.map((activity, index) => {
+                const cells = [];
 
+                // Add basic information cells based on category
+                switch (selectedCategory?.id) {
+                    case 'college_session':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.college || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.session || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    case 'meetings':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.subject || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    case 'principal_visit':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.principle_name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.purpose || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.start_time ? dayjs(activity.start_time).format('DD/MM/YYYY HH:mm') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    case 'promotional_activities':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.promotional_activity || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.type || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    case 'special_tasks':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.task || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    case 'visit_plan':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.area || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.status || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.schedule_date ? dayjs(activity.schedule_date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
+
+                    default:
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                }
+
+                return new TableRow({ children: cells });
+            });
+
+            // Create headers based on category
             let headers = [];
-            let tableData = [];
-
             switch (selectedCategory?.id) {
                 case 'college_session':
-                    headers = ['Company', 'College', 'Session', 'Date', 'Responsible BDM', 'Priority'];
-                    tableData = activities.map(a => [
-                        a.company?.substring(0, 25) || '',
-                        a.college?.substring(0, 25) || '',
-                        a.session?.substring(0, 25) || '',
-                        a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                        Array.isArray(a.responsible_bdm_name) ? a.responsible_bdm_name.join(', ').substring(0, 25) : (a.responsible_bdm_name || '').substring(0, 25),
-                        getPriorityLabel(a.priority)
-                    ]);
+                    headers = ['College', 'Company', 'Session', 'Date', 'Priority'];
                     break;
-
                 case 'meetings':
                     headers = ['Subject', 'Date', 'Status', 'Priority'];
-                    tableData = activities.map(a => [
-                        a.subject?.substring(0, 40) || '',
-                        a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                        a.status?.substring(0, 20) || '',
-                        getPriorityLabel(a.priority)
-                    ]);
                     break;
-
                 case 'principal_visit':
-                    headers = ['Company', 'Principal', 'Visitors', 'Start Time', 'Priority'];
-                    tableData = activities.map(a => [
-                        a.company?.substring(0, 25) || '',
-                        a.principle_name?.substring(0, 25) || '',
-                        a.visitors_name?.substring(0, 25) || '',
-                        a.start_time ? dayjs(a.start_time).format('YYYY-MM-DD HH:mm') : '',
-                        getPriorityLabel(a.priority)
-                    ]);
+                    headers = ['Principal Name', 'Company', 'Purpose', 'Start Time', 'Priority'];
                     break;
-
                 case 'promotional_activities':
-                    headers = ['Company', 'Activity', 'Type', 'Date', 'Priority'];
-                    tableData = activities.map(a => [
-                        a.company?.substring(0, 25) || '',
-                        a.promotional_activity?.substring(0, 30) || '',
-                        a.type?.substring(0, 20) || '',
-                        a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                        getPriorityLabel(a.priority)
-                    ]);
+                    headers = ['Activity', 'Company', 'Type', 'Date', 'Priority'];
                     break;
-
                 case 'special_tasks':
-                    headers = ['Task', 'Date', 'Status', 'Priority'];
-                    tableData = activities.map(a => [
-                        a.task?.substring(0, 40) || '',
-                        a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                        a.status?.substring(0, 20) || '',
-                        getPriorityLabel(a.priority)
-                    ]);
+                    headers = ['Task', 'Status', 'Date', 'Priority'];
                     break;
-
                 case 'visit_plan':
-                    headers = ['Name', 'Schedule Date', 'Area', 'Status', 'Priority'];
-                    tableData = activities.map(a => [
-                        a.name?.substring(0, 30) || '',
-                        a.schedule_date ? dayjs(a.schedule_date).format('YYYY-MM-DD') : '',
-                        a.area?.substring(0, 20) || '',
-                        a.status?.substring(0, 20) || '',
-                        getPriorityLabel(a.priority)
-                    ]);
+                    headers = ['Name', 'Area', 'Status', 'Schedule Date', 'Priority'];
                     break;
-
                 default:
-                    headers = ['Record', 'Date', 'Priority'];
-                    tableData = activities.map(a => [
-                        'Record',
-                        a.date ? dayjs(a.date).format('YYYY-MM-DD') : '',
-                        getPriorityLabel(a.priority)
-                    ]);
+                    headers = ['Priority'];
             }
 
-            let y = 35;
-            const xStart = 14;
-            const colWidths = headers.map(() => 30); // Equal width for all columns
-            const lineHeight = 7;
-            const pageHeight = doc.internal.pageSize.height;
-
-            // Header background
-            doc.setFillColor(41, 128, 185);
-            doc.setTextColor(255, 255, 255);
-            let x = xStart;
-            headers.forEach((header, i) => {
-                doc.rect(x, y - 5, colWidths[i], 8, 'F');
-                doc.text(header, x + 2, y);
-                x += colWidths[i];
+            const headerRow = new TableRow({
+                children: headers.map(header => 
+                    new TableCell({ 
+                        children: [new Paragraph({ 
+                            children: [new TextRun({ text: header, bold: true })] 
+                        })] 
+                    })
+                )
             });
 
-            doc.setTextColor(0, 0, 0);
-            y += 10;
-
-            // Rows
-            tableData.forEach(row => {
-                if (y > pageHeight - 20) {
-                    doc.addPage();
-                    y = 20;
-                }
-                x = xStart;
-                row.forEach((cell, i) => {
-                    doc.text(cell.toString(), x + 2, y);
-                    x += colWidths[i];
-                });
-                y += lineHeight;
+            const table = new DocTable({
+                width: {
+                    size: 100,
+                    type: WidthType.PERCENTAGE,
+                },
+                rows: [headerRow, ...tableRows],
             });
 
-            const fileName = `${selectedCategory?.name || 'surge_imaging_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${selectedCategory?.name || 'Surge Imaging'} Export - ${dayjs().format('DD/MM/YYYY')}`,
+                                    bold: true,
+                                    size: 28,
+                                }),
+                            ],
+                        }),
+                        new Paragraph({ text: "" }), // Empty line
+                        table,
+                        new Paragraph({ text: "" }), // Empty line
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `Total Records: ${activities.length}`,
+                                    italics: true,
+                                }),
+                            ],
+                        }),
+                    ],
+                }],
+            });
 
-            doc.save(fileName);
-            toast.success('PDF file exported successfully!');
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${selectedCategory?.name || 'surge_imaging_export'}_${dayjs().format('YYYY-MM-DD')}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            toast.success('Word document exported successfully!');
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            toast.error('Failed to export PDF file');
+            console.error('Error exporting Word document:', error);
+            toast.error('Failed to export Word document');
         }
     };
 
@@ -766,10 +1865,10 @@ const ExportButton = ({
             onClick: exportToExcel 
         },
         { 
-            key: 'pdf', 
-            icon: <FilePdfOutlined />, 
-            label: 'Export to PDF', 
-            onClick: exportToPDF 
+            key: 'word', 
+            icon: <FileWordOutlined />, 
+            label: 'Export to Word', 
+            onClick: exportToWord 
         }
     ];
 
@@ -791,7 +1890,7 @@ const ExportButton = ({
     );
 };
 
-const SurgeSurgeCareImageView = () => {
+const SurgeImaging = () => {
     // Error handling states
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -811,9 +1910,9 @@ const SurgeSurgeCareImageView = () => {
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
 
-    // Categories state
-    const [categories, setCategories] = useState([]);
-    const [categoriesLoading, setCategoriesLoading] = useState(false);
+    // Bulk mode states
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkRecords, setBulkRecords] = useState([{}]);
 
     // View mode state (web view or excel view)
     const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
@@ -826,73 +1925,76 @@ const SurgeSurgeCareImageView = () => {
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
 
-    // Surge Imaging Categories configuration based on your schema
+    // Excel Import Modal State
+    const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
+
+    // Updated Surge Imaging Categories configuration
     const surgeImagingCategories = [
         {
             id: 'college_session',
-            name: 'SSI - College Session',
+            name: 'College Session',
             table: 'surgi_imaging_college_session',
-            type: 'College Session',
+            type: 'Session',
             icon: <BookOutlined />,
             dateField: 'date',
             color: '#1890ff',
             hasTimeFields: false,
-            categoryId: 'c7d1f129-af2e-42a4-9199-896d352d8bf1'
+            categoryId: 'd37bbf9e-2c66-4e7e-bc32-fa1af48e4300'
         },
         {
             id: 'meetings',
-            name: 'SSI - Meetings',
+            name: 'Meetings',
             table: 'surgi_imaging_meetings',
-            type: 'Meetings',
+            type: 'Meeting',
             icon: <TeamOutlined />,
             dateField: 'date',
             color: '#52c41a',
             hasTimeFields: false,
-            categoryId: '0db2bf41-3cf6-4eb5-b895-70fded4e1b33'
+            categoryId: 'b21e53e2-a5ea-4351-829b-ad1e90d35f65'
         },
         {
             id: 'principal_visit',
-            name: 'SSI - Principle Visit',
+            name: 'Principal Visit',
             table: 'surgi_imaging_principal_visit',
-            type: 'Principal Visit',
+            type: 'Visit',
             icon: <BankOutlined />,
             dateField: 'start_time',
             color: '#fa8c16',
             hasTimeFields: true,
-            categoryId: '909503ad-5b51-4c8a-92f3-aee94d102d77'
+            categoryId: '99e6d59b-bd19-4666-bf06-156a3dab43ff'
         },
         {
             id: 'promotional_activities',
-            name: 'SSI - Promotional Activities',
+            name: 'Promotional Activities',
             table: 'surgi_imaging_promotional_activities',
-            type: 'Promotional',
+            type: 'Activity',
             icon: <GiftOutlined />,
             dateField: 'date',
-            color: '#722ed1',
+            color: '#eb2f96',
             hasTimeFields: false,
-            categoryId: 'f9e44b27-e74b-4184-a25f-11b2db23f0ee'
+            categoryId: '6e717e47-171d-4cb4-8bef-1a5527129cab'
         },
         {
             id: 'special_tasks',
-            name: 'SSI - Special Tasks',
+            name: 'Special Tasks',
             table: 'surgi_imaging_special_tasks',
-            type: 'Special Tasks',
+            type: 'Task',
             icon: <ProjectOutlined />,
             dateField: 'date',
-            color: '#fa541c',
+            color: '#722ed1',
             hasTimeFields: false,
-            categoryId: 'bca26c61-f36e-41bb-87a4-c2794c260a12'
+            categoryId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
         },
         {
             id: 'visit_plan',
-            name: 'SSI - Visit Plan',
+            name: 'Visit Plan',
             table: 'surgi_imaging_visit_plan',
-            type: 'Visit Plan',
+            type: 'Plan',
             icon: <CarOutlined />,
             dateField: 'schedule_date',
             color: '#13c2c2',
             hasTimeFields: false,
-            categoryId: 'bdaf25d9-5479-40a2-aad3-add577d2b4f7'
+            categoryId: 'e0cbbaf0-940d-48d3-b403-e345f4c5e333'
         }
     ];
 
@@ -904,9 +2006,6 @@ const SurgeSurgeCareImageView = () => {
         { value: 4, label: 'High', color: 'red' },
         { value: 5, label: 'Critical', color: 'purple' }
     ];
-
-    // Surge Imaging department ID
-    const SURGE_IMAGING_DEPARTMENT_ID = '3b55797c-3170-46ce-9119-6cd6ec74b6ec';
 
     // Get default date range: yesterday to 9 days from today (total 10 days)
     const getDefaultDateRange = useCallback(() => {
@@ -1055,33 +2154,13 @@ const SurgeSurgeCareImageView = () => {
         }
     };
 
-    // Fetch categories
-    const fetchCategories = async () => {
-        setCategoriesLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('categories')
-                .select('id, name')
-                .order('name');
-
-            if (error) throw error;
-            setCategories(data || []);
-        } catch (error) {
-            console.error('Error fetching categories:', error);
-            handleError(error, 'fetching categories');
-        } finally {
-            setCategoriesLoading(false);
-        }
-    };
-
     // Initialize Surge Imaging module
     const initializeSurgeImaging = async () => {
         setLoading(true);
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchProfiles(),
-                fetchCategories()
+                fetchAllProfiles(), // Updated to fetch all profiles
             ]);
 
             // Set default date range after initialization
@@ -1121,7 +2200,8 @@ const SurgeSurgeCareImageView = () => {
         }
     };
 
-    const fetchProfiles = async () => {
+    // Updated to fetch all profiles from the database
+    const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -1131,7 +2211,7 @@ const SurgeSurgeCareImageView = () => {
             if (error) throw error;
             safeSetState(setProfiles, data || []);
         } catch (error) {
-            handleError(error, 'fetching profiles');
+            handleError(error, 'fetching all profiles');
             safeSetState(setProfiles, []);
         }
     };
@@ -1151,7 +2231,8 @@ const SurgeSurgeCareImageView = () => {
             let query = supabase
                 .from(selectedCategory.table)
                 .select('*')
-                .eq('department_id', SURGE_IMAGING_DEPARTMENT_ID) // Always filter by Surge Imaging department
+                .eq('department_id', '4755d627-64ad-4a03-81f2-fd867084cef7') // Surge Imaging department ID
+                .eq('category_id', selectedCategory.categoryId)
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
                 .order('priority', { ascending: false }) // Sort by priority (high to low)
@@ -1223,6 +2304,8 @@ const SurgeSurgeCareImageView = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             safeSetState(setViewMode, 'web'); // Reset to web view when category changes
+            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
+            safeSetState(setBulkRecords, [{}]); // Reset bulk records
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1253,6 +2336,12 @@ const SurgeSurgeCareImageView = () => {
         try {
             safeSetState(setEditingRecord, null);
             form.resetFields();
+
+            // Initialize bulk records if in bulk mode
+            if (bulkMode) {
+                safeSetState(setBulkRecords, [{}]);
+            }
+
             safeSetState(setModalVisible, true);
         } catch (error) {
             handleError(error, 'creating new record');
@@ -1270,17 +2359,28 @@ const SurgeSurgeCareImageView = () => {
 
             // Format date fields based on category with error handling
             try {
-                if (record.date) {
+                if (selectedCategory.id === 'college_session' && record.date) {
                     formattedRecord.date = safeDayjs(record.date);
                 }
-                if (record.schedule_date) {
+                if (selectedCategory.id === 'meetings' && record.date) {
+                    formattedRecord.date = safeDayjs(record.date);
+                }
+                if (selectedCategory.id === 'principal_visit') {
+                    if (record.start_time) {
+                        formattedRecord.start_time = safeDayjs(record.start_time);
+                    }
+                    if (record.end_time) {
+                        formattedRecord.end_time = safeDayjs(record.end_time);
+                    }
+                }
+                if (selectedCategory.id === 'promotional_activities' && record.date) {
+                    formattedRecord.date = safeDayjs(record.date);
+                }
+                if (selectedCategory.id === 'special_tasks' && record.date) {
+                    formattedRecord.date = safeDayjs(record.date);
+                }
+                if (selectedCategory.id === 'visit_plan' && record.schedule_date) {
                     formattedRecord.schedule_date = safeDayjs(record.schedule_date);
-                }
-                if (record.start_time) {
-                    formattedRecord.start_time = safeDayjs(record.start_time);
-                }
-                if (record.end_time) {
-                    formattedRecord.end_time = safeDayjs(record.end_time);
                 }
             } catch (dateError) {
                 console.warn('Error formatting dates for editing:', dateError);
@@ -1323,6 +2423,112 @@ const SurgeSurgeCareImageView = () => {
         }
     };
 
+    const handleBulkCreate = async (records) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            if (!records || records.length === 0) {
+                toast.warning('No records to create');
+                return;
+            }
+
+            // Validate records
+            const validRecords = records.filter(record => {
+                // Basic validation - check required fields based on category
+                switch (selectedCategory.id) {
+                    case 'college_session':
+                        return record.date && record.company && record.college;
+                    case 'meetings':
+                        return record.date && record.subject;
+                    case 'principal_visit':
+                        return record.company && record.principle_name;
+                    case 'promotional_activities':
+                        return record.date && record.company && record.promotional_activity;
+                    case 'special_tasks':
+                        return record.date && record.task;
+                    case 'visit_plan':
+                        return record.schedule_date && record.name;
+                    default:
+                        return true;
+                }
+            });
+
+            if (validRecords.length === 0) {
+                toast.error('Please fill in all required fields for at least one record');
+                return;
+            }
+
+            if (validRecords.length !== records.length) {
+                toast.warning(`Only ${validRecords.length} out of ${records.length} records are valid and will be created`);
+            }
+
+            setLoading(true);
+
+            // Prepare data for submission
+            const submitData = validRecords.map(record => {
+                const preparedRecord = { 
+                    ...record,
+                    department_id: '4755d627-64ad-4a03-81f2-fd867084cef7', // Surge Imaging department ID
+                    category_id: selectedCategory.categoryId
+                };
+
+                // Convert dayjs objects to proper formats
+                Object.keys(preparedRecord).forEach(key => {
+                    try {
+                        const value = preparedRecord[key];
+                        if (dayjs.isDayjs(value)) {
+                            if (key.includes('time')) {
+                                preparedRecord[key] = value.format('YYYY-MM-DD HH:mm:ss');
+                            } else {
+                                preparedRecord[key] = value.format('YYYY-MM-DD');
+                            }
+                        }
+                    } catch (dateError) {
+                        console.warn(`Error converting date field ${key}:`, dateError);
+                    }
+                });
+
+                return preparedRecord;
+            });
+
+            // Insert all records
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(submitData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each created record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'surgi_imaging',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+            }
+
+            toast.success(`Successfully created ${data.length} record(s)`);
+
+            // Reset and close
+            setModalVisible(false);
+            setBulkRecords([{}]);
+            fetchTableData();
+
+        } catch (error) {
+            handleError(error, 'bulk creating records');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDiscussionClick = (record) => {
         try {
             if (!selectedCategory) {
@@ -1336,17 +2542,33 @@ const SurgeSurgeCareImageView = () => {
         }
     };
 
+    const handleExcelImportClick = () => {
+        try {
+            if (!selectedCategory) {
+                toast.warning('Please select a category first');
+                return;
+            }
+            safeSetState(setExcelImportModalVisible, true);
+        } catch (error) {
+            handleError(error, 'opening Excel import');
+        }
+    };
+
+    const handleExcelImportComplete = () => {
+        fetchTableData(); // Refresh table data after import
+    };
+
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission - include department_id and category_id
-            const submitData = { 
+            // Prepare data for submission with proper department_id and category_id
+            const submitData = {
                 ...values,
-                department_id: SURGE_IMAGING_DEPARTMENT_ID,
-                category_id: selectedCategory.categoryId // Use the predefined category ID
+                department_id: '4755d627-64ad-4a03-81f2-fd867084cef7', // Surge Imaging department ID
+                category_id: selectedCategory.categoryId
             };
 
             // Convert dayjs objects to proper formats with error handling
@@ -1354,11 +2576,10 @@ const SurgeSurgeCareImageView = () => {
                 try {
                     const value = submitData[key];
                     if (dayjs.isDayjs(value)) {
-                        if (key === 'start_time' || key === 'end_time') {
-                            // Convert datetime to ISO string
-                            submitData[key] = value.toISOString();
+                        // Convert date to proper format
+                        if (key.includes('time')) {
+                            submitData[key] = value.format('YYYY-MM-DD HH:mm:ss');
                         } else {
-                            // Convert date to YYYY-MM-DD format
                             submitData[key] = value.format('YYYY-MM-DD');
                         }
                     }
@@ -1484,122 +2705,72 @@ const SurgeSurgeCareImageView = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-
-
             switch (selectedCategory.id) {
                 case 'college_session':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'College', dataIndex: 'college', key: 'college', width: 150 },
                         { title: 'Session', dataIndex: 'session', key: 'session', width: 150 },
-                        { 
-                            title: 'Responsible BDM', 
-                            dataIndex: 'responsible_bdm_name', 
-                            key: 'responsible_bdm_name', 
-                            width: 150,
-                            render: (bdms) => {
-                                if (Array.isArray(bdms)) {
-                                    return bdms.join(', ');
-                                }
-                                return bdms || '-';
-                            }
-                        },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 150 },
+                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'meetings':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 120 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'principal_visit':
                     return [
-
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Principal Name', dataIndex: 'principle_name', key: 'principle_name', width: 150 },
                         { title: 'Visitors Name', dataIndex: 'visitors_name', key: 'visitors_name', width: 150 },
                         { title: 'Visitors Job', dataIndex: 'visitors_job', key: 'visitors_job', width: 120 },
-                        { 
-                            title: 'Start Time', 
-                            dataIndex: 'start_time', 
-                            key: 'start_time', 
-                            width: 150,
-                            render: (time) => time ? safeDayjs(time).format('DD/MM/YYYY HH:mm') : '-'
-                        },
-                        { 
-                            title: 'End Time', 
-                            dataIndex: 'end_time', 
-                            key: 'end_time', 
-                            width: 150,
-                            render: (time) => time ? safeDayjs(time).format('DD/MM/YYYY HH:mm') : '-'
-                        },
-                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 150 },
-                        { 
-                            title: 'Responsible BDM', 
-                            dataIndex: 'responsible_bdm', 
-                            key: 'responsible_bdm', 
-                            width: 150,
-                            render: (bdms) => {
-                                if (Array.isArray(bdms)) {
-                                    return bdms.join(', ');
-                                }
-                                return bdms || '-';
-                            }
-                        },
+                        { title: 'Start Time', dataIndex: 'start_time', key: 'start_time', width: 150 },
+                        { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 150 },
+                        { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'promotional_activities':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
-                        { title: 'Promotional Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
+                        { title: 'Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
-                        { 
-                            title: 'Responsible BDM', 
-                            dataIndex: 'responsible_bdm_names', 
-                            key: 'responsible_bdm_names', 
-                            width: 150,
-                            render: (bdms) => {
-                                if (Array.isArray(bdms)) {
-                                    return bdms.join(', ');
-                                }
-                                return bdms || '-';
-                            }
-                        },
-                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 150 },
+                        { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'special_tasks':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Task', dataIndex: 'task', key: 'task', width: 200 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 120 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'visit_plan':
                     return [
-
                         { title: 'Schedule Date', dataIndex: 'schedule_date', key: 'schedule_date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
                         { title: 'Area', dataIndex: 'area', key: 'area', width: 120 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 120 },
+                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 default:
-                    return ;
+                    return [priorityColumn, actionColumn];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1668,16 +2839,27 @@ const SurgeSurgeCareImageView = () => {
                             >
                                 <Input placeholder="Enter session details" />
                             </Form.Item>
+                            {commonFields}
+                            {/* Responsible BDM Selection - Updated to show all profiles */}
                             <Form.Item
-                                name="responsible_bdm_name"
+                                name="responsible_bdm_ids"
                                 label="Responsible BDM"
                             >
                                 <Select
-                                    mode="tags"
+                                    mode="multiple"
+                                    placeholder="Select responsible BDMs"
                                     style={{ width: '100%' }}
-                                    placeholder="Enter BDM names"
-                                    tokenSeparators={[',']}
-                                />
+                                    optionFilterProp="children"
+                                    filterOption={(input, option) =>
+                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                    }
+                                >
+                                    {profiles.map(profile => (
+                                        <Option key={profile.id} value={profile.id}>
+                                            {profile.full_name || profile.email}
+                                        </Option>
+                                    ))}
+                                </Select>
                             </Form.Item>
                             <Form.Item
                                 name="remarks"
@@ -1685,7 +2867,6 @@ const SurgeSurgeCareImageView = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter any remarks" />
                             </Form.Item>
-                            {commonFields}
                         </>
                     );
 
@@ -1706,7 +2887,7 @@ const SurgeSurgeCareImageView = () => {
                             <Form.Item
                                 name="subject"
                                 label="Subject"
-                                rules={[{ required: true, message: 'Please enter meeting subject' }]}
+                                rules={[{ required: true, message: 'Please enter subject' }]}
                             >
                                 <TextArea rows={3} placeholder="Enter meeting subject" />
                             </Form.Item>
@@ -1714,12 +2895,7 @@ const SurgeSurgeCareImageView = () => {
                                 name="status"
                                 label="Status"
                             >
-                                <Select placeholder="Select status">
-                                    <Option value="Scheduled">Scheduled</Option>
-                                    <Option value="Completed">Completed</Option>
-                                    <Option value="Cancelled">Cancelled</Option>
-                                    <Option value="Postponed">Postponed</Option>
-                                </Select>
+                                <Input placeholder="Enter status" />
                             </Form.Item>
                             {commonFields}
                         </>
@@ -1754,52 +2930,56 @@ const SurgeSurgeCareImageView = () => {
                             >
                                 <Input placeholder="Enter visitors job title" />
                             </Form.Item>
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Form.Item
-                                        name="start_time"
-                                        label="Start Time"
-                                    >
-                                        <DatePicker
-                                            showTime
-                                            style={{ width: '100%' }}
-                                            format="DD/MM/YYYY HH:mm"
-                                            placeholder="Select start time"
-                                        />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={12}>
-                                    <Form.Item
-                                        name="end_time"
-                                        label="End Time"
-                                    >
-                                        <DatePicker
-                                            showTime
-                                            style={{ width: '100%' }}
-                                            format="DD/MM/YYYY HH:mm"
-                                            placeholder="Select end time"
-                                        />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                            <Form.Item
+                                name="start_time"
+                                label="Start Time"
+                            >
+                                <DatePicker
+                                    showTime
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY HH:mm"
+                                    placeholder="Select start time"
+                                />
+                            </Form.Item>
+                            <Form.Item
+                                name="end_time"
+                                label="End Time"
+                            >
+                                <DatePicker
+                                    showTime
+                                    style={{ width: '100%' }}
+                                    format="DD/MM/YYYY HH:mm"
+                                    placeholder="Select end time"
+                                />
+                            </Form.Item>
                             <Form.Item
                                 name="purpose"
                                 label="Purpose"
                             >
                                 <TextArea rows={3} placeholder="Enter visit purpose" />
                             </Form.Item>
+                            {commonFields}
+                            {/* Responsible BDM Selection - Updated to show all profiles */}
                             <Form.Item
-                                name="responsible_bdm"
+                                name="responsible_bdm_ids"
                                 label="Responsible BDM"
                             >
                                 <Select
-                                    mode="tags"
+                                    mode="multiple"
+                                    placeholder="Select responsible BDMs"
                                     style={{ width: '100%' }}
-                                    placeholder="Enter BDM names"
-                                    tokenSeparators={[',']}
-                                />
+                                    optionFilterProp="children"
+                                    filterOption={(input, option) =>
+                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                    }
+                                >
+                                    {profiles.map(profile => (
+                                        <Option key={profile.id} value={profile.id}>
+                                            {profile.full_name || profile.email}
+                                        </Option>
+                                    ))}
+                                </Select>
                             </Form.Item>
-                            {commonFields}
                         </>
                     );
 
@@ -1829,24 +3009,35 @@ const SurgeSurgeCareImageView = () => {
                                 label="Promotional Activity"
                                 rules={[{ required: true, message: 'Please enter promotional activity' }]}
                             >
-                                <TextArea rows={3} placeholder="Enter promotional activity details" />
+                                <Input placeholder="Enter promotional activity" />
                             </Form.Item>
                             <Form.Item
                                 name="type"
-                                label="Type"
+                                label="Activity Type"
                             >
                                 <Input placeholder="Enter activity type" />
                             </Form.Item>
+                            {commonFields}
+                            {/* Responsible BDM Selection - Updated to show all profiles */}
                             <Form.Item
-                                name="responsible_bdm_names"
+                                name="responsible_bdm_ids"
                                 label="Responsible BDM"
                             >
                                 <Select
-                                    mode="tags"
+                                    mode="multiple"
+                                    placeholder="Select responsible BDMs"
                                     style={{ width: '100%' }}
-                                    placeholder="Enter BDM names"
-                                    tokenSeparators={[',']}
-                                />
+                                    optionFilterProp="children"
+                                    filterOption={(input, option) =>
+                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                    }
+                                >
+                                    {profiles.map(profile => (
+                                        <Option key={profile.id} value={profile.id}>
+                                            {profile.full_name || profile.email}
+                                        </Option>
+                                    ))}
+                                </Select>
                             </Form.Item>
                             <Form.Item
                                 name="remarks"
@@ -1854,7 +3045,6 @@ const SurgeSurgeCareImageView = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter any remarks" />
                             </Form.Item>
-                            {commonFields}
                         </>
                     );
 
@@ -1883,12 +3073,7 @@ const SurgeSurgeCareImageView = () => {
                                 name="status"
                                 label="Status"
                             >
-                                <Select placeholder="Select status">
-                                    <Option value="Pending">Pending</Option>
-                                    <Option value="In Progress">In Progress</Option>
-                                    <Option value="Completed">Completed</Option>
-                                    <Option value="Cancelled">Cancelled</Option>
-                                </Select>
+                                <Input placeholder="Enter status" />
                             </Form.Item>
                             {commonFields}
                         </>
@@ -1925,12 +3110,7 @@ const SurgeSurgeCareImageView = () => {
                                 name="status"
                                 label="Status"
                             >
-                                <Select placeholder="Select status">
-                                    <Option value="Scheduled">Scheduled</Option>
-                                    <Option value="Visited">Visited</Option>
-                                    <Option value="Cancelled">Cancelled</Option>
-                                    <Option value="Postponed">Postponed</Option>
-                                </Select>
+                                <Input placeholder="Enter status" />
                             </Form.Item>
                             {commonFields}
                         </>
@@ -2031,7 +3211,7 @@ const SurgeSurgeCareImageView = () => {
                 <Row justify="space-between" align="middle" gutter={[16, 16]}>
                     <Col xs={24} sm={12} md={8}>
                         <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-                            <SolutionOutlined /> Surge-SurgeCare-Image Department
+                            <SolutionOutlined /> Surge Imaging Department
                         </Title>
                     </Col>
                     <Col xs={24} sm={12} md={8}>
@@ -2122,6 +3302,32 @@ const SurgeSurgeCareImageView = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
+
+                            {/* Bulk Mode Toggle */}
+                            <Switch
+                                checkedChildren="Multiple"
+                                unCheckedChildren="Single"
+                                checked={bulkMode}
+                                onChange={(checked) => {
+                                    setBulkMode(checked);
+                                    if (checked) {
+                                        // Initialize with one empty record when switching to bulk mode
+                                        setBulkRecords([{}]);
+                                    }
+                                }}
+                            />
+
+                            {/* Excel Import Button */}
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={handleExcelImportClick}
+                                size="large"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
+                                Upload Excel
+                            </Button>
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -2129,7 +3335,7 @@ const SurgeSurgeCareImageView = () => {
                                 loading={loading}
                                 size="large"
                             >
-                                Add New Record
+                                Add New Record{bulkMode ? 's (Multiple)' : ''}
                             </Button>
                         </Space>
                     }
@@ -2232,6 +3438,7 @@ const SurgeSurgeCareImageView = () => {
                                     priorityLabels={Object.fromEntries(
                                         priorityOptions.map(opt => [opt.value, opt.label])
                                     )}
+                                    allProfiles={profiles}
                                 />
                             )}
                             <Button
@@ -2254,9 +3461,18 @@ const SurgeSurgeCareImageView = () => {
                                 <Space direction="vertical">
                                     <Text>No records found for selected criteria</Text>
                                     <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
-                                    <Button type="primary" onClick={handleCreate}>
-                                        <PlusOutlined /> Create First Record
-                                    </Button>
+                                    <div>
+                                        <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
+                                            <PlusOutlined /> Create First Record
+                                        </Button>
+                                        <Button
+                                            type="default"
+                                            icon={<UploadOutlined />}
+                                            onClick={handleExcelImportClick}
+                                        >
+                                            Upload Excel Data
+                                        </Button>
+                                    </div>
                                 </Space>
                             }
                         />
@@ -2279,11 +3495,11 @@ const SurgeSurgeCareImageView = () => {
                             <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
                             <Title level={4}>Ready to Export Data</Title>
                             <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or Word format.
                             </Text>
                             <Alert
                                 message="Excel View Mode"
-                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                description="In Excel View mode, you can export the data to XLSX or Word format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
                                 type="info"
                                 showIcon
                             />
@@ -2297,36 +3513,105 @@ const SurgeSurgeCareImageView = () => {
                 title={
                     <Space>
                         {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-                        {editingRecord ? 'Edit' : 'Create'} {selectedCategory?.name} Record
+                        {editingRecord ? 'Edit' : bulkMode ? 'Create Multiple' : 'Create'} {selectedCategory?.name} Record
+                        {bulkMode && !editingRecord && (
+                            <Tag color="orange">Bulk Mode: {bulkRecords.length} records</Tag>
+                        )}
                     </Space>
                 }
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setBulkRecords([{}]); // Reset bulk records when closing
+                }}
                 footer={null}
-                width={600}
+                width={bulkMode && !editingRecord ? 800 : 600}
                 destroyOnClose
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleFormSubmit}
-                >
-                    {getFormFields()}
-
-                    <Divider />
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setModalVisible(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="primary" htmlType="submit" size="large">
-                                {editingRecord ? 'Update' : 'Create'} Record
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                {editingRecord ? (
+                    // Single Edit Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Update Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                ) : bulkMode ? (
+                    // Bulk Create Mode
+                    <div>
+                        <BulkFormFields
+                            records={bulkRecords}
+                            onChange={setBulkRecords}
+                            category={selectedCategory}
+                            priorityOptions={priorityOptions}
+                            safeDayjs={safeDayjs}
+                            allProfiles={profiles}
+                        />
+                        <Divider />
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button
+                                    onClick={() => {
+                                        setModalVisible(false);
+                                        setBulkRecords([{}]);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={() => handleBulkCreate(bulkRecords)}
+                                    size="large"
+                                    loading={loading}
+                                >
+                                    Create {bulkRecords.length} Record{bulkRecords.length > 1 ? 's' : ''}
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                ) : (
+                    // Single Create Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Create Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
+
+            {/* Excel Import Modal */}
+            <ExcelImportModal
+                visible={excelImportModalVisible}
+                onCancel={() => setExcelImportModalVisible(false)}
+                selectedCategory={selectedCategory}
+                onImportComplete={handleExcelImportComplete}
+                allProfiles={profiles}
+            />
 
             {/* Discussion Modal */}
             <DiscussionModal
@@ -2342,7 +3627,7 @@ const SurgeSurgeCareImageView = () => {
             {!selectedCategory && (
                 <Card title="How to Use Surge Imaging Module" style={{ borderRadius: '12px' }}>
                     <Alert
-                        message="Manage Surge-SurgeCare-Image Department Data"
+                        message="Manage Surge Imaging Department Data"
                         description={
                             <div>
                                 <Text strong>Follow these steps:</Text>
@@ -2352,13 +3637,18 @@ const SurgeSurgeCareImageView = () => {
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
                                     <li>In Web View: Use Edit/Delete actions and Discuss features</li>
-                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
+                                    <li>In Excel View: Export data to XLSX or Word for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
+                                    <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
+                                    <li>Use "Upload Excel" to import data from Excel files with validation</li>
+                                    <li>For categories with Responsible BDM field, use Bulk Records instead of Excel import</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different Surge Imaging activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
+                                    Bulk mode allows creating multiple records at once for better productivity.
+                                    Excel import feature helps in bulk data entry with proper validation.
                                 </Text>
                             </div>
                         }
@@ -2371,4 +3661,4 @@ const SurgeSurgeCareImageView = () => {
     );
 };
 
-export default SurgeSurgeCareImageView;
+export default SurgeImaging;

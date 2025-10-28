@@ -34,9 +34,9 @@ import Import from './components/Schedules/Imports.js';
 import Regulatory from './components/Schedules/Regulatory.js';
 import SalesOperations from './components/Schedules/SalesOperations.js';
 import SOMT from './components/Schedules/SOMT.js';
-import StoresView from './components/Schedules/Stores.js';
+import Stores from './components/Schedules/Stores.js';
 import SurgiSurgicare from './components/Schedules/Surge-Surgecare.js';
-import SurgeSurgeCareImageView from './components/Schedules/Surge-Surgecare-Image.js';
+import SurgeImaging from './components/Schedules/Surge-Surgecare-Image.js';
 
 
 import 'antd/dist/reset.css';
@@ -146,9 +146,9 @@ function AppContent() {
           <Route path="departments/regulatory" element={<Regulatory />} />
           <Route path="departments/sales-operations" element={<SalesOperations />} />
           <Route path="departments/somt" element={<SOMT />} />
-          <Route path="departments/stores" element={<StoresView />} />
+          <Route path="departments/stores" element={<Stores />} />
           <Route path="departments/surge-surgecare" element={<SurgiSurgicare />} />
-          <Route path="departments/surge-surgecare-image" element={<SurgeSurgeCareImageView />} />
+          <Route path="departments/surge-surgecare-image" element={<SurgeImaging />} />
           <Route path="/analytics" element={<OopsPage />} />
 
 

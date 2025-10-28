@@ -4,7 +4,7 @@ import {
     Space, Tag, Statistic, Alert, Spin, Modal, Form, Input,
     Select, InputNumber, message, Popconfirm, Divider, List,
     Tooltip, Badge, Timeline, Empty, Result, Descriptions,
-    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown
+    Tabs, Switch, Pagination, Progress, Rate, TimePicker, Radio, Dropdown, Upload
 } from 'antd';
 import {
     TeamOutlined, CalendarOutlined, CheckCircleOutlined,
@@ -15,8 +15,9 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FilePdfOutlined,
-    RocketOutlined, CodeOutlined, FileSearchOutlined, BuildOutlined
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined,
+    RocketOutlined, CodeOutlined, FileSearchOutlined, BuildOutlined,
+    UploadOutlined, FileAddOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
 import dayjs from 'dayjs';
@@ -26,7 +27,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { notifyDepartmentOperation, NOTIFICATION_TYPES } from '../../services/notifications';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, Table as DocTable, TableRow, TableCell, WidthType } from 'docx';
 
 // Extend dayjs with plugins
 dayjs.extend(isBetween);
@@ -653,12 +654,787 @@ const UserScheduleModal = React.memo(({
     );
 });
 
-// Export Button Component
+// Bulk Form Fields Component
+const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayjs, allProfiles }) => {
+    const updateRecord = (index, field, value) => {
+        const newRecords = [...records];
+        newRecords[index] = {
+            ...newRecords[index],
+            [field]: value
+        };
+        onChange(newRecords);
+    };
+
+    const addRecord = () => {
+        onChange([...records, {}]);
+    };
+
+    const removeRecord = (index) => {
+        if (records.length > 1) {
+            const newRecords = records.filter((_, i) => i !== index);
+            onChange(newRecords);
+        }
+    };
+
+    const renderCommonFields = (record, index) => (
+        <>
+            <Form.Item
+                label="SP Name"
+                required
+            >
+                <Input
+                    value={record.sp_name || ''}
+                    onChange={(e) => updateRecord(index, 'sp_name', e.target.value)}
+                    placeholder="Enter SP name"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Company"
+                required
+            >
+                <Input
+                    value={record.company || ''}
+                    onChange={(e) => updateRecord(index, 'company', e.target.value)}
+                    placeholder="Enter company name"
+                />
+            </Form.Item>
+
+            <Form.Item
+                label="Priority"
+                required
+            >
+                <Select
+                    value={record.priority || 2}
+                    onChange={(value) => updateRecord(index, 'priority', value)}
+                    placeholder="Select priority"
+                >
+                    {priorityOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                            <Space>
+                                <Badge color={option.color} />
+                                {option.label}
+                            </Space>
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+
+            {/* Responsible BDMs Selection - Show all profiles */}
+            <Form.Item
+                label="Responsible BDMs"
+            >
+                <Select
+                    mode="multiple"
+                    value={record.responsible_bdm_ids || []}
+                    onChange={(value) => updateRecord(index, 'responsible_bdm_ids', value)}
+                    placeholder="Select responsible BDMs"
+                    style={{ width: '100%' }}
+                    optionFilterProp="children"
+                    filterOption={(input, option) =>
+                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                    }
+                >
+                    {allProfiles.map(profile => (
+                        <Option key={profile.id} value={profile.id}>
+                            {profile.full_name || profile.email}
+                        </Option>
+                    ))}
+                </Select>
+            </Form.Item>
+        </>
+    );
+
+    const renderCategorySpecificFields = (record, index) => {
+        switch (category?.id) {
+            case 'page_generation':
+                return (
+                    <>
+                        <Form.Item
+                            label="Institute"
+                        >
+                            <Input
+                                value={record.institute || ''}
+                                onChange={(e) => updateRecord(index, 'institute', e.target.value)}
+                                placeholder="Enter institute"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Model"
+                        >
+                            <Input
+                                value={record.model || ''}
+                                onChange={(e) => updateRecord(index, 'model', e.target.value)}
+                                placeholder="Enter model"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'technical_discussions':
+                return (
+                    <>
+                        <Form.Item
+                            label="Promotional Activity"
+                            required
+                        >
+                            <Input
+                                value={record.promotional_activity || ''}
+                                onChange={(e) => updateRecord(index, 'promotional_activity', e.target.value)}
+                                placeholder="Enter promotional activity"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Type"
+                        >
+                            <Input
+                                value={record.type || ''}
+                                onChange={(e) => updateRecord(index, 'type', e.target.value)}
+                                placeholder="Enter type"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Remarks"
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.remarks || ''}
+                                onChange={(e) => updateRecord(index, 'remarks', e.target.value)}
+                                placeholder="Enter remarks"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'tender_validation':
+                return (
+                    <>
+                        <Form.Item
+                            label="Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Institute"
+                        >
+                            <Input
+                                value={record.institute || ''}
+                                onChange={(e) => updateRecord(index, 'institute', e.target.value)}
+                                placeholder="Enter institute"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Model"
+                        >
+                            <Input
+                                value={record.model || ''}
+                                onChange={(e) => updateRecord(index, 'model', e.target.value)}
+                                placeholder="Enter model"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            case 'visit_plan':
+                return (
+                    <>
+                        <Form.Item
+                            label="Date"
+                            required
+                        >
+                            <DatePicker
+                                value={record.date ? safeDayjs(record.date) : null}
+                                onChange={(date) => updateRecord(index, 'date', date)}
+                                style={{ width: '100%' }}
+                                format="DD/MM/YYYY"
+                                placeholder="Select date"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Name"
+                            required
+                        >
+                            <Input
+                                value={record.name || ''}
+                                onChange={(e) => updateRecord(index, 'name', e.target.value)}
+                                placeholder="Enter name"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Institute"
+                        >
+                            <Input
+                                value={record.institute || ''}
+                                onChange={(e) => updateRecord(index, 'institute', e.target.value)}
+                                placeholder="Enter institute"
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Purpose"
+                            required
+                        >
+                            <TextArea
+                                rows={2}
+                                value={record.purpose || ''}
+                                onChange={(e) => updateRecord(index, 'purpose', e.target.value)}
+                                placeholder="Enter purpose"
+                            />
+                        </Form.Item>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {records.map((record, index) => (
+                <Card
+                    key={index}
+                    title={`Record ${index + 1}`}
+                    size="small"
+                    style={{ marginBottom: 16, border: '1px solid #d9d9d9' }}
+                    extra={
+                        records.length > 1 && (
+                            <Button
+                                type="link"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removeRecord(index)}
+                                size="small"
+                            >
+                                Remove
+                            </Button>
+                        )
+                    }
+                >
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {renderCommonFields(record, index)}
+                        {renderCategorySpecificFields(record, index)}
+                    </Space>
+                </Card>
+            ))}
+
+            <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={addRecord}
+                style={{ width: '100%' }}
+            >
+                Add Another Record
+            </Button>
+
+            <Alert
+                message={`You are creating ${records.length} record(s) at once`}
+                description="All records will be saved when you click the 'Create Records' button."
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+            />
+        </div>
+    );
+};
+
+// Excel Import Modal Component
+const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
+    const [importLoading, setImportLoading] = useState(false);
+    const [uploadedData, setUploadedData] = useState([]);
+    const [validationResults, setValidationResults] = useState([]);
+
+    // Check if category has responsible_bdm_ids field
+    const hasResponsibleBDMField = selectedCategory?.id && 
+        ['page_generation', 'technical_discussions', 'tender_validation', 'visit_plan'].includes(selectedCategory.id);
+
+    // Download template function
+    const downloadTemplate = () => {
+        try {
+            if (hasResponsibleBDMField) {
+                // Show warning for categories with responsible_bdm_ids
+                Modal.warning({
+                    title: 'Template Not Available',
+                    content: (
+                        <div>
+                            <p><strong>We cannot create a template for this category.</strong></p>
+                            <p>This category has a mandatory column "Responsible BDM" for assigning employees.</p>
+                            <p>Please use the "Bulk Records" feature to add multiple records with proper employee assignments.</p>
+                        </div>
+                    ),
+                    okText: 'Understood'
+                });
+                return;
+            }
+
+            // Create template data structure based on category
+            let templateData = [];
+            let headers = [];
+
+            switch (selectedCategory?.id) {
+                case 'page_generation':
+                    headers = ['SP Name*', 'Company*', 'Institute', 'Model', 'Priority*'];
+                    templateData = [{
+                        'SP Name*': 'John Doe',
+                        'Company*': 'ABC Corp',
+                        'Institute': 'Tech Institute',
+                        'Model': 'Model X',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'technical_discussions':
+                    headers = ['SP Name*', 'Company*', 'Promotional Activity*', 'Type', 'Remarks', 'Priority*'];
+                    templateData = [{
+                        'SP Name*': 'John Doe',
+                        'Company*': 'ABC Corp',
+                        'Promotional Activity*': 'Product Demo',
+                        'Type': 'Technical',
+                        'Remarks': 'Important discussion',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                case 'tender_validation':
+                    headers = ['Date*', 'SP Name*', 'Company*', 'Institute', 'Model', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'SP Name*': 'John Doe',
+                        'Company*': 'ABC Corp',
+                        'Institute': 'Tech Institute',
+                        'Model': 'Model X',
+                        'Priority*': '3'
+                    }];
+                    break;
+
+                case 'visit_plan':
+                    headers = ['Date*', 'Name*', 'Institute', 'Purpose*', 'Company*', 'Priority*'];
+                    templateData = [{
+                        'Date*': '15/01/2024',
+                        'Name*': 'John Doe',
+                        'Institute': 'Tech Institute',
+                        'Purpose*': 'Site visit',
+                        'Company*': 'ABC Corp',
+                        'Priority*': '2'
+                    }];
+                    break;
+
+                default:
+                    headers = ['SP Name*', 'Company*', 'Priority*'];
+                    templateData = [{
+                        'SP Name*': 'John Doe',
+                        'Company*': 'ABC Corp',
+                        'Priority*': '2'
+                    }];
+            }
+
+            // Add instructions row
+            const instructions = {
+                'Instructions': 'Fill in the data below. Fields marked with * are required.',
+                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
+                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD'
+            };
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+
+            // Add instructions sheet
+            const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+
+            // Add data template sheet
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+            // Auto-size columns
+            const colWidths = headers.map(header => ({ wch: Math.max(header.length + 2, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            const fileName = `${selectedCategory?.name || 'hitech'}_import_template.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            toast.success('Template downloaded successfully!');
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            toast.error('Failed to download template');
+        }
+    };
+
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+
+        // Remove any extra spaces
+        const cleanDateStr = dateStr.toString().trim();
+
+        // Try dd/mm/yyyy format first
+        let date = dayjs(cleanDateStr, 'DD/MM/YYYY', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try yyyy-mm-dd format
+        date = dayjs(cleanDateStr, 'YYYY-MM-DD', true);
+        if (date.isValid()) {
+            return date;
+        }
+
+        // Try other common formats
+        date = dayjs(cleanDateStr);
+        if (date.isValid()) {
+            return date;
+        }
+
+        return null;
+    };
+
+    // Handle file upload
+    const handleFileUpload = (file) => {
+        if (hasResponsibleBDMField) {
+            toast.warning('Excel import is not available for categories with Responsible BDM field. Use Bulk Records instead.');
+            return false;
+        }
+
+        setImportLoading(true);
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Get first worksheet
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    toast.error('The uploaded file is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Validate data
+                const validatedData = validateExcelData(jsonData);
+                setUploadedData(validatedData.validRows);
+                setValidationResults(validatedData.results);
+
+                if (validatedData.validRows.length === 0) {
+                    toast.error('No valid data found in the uploaded file');
+                } else {
+                    toast.success(`Found ${validatedData.validRows.length} valid records out of ${jsonData.length}`);
+                }
+            } catch (error) {
+                console.error('Error reading Excel file:', error);
+                toast.error('Failed to read Excel file');
+            } finally {
+                setImportLoading(false);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+        return false; // Prevent default upload behavior
+    };
+
+    // Validate Excel data
+    const validateExcelData = (data) => {
+        const results = [];
+        const validRows = [];
+
+        data.forEach((row, index) => {
+            const errors = [];
+            const validatedRow = {};
+
+            // Check required fields based on category
+            switch (selectedCategory?.id) {
+                case 'page_generation':
+                    if (!row['SP Name*'] && !row['SP Name']) errors.push('SP Name is required');
+                    else validatedRow.sp_name = row['SP Name*'] || row['SP Name'];
+
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    validatedRow.institute = row.Institute || '';
+                    validatedRow.model = row.Model || '';
+                    break;
+
+                case 'technical_discussions':
+                    if (!row['SP Name*'] && !row['SP Name']) errors.push('SP Name is required');
+                    else validatedRow.sp_name = row['SP Name*'] || row['SP Name'];
+
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    if (!row['Promotional Activity*'] && !row['Promotional Activity']) errors.push('Promotional Activity is required');
+                    else validatedRow.promotional_activity = row['Promotional Activity*'] || row['Promotional Activity'];
+
+                    validatedRow.type = row.Type || '';
+                    validatedRow.remarks = row.Remarks || '';
+                    break;
+
+                case 'tender_validation':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['SP Name*'] && !row['SP Name']) errors.push('SP Name is required');
+                    else validatedRow.sp_name = row['SP Name*'] || row['SP Name'];
+
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    validatedRow.institute = row.Institute || '';
+                    validatedRow.model = row.Model || '';
+                    break;
+
+                case 'visit_plan':
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    if (!row['Name*'] && !row.Name) errors.push('Name is required');
+                    else validatedRow.name = row['Name*'] || row.Name;
+
+                    if (!row['Purpose*'] && !row.Purpose) errors.push('Purpose is required');
+                    else validatedRow.purpose = row['Purpose*'] || row.Purpose;
+
+                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
+                    else validatedRow.company = row['Company*'] || row.Company;
+
+                    validatedRow.institute = row.Institute || '';
+                    break;
+            }
+
+            // Priority validation
+            if (!row.Priority && !row['Priority*']) {
+                errors.push('Priority is required');
+            } else {
+                const priority = parseInt(row.Priority || row['Priority*']);
+                if (isNaN(priority) || priority < 1 || priority > 5) {
+                    errors.push('Priority must be between 1-5');
+                } else {
+                    validatedRow.priority = priority;
+                }
+            }
+
+            results.push({
+                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                data: validatedRow,
+                errors,
+                isValid: errors.length === 0
+            });
+
+            if (errors.length === 0) {
+                validRows.push(validatedRow);
+            }
+        });
+
+        return { results, validRows };
+    };
+
+    // Import validated data
+    const importData = async () => {
+        if (uploadedData.length === 0) {
+            toast.warning('No valid data to import');
+            return;
+        }
+
+        setImportLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(uploadedData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each imported record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'hitech',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: 'excel-import',
+                        source: 'excel_import'
+                    }
+                );
+            }
+
+            toast.success(`Successfully imported ${data.length} records`);
+            onImportComplete();
+            onCancel();
+        } catch (error) {
+            console.error('Error importing data:', error);
+            toast.error('Failed to import data');
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const uploadProps = {
+        beforeUpload: handleFileUpload,
+        accept: '.xlsx, .xls',
+        showUploadList: false,
+        multiple: false
+    };
+
+    return (
+        <Modal
+            title={
+                <Space>
+                    <FileExcelOutlined />
+                    Import Data from Excel - {selectedCategory?.name}
+                </Space>
+            }
+            open={visible}
+            onCancel={onCancel}
+            footer={[
+                <Button key="cancel" onClick={onCancel}>
+                    Cancel
+                </Button>,
+                <Button
+                    key="download"
+                    icon={<DownloadOutlined />}
+                    onClick={downloadTemplate}
+                    disabled={hasResponsibleBDMField}
+                >
+                    Download Template
+                </Button>,
+                <Button
+                    key="import"
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={importData}
+                    loading={importLoading}
+                    disabled={uploadedData.length === 0 || hasResponsibleBDMField}
+                >
+                    Import {uploadedData.length} Records
+                </Button>
+            ]}
+            width={800}
+            destroyOnClose
+        >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+                {/* Warning Alert for categories with responsible_bdm_ids */}
+                {hasResponsibleBDMField && (
+                    <Alert
+                        message="Excel Import Not Available"
+                        description={
+                            <div>
+                                <Text strong style={{ color: '#ff4d4f' }}>
+                                    We cannot create a template for this category, because there is a mandatory column "Responsible BDM" for assigning employees.
+                                </Text>
+                                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                                    <li>Use the "Bulk Records" feature to add multiple records with proper employee assignments</li>
+                                    <li>Responsible BDM assignments must be done manually in the system</li>
+                                    <li>This ensures proper tracking and accountability</li>
+                                </ul>
+                            </div>
+                        }
+                        type="warning"
+                        showIcon
+                    />
+                )}
+
+                {/* Upload Section */}
+                {!hasResponsibleBDMField && (
+                    <>
+                        <Card size="small" title="Upload Excel File">
+                            <Upload.Dragger {...uploadProps}>
+                                <p className="ant-upload-drag-icon">
+                                    <FileExcelOutlined />
+                                </p>
+                                <p className="ant-upload-text">
+                                    Click or drag Excel file to this area to upload
+                                </p>
+                                <p className="ant-upload-hint">
+                                    Support for .xlsx, .xls files only
+                                </p>
+                            </Upload.Dragger>
+                        </Card>
+
+                        {/* Validation Results */}
+                        {validationResults.length > 0 && (
+                            <Card
+                                size="small"
+                                title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                            >
+                                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                                    {validationResults.map((result, index) => (
+                                        <Alert
+                                            key={index}
+                                            message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                            description={
+                                                result.errors.length > 0 ? (
+                                                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                                        {result.errors.map((error, errorIndex) => (
+                                                            <li key={errorIndex}>{error}</li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    'All fields are valid'
+                                                )
+                                            }
+                                            type={result.isValid ? 'success' : 'error'}
+                                            showIcon
+                                            style={{ marginBottom: 8 }}
+                                            size="small"
+                                        />
+                                    ))}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Instructions */}
+                        <Alert
+                            message="Import Instructions"
+                            description={
+                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                                    <li>Download the template first to ensure correct format</li>
+                                    <li>Required fields are marked with * in the template</li>
+                                    <li>
+                                        <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                                    </li>
+                                    <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                                    <li>Only valid records will be imported</li>
+                                    <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
+                                </ul>
+                            }
+                            type="info"
+                            showIcon
+                        />
+                    </>
+                )}
+            </Space>
+        </Modal>
+    );
+};
+
+// Export Button Component - Updated to remove PDF and add Word export
 const ExportButton = ({ 
     activities = [], 
     selectedCategory = null,
     moduleName = '',
-    priorityLabels = {}
+    priorityLabels = {},
+    allProfiles = []
 }) => {
     const priorityOptions = [
         { value: 1, label: 'Low', color: 'green' },
@@ -673,18 +1449,26 @@ const ExportButton = ({
         return option ? option.label : 'Normal';
     };
 
+    const getProfileName = (profileId) => {
+        const profile = allProfiles.find(p => p.id === profileId);
+        return profile ? profile.full_name || profile.email : 'Unknown';
+    };
+
     /** -----------------------------
      * Export to Excel (.xlsx)
      * ----------------------------- */
     const exportToExcel = () => {
         try {
             const dataForExport = activities.map(activity => {
-                // Common structure for HiTech modules
+                // Common structure shared by HiTech modules
                 const base = {
-                    'Category': selectedCategory?.name || '',
-                    'Priority': getPriorityLabel(activity.priority),
                     'SP Name': activity.sp_name || '',
                     'Company': activity.company || '',
+                    'Category': selectedCategory?.name || '',
+                    'Priority': getPriorityLabel(activity.priority),
+                    'Responsible BDM(s)': Array.isArray(activity.responsible_bdm_names)
+                        ? activity.responsible_bdm_names.join(', ')
+                        : activity.responsible_bdm_names || '',
                     'Created Date': activity.created_at
                         ? dayjs(activity.created_at).format('YYYY-MM-DD')
                         : ''
@@ -762,65 +1546,146 @@ const ExportButton = ({
     };
 
     /** -----------------------------
-     * Export to PDF (.pdf)
+     * Export to Word (.docx)
      * ----------------------------- */
-    const exportToPDF = () => {
+    const exportToWord = async () => {
         try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('HiTech Export Summary', 14, 15);
-            doc.setFontSize(10);
-            const categoryText = selectedCategory ? `Category: ${selectedCategory.name}` : '';
-            doc.text(`${categoryText} | ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 22);
+            // Create table rows for Word document
+            const tableRows = activities.map((activity, index) => {
+                const cells = [];
 
-            const headers = ['Category', 'SP Name', 'Company', 'Priority'];
-            const tableData = activities.map(a => [
-                selectedCategory?.name || '',
-                a.sp_name || a.name || '',
-                a.company || '',
-                getPriorityLabel(a.priority)
-            ]);
+                // Add basic information cells based on category
+                switch (selectedCategory?.id) {
+                    case 'page_generation':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.sp_name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.institute || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.model || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            let y = 35;
-            const xStart = 14;
-            const colWidths = [40, 50, 50, 30];
-            const lineHeight = 7;
-            const pageHeight = doc.internal.pageSize.height;
+                    case 'technical_discussions':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.sp_name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.promotional_activity || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.type || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            // Header background
-            doc.setFillColor(41, 128, 185);
-            doc.setTextColor(255, 255, 255);
-            let x = xStart;
-            headers.forEach((header, i) => {
-                doc.rect(x, y - 5, colWidths[i], 8, 'F');
-                doc.text(header, x + 2, y);
-                x += colWidths[i];
-            });
+                    case 'tender_validation':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.sp_name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.institute || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            doc.setTextColor(0, 0, 0);
-            y += 10;
+                    case 'visit_plan':
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.date ? dayjs(activity.date).format('DD/MM/YYYY') : '')] }),
+                            new TableCell({ children: [new Paragraph(activity.institute || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
+                        break;
 
-            // Rows
-            tableData.forEach(row => {
-                if (y > pageHeight - 20) {
-                    doc.addPage();
-                    y = 20;
+                    default:
+                        cells.push(
+                            new TableCell({ children: [new Paragraph(activity.sp_name || '')] }),
+                            new TableCell({ children: [new Paragraph(activity.company || '')] }),
+                            new TableCell({ children: [new Paragraph(getPriorityLabel(activity.priority))] })
+                        );
                 }
-                x = xStart;
-                row.forEach((cell, i) => {
-                    doc.text(cell.toString().substring(0, 35), x + 2, y);
-                    x += colWidths[i];
-                });
-                y += lineHeight;
+
+                return new TableRow({ children: cells });
             });
 
-            const fileName = `${selectedCategory?.name || 'hitech_export'}_${dayjs().format('YYYY-MM-DD')}.pdf`;
+            // Create headers based on category
+            let headers = [];
+            switch (selectedCategory?.id) {
+                case 'page_generation':
+                    headers = ['SP Name', 'Company', 'Institute', 'Model', 'Priority'];
+                    break;
+                case 'technical_discussions':
+                    headers = ['SP Name', 'Company', 'Promotional Activity', 'Type', 'Priority'];
+                    break;
+                case 'tender_validation':
+                    headers = ['SP Name', 'Company', 'Date', 'Institute', 'Priority'];
+                    break;
+                case 'visit_plan':
+                    headers = ['Name', 'Company', 'Date', 'Institute', 'Priority'];
+                    break;
+                default:
+                    headers = ['SP Name', 'Company', 'Priority'];
+            }
 
-            doc.save(fileName);
-            toast.success('PDF file exported successfully!');
+            const headerRow = new TableRow({
+                children: headers.map(header => 
+                    new TableCell({ 
+                        children: [new Paragraph({ 
+                            children: [new TextRun({ text: header, bold: true })] 
+                        })] 
+                    })
+                )
+            });
+
+            const table = new DocTable({
+                width: {
+                    size: 100,
+                    type: WidthType.PERCENTAGE,
+                },
+                rows: [headerRow, ...tableRows],
+            });
+
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `${selectedCategory?.name || 'HiTech'} Export - ${dayjs().format('DD/MM/YYYY')}`,
+                                    bold: true,
+                                    size: 28,
+                                }),
+                            ],
+                        }),
+                        new Paragraph({ text: "" }), // Empty line
+                        table,
+                        new Paragraph({ text: "" }), // Empty line
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `Total Records: ${activities.length}`,
+                                    italics: true,
+                                }),
+                            ],
+                        }),
+                    ],
+                }],
+            });
+
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${selectedCategory?.name || 'hitech_export'}_${dayjs().format('YYYY-MM-DD')}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            toast.success('Word document exported successfully!');
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            toast.error('Failed to export PDF file');
+            console.error('Error exporting Word document:', error);
+            toast.error('Failed to export Word document');
         }
     };
 
@@ -835,10 +1700,10 @@ const ExportButton = ({
             onClick: exportToExcel 
         },
         { 
-            key: 'pdf', 
-            icon: <FilePdfOutlined />, 
-            label: 'Export to PDF', 
-            onClick: exportToPDF 
+            key: 'word', 
+            icon: <FileWordOutlined />, 
+            label: 'Export to Word', 
+            onClick: exportToWord 
         }
     ];
 
@@ -880,12 +1745,16 @@ const HiTech = () => {
     const [editingRecord, setEditingRecord] = useState(null);
     const [form] = Form.useForm();
 
+    // Bulk mode states
+    const [bulkMode, setBulkMode] = useState(false);
+    const [bulkRecords, setBulkRecords] = useState([{}]);
+
     // View mode state (web view or excel view)
     const [viewMode, setViewMode] = useState('web'); // 'web' or 'excel'
 
     // User Availability States
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
-    const [hitechUsers, setHiTechUsers] = useState([]);
+    const [hitechUsers, setHitechUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [userSchedule, setUserSchedule] = useState([]);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -901,6 +1770,12 @@ const HiTech = () => {
 
     // Priority filter state
     const [priorityFilter, setPriorityFilter] = useState(null);
+
+    // Excel Import Modal State
+    const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
+
+    // Department ID for HiTech
+    const HITECH_DEPARTMENT_ID = 'your-hitech-department-id-here';
 
     // HiTech Categories configuration
     const hitechCategories = [
@@ -918,10 +1793,10 @@ const HiTech = () => {
             id: 'technical_discussions',
             name: 'Technical Discussions',
             table: 'hitech_technical_discussions',
-            type: 'Technical',
-            icon: <BuildOutlined />,
+            type: 'Discussion',
+            icon: <MessageOutlined />,
             dateField: 'created_at',
-            color: '#fa8c16',
+            color: '#52c41a',
             hasTimeFields: false
         },
         {
@@ -931,15 +1806,15 @@ const HiTech = () => {
             type: 'Validation',
             icon: <FileSearchOutlined />,
             dateField: 'date',
-            color: '#52c41a',
+            color: '#fa8c16',
             hasTimeFields: false
         },
         {
             id: 'visit_plan',
             name: 'Visit Plan',
             table: 'hitech_visit_plan',
-            type: 'Field Work',
-            icon: <RocketOutlined />,
+            type: 'Planning',
+            icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#722ed1',
             hasTimeFields: false
@@ -1108,7 +1983,7 @@ const HiTech = () => {
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchProfiles(),
+                fetchAllProfiles(), // Updated to fetch all profiles
                 fetchHiTechUsers()
             ]);
 
@@ -1149,7 +2024,8 @@ const HiTech = () => {
         }
     };
 
-    const fetchProfiles = async () => {
+    // Updated to fetch all profiles from the database
+    const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -1159,41 +2035,25 @@ const HiTech = () => {
             if (error) throw error;
             safeSetState(setProfiles, data || []);
         } catch (error) {
-            handleError(error, 'fetching profiles');
+            handleError(error, 'fetching all profiles');
             safeSetState(setProfiles, []);
         }
     };
 
     const fetchHiTechUsers = async () => {
         try {
-            // Use the specific HiTech department ID you provided
-            const hitechDepartmentId = '7483633e-a502-4eab-8828-a9d7a6649394';
-            
             // Get all users in HiTech department
             const { data: usersData, error: usersError } = await supabase
                 .from('profiles')
                 .select('id, full_name, email, department_id')
-                .eq('department_id', hitechDepartmentId)
+                .eq('department_id', HITECH_DEPARTMENT_ID)
                 .order('full_name');
 
-            if (usersError) {
-                console.error('Error fetching HiTech users:', usersError);
-                // Fallback to all users if department not found
-                const { data: allUsers, error: allUsersError } = await supabase
-                    .from('profiles')
-                    .select('id, full_name, email, department_id')
-                    .order('full_name');
-
-                if (allUsersError) throw allUsersError;
-                safeSetState(setHiTechUsers, allUsers || []);
-                toast.warning('Using all users as fallback for HiTech department');
-                return;
-            }
-
-            safeSetState(setHiTechUsers, usersData || []);
+            if (usersError) throw usersError;
+            safeSetState(setHitechUsers, usersData || []);
         } catch (error) {
             handleError(error, 'fetching HiTech users');
-            safeSetState(setHiTechUsers, []);
+            safeSetState(setHitechUsers, []);
         }
     };
 
@@ -1211,26 +2071,16 @@ const HiTech = () => {
 
             let query = supabase
                 .from(selectedCategory.table)
-                .select('*');
-
-            // Apply date filtering based on category
-            if (selectedCategory.dateField === 'created_at') {
-                query = query
-                    .gte('created_at', `${startDate}T00:00:00Z`)
-                    .lte('created_at', `${endDate}T23:59:59Z`);
-            } else {
-                query = query
-                    .gte(selectedCategory.dateField, startDate)
-                    .lte(selectedCategory.dateField, endDate);
-            }
+                .select('*')
+                .gte(selectedCategory.dateField, startDate)
+                .lte(selectedCategory.dateField, endDate)
+                .order('priority', { ascending: false }) // Sort by priority (high to low)
+                .order(selectedCategory.dateField, { ascending: true });
 
             // Apply priority filter if selected
             if (priorityFilter) {
                 query = query.eq('priority', priorityFilter);
             }
-
-            query = query.order('priority', { ascending: false })
-                        .order(selectedCategory.dateField, { ascending: true });
 
             const { data, error } = await query;
 
@@ -1321,30 +2171,30 @@ const HiTech = () => {
 
                 let query = supabase
                     .from(category.table)
-                    .select('*');
-
-                // Apply date filtering based on category
-                if (category.dateField === 'created_at') {
-                    query = query
-                        .gte('created_at', `${formattedStart}T00:00:00Z`)
-                        .lte('created_at', `${formattedEnd}T23:59:59Z`);
-                } else {
-                    query = query
-                        .gte(category.dateField, formattedStart)
-                        .lte(category.dateField, formattedEnd);
-                }
-
-                query = query.order('priority', { ascending: false })
-                            .order(category.dateField, { ascending: true });
+                    .select('*')
+                    .gte(category.dateField, formattedStart)
+                    .lte(category.dateField, formattedEnd)
+                    .order('priority', { ascending: false })
+                    .order(category.dateField, { ascending: true });
 
                 let categoryActivities = [];
 
                 try {
-                    // Get all activities for this category
-                    const { data } = await query;
-                    if (data) {
-                        // For HiTech, we'll include all activities since there's no specific user assignment
-                        categoryActivities = data;
+                    // Different filtering strategies for each category
+                    switch (category.id) {
+                        case 'page_generation':
+                        case 'technical_discussions':
+                        case 'tender_validation':
+                        case 'visit_plan':
+                            // These use responsible_bdm_ids field (uuid array)
+                            const { data: uuidArrayData } = await query.contains('responsible_bdm_ids', [userId]);
+                            categoryActivities = uuidArrayData || [];
+                            break;
+
+                        default:
+                            const { data: defaultData } = await query;
+                            categoryActivities = defaultData || [];
+                            break;
                     }
 
                     console.log(`Category ${category.name} activities:`, categoryActivities.length);
@@ -1394,6 +2244,8 @@ const HiTech = () => {
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
             safeSetState(setViewMode, 'web'); // Reset to web view when category changes
+            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
+            safeSetState(setBulkRecords, [{}]); // Reset bulk records
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1424,6 +2276,12 @@ const HiTech = () => {
         try {
             safeSetState(setEditingRecord, null);
             form.resetFields();
+
+            // Initialize bulk records if in bulk mode
+            if (bulkMode) {
+                safeSetState(setBulkRecords, [{}]);
+            }
+
             safeSetState(setModalVisible, true);
         } catch (error) {
             handleError(error, 'creating new record');
@@ -1441,7 +2299,7 @@ const HiTech = () => {
 
             // Format date fields based on category with error handling
             try {
-                if (record.date) {
+                if ((selectedCategory.id === 'tender_validation' || selectedCategory.id === 'visit_plan') && record.date) {
                     formattedRecord.date = safeDayjs(record.date);
                 }
             } catch (dateError) {
@@ -1523,6 +2381,104 @@ const HiTech = () => {
         }
     };
 
+    const handleBulkCreate = async (records) => {
+        try {
+            if (!selectedCategory?.table) {
+                throw new Error('No category selected');
+            }
+
+            if (!records || records.length === 0) {
+                toast.warning('No records to create');
+                return;
+            }
+
+            // Validate records
+            const validRecords = records.filter(record => {
+                // Basic validation - check required fields based on category
+                if (!record.sp_name || !record.company) return false;
+
+                switch (selectedCategory.id) {
+                    case 'page_generation':
+                        return true; // Only SP Name and Company are required
+                    case 'technical_discussions':
+                        return record.promotional_activity;
+                    case 'tender_validation':
+                        return record.date;
+                    case 'visit_plan':
+                        return record.date && record.name && record.purpose;
+                    default:
+                        return true;
+                }
+            });
+
+            if (validRecords.length === 0) {
+                toast.error('Please fill in all required fields for at least one record');
+                return;
+            }
+
+            if (validRecords.length !== records.length) {
+                toast.warning(`Only ${validRecords.length} out of ${records.length} records are valid and will be created`);
+            }
+
+            setLoading(true);
+
+            // Prepare data for submission
+            const submitData = validRecords.map(record => {
+                const preparedRecord = { 
+                    ...record
+                };
+
+                // Convert dayjs objects to proper formats
+                Object.keys(preparedRecord).forEach(key => {
+                    try {
+                        const value = preparedRecord[key];
+                        if (dayjs.isDayjs(value)) {
+                            preparedRecord[key] = value.format('YYYY-MM-DD');
+                        }
+                    } catch (dateError) {
+                        console.warn(`Error converting date field ${key}:`, dateError);
+                    }
+                });
+
+                return preparedRecord;
+            });
+
+            // Insert all records
+            const { data, error } = await supabase
+                .from(selectedCategory.table)
+                .insert(submitData)
+                .select();
+
+            if (error) throw error;
+
+            // Send notifications for each created record
+            for (const record of data) {
+                await notifyDepartmentOperation(
+                    'hitech',
+                    selectedCategory.name,
+                    NOTIFICATION_TYPES.CREATE,
+                    record,
+                    {
+                        tableName: selectedCategory.table,
+                        userId: currentUser?.id
+                    }
+                );
+            }
+
+            toast.success(`Successfully created ${data.length} record(s)`);
+
+            // Reset and close
+            setModalVisible(false);
+            setBulkRecords([{}]);
+            fetchTableData();
+
+        } catch (error) {
+            handleError(error, 'bulk creating records');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDiscussionClick = (record) => {
         try {
             if (!selectedCategory) {
@@ -1536,6 +2492,22 @@ const HiTech = () => {
         }
     };
 
+    const handleExcelImportClick = () => {
+        try {
+            if (!selectedCategory) {
+                toast.warning('Please select a category first');
+                return;
+            }
+            safeSetState(setExcelImportModalVisible, true);
+        } catch (error) {
+            handleError(error, 'opening Excel import');
+        }
+    };
+
+    const handleExcelImportComplete = () => {
+        fetchTableData(); // Refresh table data after import
+    };
+
     const handleFormSubmit = async (values) => {
         try {
             if (!selectedCategory?.table) {
@@ -1543,7 +2515,9 @@ const HiTech = () => {
             }
 
             // Prepare data for submission
-            const submitData = { ...values };
+            const submitData = {
+                ...values
+            };
 
             // Convert dayjs objects to proper formats with error handling
             Object.keys(submitData).forEach(key => {
@@ -1675,53 +2649,52 @@ const HiTech = () => {
                 sorter: (a, b) => a.priority - b.priority,
             };
 
-
-
             switch (selectedCategory.id) {
                 case 'page_generation':
                     return [
-
                         { title: 'SP Name', dataIndex: 'sp_name', key: 'sp_name', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Institute', dataIndex: 'institute', key: 'institute', width: 150 },
                         { title: 'Model', dataIndex: 'model', key: 'model', width: 120 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'technical_discussions':
                     return [
-
                         { title: 'SP Name', dataIndex: 'sp_name', key: 'sp_name', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Promotional Activity', dataIndex: 'promotional_activity', key: 'promotional_activity', width: 200 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'tender_validation':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'SP Name', dataIndex: 'sp_name', key: 'sp_name', width: 150 },
                         { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Institute', dataIndex: 'institute', key: 'institute', width: 150 },
                         { title: 'Model', dataIndex: 'model', key: 'model', width: 120 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 case 'visit_plan':
                     return [
-
                         { title: 'Date', dataIndex: 'date', key: 'date', width: 120 },
                         { title: 'Name', dataIndex: 'name', key: 'name', width: 150 },
+                        { title: 'Company', dataIndex: 'company', key: 'company', width: 150 },
                         { title: 'Institute', dataIndex: 'institute', key: 'institute', width: 150 },
                         { title: 'Purpose', dataIndex: 'purpose', key: 'purpose', width: 200 },
+                        priorityColumn,
                         actionColumn
                     ];
 
                 default:
-                    return ;
+                    return [priorityColumn, actionColumn];
             }
         } catch (error) {
             handleError(error, 'generating table columns');
@@ -1738,17 +2711,17 @@ const HiTech = () => {
                     <Form.Item
                         name="sp_name"
                         label="SP Name"
-                        rules={[{ required: true, message: 'Please enter SP Name' }]}
+                        rules={[{ required: true, message: 'Please enter SP name' }]}
                     >
-                        <Input placeholder="Enter SP Name" />
+                        <Input placeholder="Enter SP name" />
                     </Form.Item>
 
                     <Form.Item
                         name="company"
                         label="Company"
-                        rules={[{ required: true, message: 'Please enter company' }]}
+                        rules={[{ required: true, message: 'Please enter company name' }]}
                     >
-                        <Input placeholder="Enter company" />
+                        <Input placeholder="Enter company name" />
                     </Form.Item>
 
                     <Form.Item
@@ -1764,6 +2737,28 @@ const HiTech = () => {
                                         <Badge color={option.color} />
                                         {option.label}
                                     </Space>
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+
+                    {/* Responsible BDMs Selection - Updated to show all profiles */}
+                    <Form.Item
+                        name="responsible_bdm_ids"
+                        label="Responsible BDMs"
+                    >
+                        <Select
+                            mode="multiple"
+                            placeholder="Select responsible BDMs"
+                            style={{ width: '100%' }}
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
+                        >
+                            {profiles.map(profile => (
+                                <Option key={profile.id} value={profile.id}>
+                                    {profile.full_name || profile.email}
                                 </Option>
                             ))}
                         </Select>
@@ -1861,6 +2856,7 @@ const HiTech = () => {
                                     placeholder="Select date"
                                 />
                             </Form.Item>
+                            {commonFields}
                             <Form.Item
                                 name="name"
                                 label="Name"
@@ -1881,23 +2877,6 @@ const HiTech = () => {
                             >
                                 <TextArea rows={3} placeholder="Enter purpose" />
                             </Form.Item>
-                            <Form.Item
-                                name="priority"
-                                label="Priority"
-                                initialValue={2}
-                                rules={[{ required: true, message: 'Please select priority' }]}
-                            >
-                                <Select placeholder="Select priority">
-                                    {priorityOptions.map(option => (
-                                        <Option key={option.value} value={option.value}>
-                                            <Space>
-                                                <Badge color={option.color} />
-                                                {option.label}
-                                            </Space>
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
                         </>
                     );
 
@@ -1913,29 +2892,15 @@ const HiTech = () => {
     const getStats = () => {
         try {
             if (!selectedCategory || !tableData.length) {
-                return { 
-                    totalRecords: 0, 
-                    technicalTasks: 0, 
-                    validationTasks: 0, 
-                    activeProjects: 0 
-                };
+                return { totalRecords: 0, technicalTasks: 0, validationTasks: 0, activeProjects: 0 };
             }
 
             const totalRecords = tableData.length;
             
-            // Calculate category-specific stats
-            const technicalTasks = tableData.filter(item => 
-                selectedCategory.id === 'page_generation' || 
-                selectedCategory.id === 'technical_discussions'
-            ).length;
-
-            const validationTasks = tableData.filter(item => 
-                selectedCategory.id === 'tender_validation'
-            ).length;
-
-            const activeProjects = tableData.filter(item => 
-                selectedCategory.id === 'visit_plan'
-            ).length;
+            // Calculate stats based on category
+            const technicalTasks = selectedCategory.id === 'page_generation' || selectedCategory.id === 'technical_discussions' ? tableData.length : 0;
+            const validationTasks = selectedCategory.id === 'tender_validation' ? tableData.length : 0;
+            const activeProjects = selectedCategory.id === 'visit_plan' ? tableData.length : 0;
 
             return { totalRecords, technicalTasks, validationTasks, activeProjects };
         } catch (error) {
@@ -2095,6 +3060,32 @@ const HiTech = () => {
                                     <FileExcelOutlined /> Excel View
                                 </Radio.Button>
                             </Radio.Group>
+
+                            {/* Bulk Mode Toggle */}
+                            <Switch
+                                checkedChildren="Multiple"
+                                unCheckedChildren="Single"
+                                checked={bulkMode}
+                                onChange={(checked) => {
+                                    setBulkMode(checked);
+                                    if (checked) {
+                                        // Initialize with one empty record when switching to bulk mode
+                                        setBulkRecords([{}]);
+                                    }
+                                }}
+                            />
+
+                            {/* Excel Import Button */}
+                            <Button
+                                type="primary"
+                                icon={<UploadOutlined />}
+                                onClick={handleExcelImportClick}
+                                size="large"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
+                                Upload Excel
+                            </Button>
+
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -2102,7 +3093,7 @@ const HiTech = () => {
                                 loading={loading}
                                 size="large"
                             >
-                                Add New Record
+                                Add New Record{bulkMode ? 's (Multiple)' : ''}
                             </Button>
                         </Space>
                     }
@@ -2154,27 +3145,7 @@ const HiTech = () => {
 
             {/* Statistics */}
             {selectedCategory && dateRange[0] && dateRange[1] && (
-                <>
-                    <HiTechStatistics stats={stats} loading={loading} />
-
-                    {/* Progress Bar for Completion Rate */}
-                    <Card style={{ marginBottom: 24 }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Text strong>Overall Progress</Text>
-                            <Progress
-                                percent={Math.round((stats.totalRecords / (stats.totalRecords + 10)) * 100)}
-                                status="active"
-                                strokeColor={{
-                                    '0%': '#108ee9',
-                                    '100%': '#87d068',
-                                }}
-                            />
-                            <Text type="secondary">
-                                {stats.totalRecords} total records across all categories
-                            </Text>
-                        </Space>
-                    </Card>
-                </>
+                <HiTechStatistics stats={stats} loading={loading} />
             )}
 
             {/* Data Table or Export Button */}
@@ -2205,6 +3176,7 @@ const HiTech = () => {
                                     priorityLabels={Object.fromEntries(
                                         priorityOptions.map(opt => [opt.value, opt.label])
                                     )}
+                                    allProfiles={profiles}
                                 />
                             )}
                             <Button
@@ -2227,9 +3199,18 @@ const HiTech = () => {
                                 <Space direction="vertical">
                                     <Text>No records found for selected criteria</Text>
                                     <Text type="secondary">Try selecting a different date range, priority filter, or create new records</Text>
-                                    <Button type="primary" onClick={handleCreate}>
-                                        <PlusOutlined /> Create First Record
-                                    </Button>
+                                    <div>
+                                        <Button type="primary" onClick={handleCreate} style={{ marginRight: 8 }}>
+                                            <PlusOutlined /> Create First Record
+                                        </Button>
+                                        <Button
+                                            type="default"
+                                            icon={<UploadOutlined />}
+                                            onClick={handleExcelImportClick}
+                                        >
+                                            Upload Excel Data
+                                        </Button>
+                                    </div>
                                 </Space>
                             }
                         />
@@ -2252,11 +3233,11 @@ const HiTech = () => {
                             <FileExcelOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
                             <Title level={4}>Ready to Export Data</Title>
                             <Text type="secondary" style={{ display: 'block', marginBottom: '24px' }}>
-                                Use the Export dropdown button above to download {tableData.length} records in Excel or PDF format.
+                                Use the Export dropdown button above to download {tableData.length} records in Excel or Word format.
                             </Text>
                             <Alert
                                 message="Excel View Mode"
-                                description="In Excel View mode, you can export the data to XLSX or PDF format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
+                                description="In Excel View mode, you can export the data to XLSX or Word format for offline analysis. Switch to Web View for editing, deleting, and discussion features."
                                 type="info"
                                 showIcon
                             />
@@ -2270,36 +3251,105 @@ const HiTech = () => {
                 title={
                     <Space>
                         {editingRecord ? <EditOutlined /> : <PlusOutlined />}
-                        {editingRecord ? 'Edit' : 'Create'} {selectedCategory?.name} Record
+                        {editingRecord ? 'Edit' : bulkMode ? 'Create Multiple' : 'Create'} {selectedCategory?.name} Record
+                        {bulkMode && !editingRecord && (
+                            <Tag color="orange">Bulk Mode: {bulkRecords.length} records</Tag>
+                        )}
                     </Space>
                 }
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setBulkRecords([{}]); // Reset bulk records when closing
+                }}
                 footer={null}
-                width={600}
+                width={bulkMode && !editingRecord ? 800 : 600}
                 destroyOnClose
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleFormSubmit}
-                >
-                    {getFormFields()}
-
-                    <Divider />
-
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-                        <Space>
-                            <Button onClick={() => setModalVisible(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="primary" htmlType="submit" size="large">
-                                {editingRecord ? 'Update' : 'Create'} Record
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
+                {editingRecord ? (
+                    // Single Edit Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Update Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                ) : bulkMode ? (
+                    // Bulk Create Mode
+                    <div>
+                        <BulkFormFields
+                            records={bulkRecords}
+                            onChange={setBulkRecords}
+                            category={selectedCategory}
+                            priorityOptions={priorityOptions}
+                            safeDayjs={safeDayjs}
+                            allProfiles={profiles}
+                        />
+                        <Divider />
+                        <div style={{ textAlign: 'right' }}>
+                            <Space>
+                                <Button
+                                    onClick={() => {
+                                        setModalVisible(false);
+                                        setBulkRecords([{}]);
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={() => handleBulkCreate(bulkRecords)}
+                                    size="large"
+                                    loading={loading}
+                                >
+                                    Create {bulkRecords.length} Record{bulkRecords.length > 1 ? 's' : ''}
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                ) : (
+                    // Single Create Mode (existing code)
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={handleFormSubmit}
+                    >
+                        {getFormFields()}
+                        <Divider />
+                        <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                            <Space>
+                                <Button onClick={() => setModalVisible(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="primary" htmlType="submit" size="large">
+                                    Create Record
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
+
+            {/* Excel Import Modal */}
+            <ExcelImportModal
+                visible={excelImportModalVisible}
+                onCancel={() => setExcelImportModalVisible(false)}
+                selectedCategory={selectedCategory}
+                onImportComplete={handleExcelImportComplete}
+                allProfiles={profiles}
+            />
 
             {/* User Availability Modal */}
             <Modal
@@ -2429,14 +3479,19 @@ const HiTech = () => {
                                     <li>Date range is automatically set to yesterday to 9 days from today</li>
                                     <li>Use priority filter to view high-priority items first</li>
                                     <li>In Web View: Use Edit/Delete actions and Discuss features</li>
-                                    <li>In Excel View: Export data to XLSX or PDF for offline analysis</li>
+                                    <li>In Excel View: Export data to XLSX or Word for offline analysis</li>
                                     <li>Red badge on Discuss button shows unread messages</li>
                                     <li>Use "Check Team Availability" to view team schedules</li>
                                     <li>Enable auto-refresh for automatic data updates every 2 minutes</li>
+                                    <li>Use the Single/Multiple toggle to switch between single and bulk record creation</li>
+                                    <li>Use "Upload Excel" to import data from Excel files with validation</li>
+                                    <li>For categories with Responsible BDM field, use Bulk Records instead of Excel import</li>
                                 </ol>
                                 <Text type="secondary">
                                     Each category represents different HiTech activities recorded in the system.
                                     Web View provides full interactive features while Excel View is for read-only data export.
+                                    Bulk mode allows creating multiple records at once for better productivity.
+                                    Excel import feature helps in bulk data entry with proper validation.
                                 </Text>
                             </div>
                         }
