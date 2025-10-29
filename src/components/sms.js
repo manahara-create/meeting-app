@@ -24,7 +24,7 @@ const departmentConfig = {
     'IT': { person: 'Not Yet Confirmed', email: null },
     'Regulatory': { person: 'Hiruni Achinthya', email: 'hiruni.achinthya@aipl.lk' },
     'Sales Operations': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
-    'Senior Management': { person: 'Madura Liyanaarachchi', email: 'madura@aipl.lk' },
+    'Senior Management': { person: 'Madura Liyanaarachchi', email: 'mudusara@aipl.lk' },
     'SOMT': { person: 'Rahul Rupkumar', email: 'rahul.rupkumar@aipl.lk' },
     'Stores': { person: 'Suranga Silva', email: 'surangas@aipl.lk' },
     'Surge-Surgecare': { person: 'Shahan Anthony', email: 'shahan.anthony@aipl.lk' },
