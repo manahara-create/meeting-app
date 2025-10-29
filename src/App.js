@@ -17,7 +17,7 @@ import Profile from './components/Personal/Profile';
 import NotificationPanel from './components/notifications/NotificationPanel';
 import { notify } from './components/notifications/notify';
 import OopsPage from './components/Layout/OopsPage';
-
+import { scheduleWeeklyCheck } from './components/sms.js';
 
 import BDM from './components/Schedules/BDM_Schedules';
 import Cluster1 from './components/Schedules/Cluster_1';
@@ -74,6 +74,10 @@ const PublicRoute = ({ children }) => {
 
 // Main App Content with Notification Panel
 function AppContent() {
+  useEffect(() => {
+    console.log('🚀 Starting Schedify Weekly Check Scheduler...');
+    scheduleWeeklyCheck();
+  }, []);
   return (
     <>
       <Routes>
@@ -146,7 +150,7 @@ function AppContent() {
           <Route path="departments/imports" element={<Import />} />
           <Route path="departments/regulatory" element={<Regulatory />} />
           <Route path="departments/sales-operations" element={<SalesOperations />} />
-          <Route path="departments/senior-management" element={<SeniorManagement />}/>
+          <Route path="departments/senior-management" element={<SeniorManagement />} />
           <Route path="departments/somt" element={<SOMT />} />
           <Route path="departments/stores" element={<Stores />} />
           <Route path="departments/surge-surgecare" element={<SurgiSurgicare />} />

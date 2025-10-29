@@ -253,7 +253,6 @@ const departmentConfig = {
   }
 };
 
-
 // Loading component
 const LoadingSpinner = ({ tip = "Loading departments data..." }) => (
   <div style={{ textAlign: 'center', padding: '50px' }}>
