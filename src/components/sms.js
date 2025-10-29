@@ -1,7 +1,6 @@
 // Background Process for Weekly Record Check - Schedify App
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
-import cron from 'node-cron';
 
 // Department configuration with responsible persons
 const departmentConfig = {
@@ -403,15 +402,73 @@ async function logWeeklyCheckResult(result) {
     }
 }
 
-// Schedule the job to run every Monday at 9:00 AM
+// Simple scheduler using setTimeout (runs every Monday at 9:00 AM)
 export function scheduleWeeklyCheck() {
-    // Run every Monday at 9:00 AM
-    cron.schedule('0 9 * * 1', async () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    
+    // Calculate milliseconds until next Monday 9:00 AM
+    let daysUntilMonday = (8 - dayOfWeek) % 7; // 1 for Monday
+    if (daysUntilMonday === 0 && (hours < 9 || (hours === 9 && minutes === 0))) {
+        daysUntilMonday = 0; // Today is Monday but before 9:00 AM
+    } else if (daysUntilMonday === 0) {
+        daysUntilMonday = 7; // Today is Monday but after 9:00 AM, go to next Monday
+    }
+    
+    const nextMonday = new Date(now);
+    nextMonday.setDate(now.getDate() + daysUntilMonday);
+    nextMonday.setHours(9, 0, 0, 0);
+    
+    const msUntilNextMonday = nextMonday.getTime() - now.getTime();
+    
+    console.log(`⏰ Next weekly check scheduled for: ${nextMonday.toLocaleString()}`);
+    
+    // Schedule the first run
+    setTimeout(() => {
         console.log('⏰ Schedify - Scheduled weekly record check started...');
-        await performWeeklyRecordCheck();
-    });
+        performWeeklyRecordCheck().catch(console.error);
+        
+        // Schedule subsequent runs (every 7 days)
+        setInterval(() => {
+            console.log('⏰ Schedify - Scheduled weekly record check started...');
+            performWeeklyRecordCheck().catch(console.error);
+        }, 7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
+    }, msUntilNextMonday);
+}
 
-    console.log('⏰ Schedify weekly record check scheduled: Every Monday at 9:00 AM');
+// Alternative scheduler using setInterval with daily check for Monday 9:00 AM
+export function scheduleWeeklyCheckDaily() {
+    // Check every day at 9:00 AM if it's Monday
+    const now = new Date();
+    const checkTime = new Date(now);
+    checkTime.setHours(9, 0, 0, 0);
+    
+    let initialDelay = checkTime.getTime() - now.getTime();
+    if (initialDelay < 0) {
+        initialDelay += 24 * 60 * 60 * 1000; // Add 24 hours if already past 9:00 AM today
+    }
+    
+    console.log(`⏰ Daily scheduler started. Next check in ${Math.round(initialDelay / 1000 / 60)} minutes`);
+    
+    setTimeout(() => {
+        // Initial check
+        checkAndRunIfMonday();
+        
+        // Then check every 24 hours
+        setInterval(checkAndRunIfMonday, 24 * 60 * 60 * 1000);
+    }, initialDelay);
+    
+    async function checkAndRunIfMonday() {
+        const today = new Date();
+        if (today.getDay() === 1) { // Monday
+            console.log('⏰ Schedify - Scheduled weekly record check started (Monday 9:00 AM)...');
+            await performWeeklyRecordCheck();
+        } else {
+            console.log(`⏰ Daily check: Today is not Monday (${today.toLocaleDateString('en-US', { weekday: 'long'})}), skipping weekly check.`);
+        }
+    }
 }
 
 // Manual trigger function (for testing)
@@ -429,6 +486,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('📧 Using Brevo for email notifications');
     console.log('📧 Default CC:', DEFAULT_CC_EMAIL);
 
-    // Start the scheduler
-    scheduleWeeklyCheck();
+    // Start the scheduler (choose one method)
+    scheduleWeeklyCheck(); // Uses exact weekly timing
+    // scheduleWeeklyCheckDaily(); // Alternative: checks daily at 9:00 AM
 }

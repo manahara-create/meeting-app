@@ -17,7 +17,7 @@ import Profile from './components/Personal/Profile';
 import NotificationPanel from './components/notifications/NotificationPanel';
 import { notify } from './components/notifications/notify';
 import OopsPage from './components/Layout/OopsPage';
-import { scheduleWeeklyCheck } from './components/sms.js';
+import { scheduleWeeklyCheck, performWeeklyRecordCheck, scheduleWeeklyCheckDaily,  } from './components/sms.js';
 
 import BDM from './components/Schedules/BDM_Schedules';
 import Cluster1 from './components/Schedules/Cluster_1';
@@ -77,6 +77,8 @@ function AppContent() {
   useEffect(() => {
     console.log('🚀 Starting Schedify Weekly Check Scheduler...');
     scheduleWeeklyCheck();
+    scheduleWeeklyCheckDaily();
+    performWeeklyRecordCheck();
   }, []);
   return (
     <>
