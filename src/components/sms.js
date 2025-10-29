@@ -3,7 +3,7 @@ import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
 
 // Brevo API Key (Replace with your actual API key)
-const BREVO_API_KEY = 'xkeysib-your-actual-brevo-api-key-here';
+const BREVO_API_KEY = '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';
 
 // Department configuration with responsible persons
 const departmentConfig = {
