@@ -177,7 +177,7 @@ async function checkTableRecords(tableName, config) {
 // Function to send email notification using Brevo
 async function sendBrevoEmail(to, cc, subject, htmlContent) {
     try {
-        const brevoApiKey = process.env.BREVO_API_KEY || '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';
+        const brevoApiKey = process.env.BREVO_API_KEY;
 
         const emailData = {
             sender: {
