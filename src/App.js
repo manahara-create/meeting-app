@@ -1,5 +1,5 @@
 // src/App.js
-import React from 'react';
+import React, {useEffect} from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, Spin } from 'antd';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
