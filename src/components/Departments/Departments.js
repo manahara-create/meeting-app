@@ -201,6 +201,16 @@ const departmentConfig = {
     url: '/departments/sales-operations',
     person: 'Imesha Nilakshi'
   },
+    'Senior Management': {
+    name: 'Senior-Management',
+    color: '#a30a0aff', // AIPL Color
+    emoji: '⚖️',
+    description: 'Decision Support System',
+    icon: <FileImageOutlined />,
+    gradient: 'linear-gradient(135deg, #a30a0aff 0%, #a30a0aff 100%)',
+    url: '/departments/senior-management',
+    person: 'Madura Liyanaarachchi'
+  },
   'SOMT': {
     name: 'SOMT',
     color: '#faad14', // Gold

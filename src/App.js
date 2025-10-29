@@ -33,6 +33,7 @@ import HR from './components/Schedules/Hr.js';
 import Import from './components/Schedules/Imports.js';
 import Regulatory from './components/Schedules/Regulatory.js';
 import SalesOperations from './components/Schedules/SalesOperations.js';
+import SeniorManagement from './components/Schedules/Senior_Management.js';
 import SOMT from './components/Schedules/SOMT.js';
 import Stores from './components/Schedules/Stores.js';
 import SurgiSurgicare from './components/Schedules/Surge-Surgecare.js';
@@ -145,6 +146,7 @@ function AppContent() {
           <Route path="departments/imports" element={<Import />} />
           <Route path="departments/regulatory" element={<Regulatory />} />
           <Route path="departments/sales-operations" element={<SalesOperations />} />
+          <Route path="departments/senior-management" element={<SeniorManagement />}/>
           <Route path="departments/somt" element={<SOMT />} />
           <Route path="departments/stores" element={<Stores />} />
           <Route path="departments/surge-surgecare" element={<SurgiSurgicare />} />
