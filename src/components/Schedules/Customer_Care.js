@@ -15,7 +15,7 @@ import {
     CloseOutlined, EyeOutlined, SyncOutlined, ClockCircleOutlined,
     InfoCircleOutlined, SafetyCertificateOutlined, BarChartOutlined,
     StarOutlined, FlagOutlined, FileExcelOutlined, GlobalOutlined,
-    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined,
+    AppstoreOutlined, BarsOutlined, DownloadOutlined, FileWordOutlined, UploadOutlined,
     EnvironmentOutlined, RocketOutlined
 } from '@ant-design/icons';
 import { supabase } from '../../services/supabase';
