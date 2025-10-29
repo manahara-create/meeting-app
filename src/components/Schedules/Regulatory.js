@@ -696,7 +696,7 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
     );
 };
 
-// Excel Import Modal Component
+// Excel Import Modal Component for Regulatory - Updated with consistent styling
 const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
     const [importLoading, setImportLoading] = useState(false);
     const [uploadedData, setUploadedData] = useState([]);
@@ -705,7 +705,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
     // Check if category has responsible_bdm_ids field
     const hasResponsibleBDMField = false; // Regulatory categories don't have responsible_bdm_ids
 
-    // Download template function
+    // Download template function - Consistent with other departments
     const downloadTemplate = () => {
         try {
             // Create template data structure based on category
@@ -749,12 +749,9 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     }];
             }
 
-            // Add instructions row
+            // Add important note about responsible BDM (even though not applicable, for consistency)
             const instructions = {
-                'Instructions': 'Fill in the data below. Fields marked with * are required.',
-                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
-                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD',
-                'Time Format': 'HH:mm (e.g., 09:00)'
+                'Important Note': 'All fields marked with * are required. Ensure dates follow the specified formats.'
             };
 
             const worksheet = XLSX.utils.json_to_sheet(templateData);
@@ -762,7 +759,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
             // Add instructions sheet
             const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
-            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Important Note');
 
             // Add data template sheet
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
@@ -783,8 +780,6 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
     const parseDate = (dateStr) => {
         if (!dateStr) return null;
-
-        // Remove any extra spaces
         const cleanDateStr = dateStr.toString().trim();
 
         // Try dd/mm/yyyy format first
@@ -808,7 +803,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return null;
     };
 
-    // Handle file upload
+    // Handle file upload - Consistent with other departments
     const handleFileUpload = (file) => {
         setImportLoading(true);
         const reader = new FileReader();
@@ -847,20 +842,35 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         };
 
         reader.readAsArrayBuffer(file);
-        return false; // Prevent default upload behavior
+        return false;
     };
 
-    // Validate Excel data
+    // Validate Excel data - Enhanced with warnings for consistency
     const validateExcelData = (data) => {
         const results = [];
         const validRows = [];
 
         data.forEach((row, index) => {
             const errors = [];
+            const warnings = [];
             const validatedRow = {
                 department_id: '6e087a71-6f40-49c8-b69d-e435e3a06279', // Regulatory department ID
                 category_id: selectedCategory.categoryId
             };
+
+            // Check for responsible_bdm columns and add warning (for consistency, even though not applicable)
+            const responsibleBDMColumns = [
+                'responsible_bdm', 'responsible_bdm_ids', 'responsible_bdm_names',
+                'Responsible BDM', 'Responsible BDMs', 'BDM Responsible'
+            ];
+
+            const foundBDMColumns = responsibleBDMColumns.filter(col => 
+                row.hasOwnProperty(col) && row[col] !== undefined && row[col] !== null && row[col] !== ''
+            );
+
+            if (foundBDMColumns.length > 0) {
+                warnings.push(`Responsible BDM columns (${foundBDMColumns.join(', ')}) are not applicable for regulatory records.`);
+            }
 
             // Check required fields based on category
             switch (selectedCategory?.id) {
@@ -907,6 +917,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                         const expireDate = parseDate(row['Expire Date'] || row['Expire Date*']);
                         if (expireDate && expireDate.isValid()) {
                             validatedRow.expire_date = expireDate.format('YYYY-MM-DD');
+                        } else {
+                            warnings.push('Invalid Expire Date format. Use DD/MM/YYYY or YYYY-MM-DD');
                         }
                     }
                     break;
@@ -925,9 +937,10 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             }
 
             results.push({
-                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                row: index + 2,
                 data: validatedRow,
                 errors,
+                warnings,
                 isValid: errors.length === 0
             });
 
@@ -939,7 +952,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return { results, validRows };
     };
 
-    // Import validated data
+    // Import validated data - Consistent with other departments
     const importData = async () => {
         if (uploadedData.length === 0) {
             toast.warning('No valid data to import');
@@ -1024,7 +1037,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             destroyOnClose
         >
             <Space direction="vertical" style={{ width: '100%' }} size="large">
-                {/* Upload Section */}
+                {/* Upload Section - Always visible */}
                 <Card size="small" title="Upload Excel File">
                     <Upload.Dragger {...uploadProps}>
                         <p className="ant-upload-drag-icon">
@@ -1049,19 +1062,32 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                             {validationResults.map((result, index) => (
                                 <Alert
                                     key={index}
-                                    message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
+                                    message={`Row ${result.row}: ${result.isValid ? 'Valid' : result.warnings.length > 0 ? 'Has Warnings' : 'Has Errors'}`}
                                     description={
-                                        result.errors.length > 0 ? (
-                                            <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                                {result.errors.map((error, errorIndex) => (
-                                                    <li key={errorIndex}>{error}</li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            'All fields are valid'
-                                        )
+                                        <div>
+                                            {result.errors.length > 0 && (
+                                                <ul style={{ margin: 0, paddingLeft: '16px', color: '#ff4d4f' }}>
+                                                    {result.errors.map((error, errorIndex) => (
+                                                        <li key={errorIndex}>{error}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {result.warnings.length > 0 && (
+                                                <ul style={{ margin: '8px 0 0 0', paddingLeft: '16px', color: '#fa8c16', fontStyle: 'italic' }}>
+                                                    {result.warnings.map((warning, warningIndex) => (
+                                                        <li key={warningIndex}>{warning}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {result.errors.length === 0 && result.warnings.length === 0 && (
+                                                'All fields are valid'
+                                            )}
+                                        </div>
                                     }
-                                    type={result.isValid ? 'success' : 'error'}
+                                    type={
+                                        result.errors.length > 0 ? 'error' : 
+                                        result.warnings.length > 0 ? 'warning' : 'success'
+                                    }
                                     showIcon
                                     style={{ marginBottom: 8 }}
                                     size="small"
@@ -1084,6 +1110,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                             <li>Time format: HH:mm (e.g., 09:00)</li>
                             <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
                             <li>Only valid records will be imported</li>
+                            <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
                         </ul>
                     }
                     type="info"
