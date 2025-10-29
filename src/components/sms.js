@@ -2,6 +2,9 @@
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
 
+// Brevo API Key (Replace with your actual API key)
+const BREVO_API_KEY = 'xkeysib-your-actual-brevo-api-key-here';
+
 // Department configuration with responsible persons
 const departmentConfig = {
     'After Sales': { person: 'Not Confirmed Yet', email: null },
@@ -177,7 +180,8 @@ async function checkTableRecords(tableName, config) {
 // Function to send email notification using Brevo
 async function sendBrevoEmail(to, cc, subject, htmlContent) {
     try {
-        const brevoApiKey = process.env.BREVO_API_KEY;
+        console.log(`📧 Attempting to send email to: ${to}, CC: ${cc}`);
+        console.log(`🔑 Using API Key: ${BREVO_API_KEY ? 'Present' : 'MISSING'}`);
 
         const emailData = {
             sender: {
@@ -193,26 +197,45 @@ async function sendBrevoEmail(to, cc, subject, htmlContent) {
             }
         };
 
+        console.log('📨 Email data prepared:', {
+            to: to,
+            cc: cc,
+            subject: subject
+        });
+
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
             method: 'POST',
             headers: {
                 'accept': 'application/json',
-                'api-key': brevoApiKey,
+                'api-key': BREVO_API_KEY,
                 'content-type': 'application/json'
             },
             body: JSON.stringify(emailData)
         });
 
+        console.log(`📨 Brevo API Response Status: ${response.status}`);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Brevo API error: ${errorData.message || response.statusText}`);
+            const errorText = await response.text();
+            console.error(`❌ Brevo API error response:`, errorText);
+            
+            let errorMessage = `Brevo API error: ${response.status} ${response.statusText}`;
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = `Brevo API error: ${errorData.message || errorData.code || response.statusText}`;
+            } catch (e) {
+                // If JSON parsing fails, use the text response
+                errorMessage = `Brevo API error: ${response.status} - ${errorText}`;
+            }
+            
+            throw new Error(errorMessage);
         }
 
         const result = await response.json();
-        console.log('Brevo email sent successfully:', result.messageId);
+        console.log('✅ Brevo email sent successfully:', result.messageId);
         return { success: true, messageId: result.messageId };
     } catch (error) {
-        console.error('Brevo email sending failed:', error);
+        console.error('❌ Brevo email sending failed:', error);
         return { success: false, error: error.message };
     }
 }
@@ -222,7 +245,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
     const deptConfig = departmentConfig[department];
 
     if (!deptConfig || !deptConfig.email) {
-        console.log(`No email configured for department: ${department}`);
+        console.log(`⚠️ No email configured for department: ${department}`);
         return false;
     }
 
@@ -282,6 +305,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
   `;
 
     try {
+        console.log(`📧 Preparing to send email for ${department} to ${deptConfig.email}`);
         const result = await sendBrevoEmail(deptConfig.email, DEFAULT_CC_EMAIL, subject, htmlContent);
 
         if (result.success) {
@@ -301,6 +325,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
 export async function performWeeklyRecordCheck() {
     console.log('🚀 Schedify - Starting weekly record check...');
     console.log('📅 Date:', new Date().toISOString());
+    console.log(`🔑 Brevo API Key Status: ${BREVO_API_KEY ? 'Present' : 'MISSING - Emails will fail!'}`);
 
     const { weekRange } = getCurrentWeekRange();
     console.log(`📆 Checking week: ${weekRange}`);
@@ -324,6 +349,7 @@ export async function performWeeklyRecordCheck() {
 
     // Process results and send notifications
     let totalNotifications = 0;
+    let successfulNotifications = 0;
 
     for (const [department, tableResults] of Object.entries(departmentResults)) {
         const missingTables = tableResults
@@ -333,9 +359,16 @@ export async function performWeeklyRecordCheck() {
         if (missingTables.length > 0) {
             console.log(`⚠️  Department ${department} has ${missingTables.length} missing tables:`, missingTables);
 
-            const notificationSent = await sendEmailNotification(department, missingTables, weekRange);
-            if (notificationSent) {
-                totalNotifications++;
+            if (BREVO_API_KEY) {
+                const notificationSent = await sendEmailNotification(department, missingTables, weekRange);
+                if (notificationSent) {
+                    successfulNotifications++;
+                    totalNotifications++;
+                } else {
+                    totalNotifications++; // Count attempted notifications
+                }
+            } else {
+                console.log(`❌ Skipping email for ${department} - No Brevo API Key configured`);
             }
         } else {
             console.log(`✅ Department ${department}: All tables have records`);
@@ -352,7 +385,8 @@ export async function performWeeklyRecordCheck() {
     console.log(`📋 Total Tables Checked: ${totalTables}`);
     console.log(`✅ Tables With Records: ${tablesWithRecords}`);
     console.log(`❌ Tables Without Records: ${tablesWithoutRecords}`);
-    console.log(`📧 Notifications Sent: ${totalNotifications}`);
+    console.log(`📧 Notifications Attempted: ${totalNotifications}`);
+    console.log(`✅ Successful Notifications: ${successfulNotifications}`);
     console.log('🎯 Weekly record check completed!');
 
     // Log the result to a monitoring table
@@ -361,7 +395,7 @@ export async function performWeeklyRecordCheck() {
         totalTables,
         tablesWithRecords,
         tablesWithoutRecords,
-        notificationsSent: totalNotifications,
+        notificationsSent: successfulNotifications,
         timestamp: new Date().toISOString()
     });
 
@@ -370,7 +404,8 @@ export async function performWeeklyRecordCheck() {
         totalTables,
         tablesWithRecords,
         tablesWithoutRecords,
-        notificationsSent: totalNotifications,
+        notificationsAttempted: totalNotifications,
+        notificationsSuccessful: successfulNotifications,
         timestamp: new Date().toISOString()
     };
 }
@@ -477,5 +512,43 @@ export async function manualTrigger() {
     return await performWeeklyRecordCheck();
 }
 
+// Test function to verify Brevo API key
+export async function testBrevoConnection() {
+    console.log('🧪 Testing Brevo API connection...');
+    
+    if (!BREVO_API_KEY) {
+        console.error('❌ Brevo API Key is not configured');
+        return false;
+    }
+
+    try {
+        const response = await fetch('https://api.brevo.com/v3/account', {
+            method: 'GET',
+            headers: {
+                'accept': 'application/json',
+                'api-key': BREVO_API_KEY
+            }
+        });
+
+        if (response.ok) {
+            const accountInfo = await response.json();
+            console.log('✅ Brevo API connection successful');
+            console.log('📧 Account Info:', {
+                email: accountInfo.email,
+                plans: accountInfo.plan,
+                credits: accountInfo.credits
+            });
+            return true;
+        } else {
+            const errorData = await response.json();
+            console.error('❌ Brevo API connection failed:', errorData);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Brevo API connection error:', error);
+        return false;
+    }
+}
+
 // Export configurations for use in other modules
-export { tableConfig, departmentConfig, getCurrentWeekRange };
+export { tableConfig, departmentConfig, getCurrentWeekRange, BREVO_API_KEY };
