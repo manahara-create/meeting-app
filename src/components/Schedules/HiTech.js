@@ -944,7 +944,7 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
     );
 };
 
-// Excel Import Modal Component
+// Excel Import Modal Component - Updated with Responsible BDM warning
 const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
     const [importLoading, setImportLoading] = useState(false);
     const [uploadedData, setUploadedData] = useState([]);
@@ -954,26 +954,10 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
     const hasResponsibleBDMField = selectedCategory?.id && 
         ['page_generation', 'technical_discussions', 'tender_validation', 'visit_plan'].includes(selectedCategory.id);
 
-    // Download template function
+    // Download template function - Allow download but exclude responsible_bdm fields
     const downloadTemplate = () => {
         try {
-            if (hasResponsibleBDMField) {
-                // Show warning for categories with responsible_bdm_ids
-                Modal.warning({
-                    title: 'Template Not Available',
-                    content: (
-                        <div>
-                            <p><strong>We cannot create a template for this category.</strong></p>
-                            <p>This category has a mandatory column "Responsible BDM" for assigning employees.</p>
-                            <p>Please use the "Bulk Records" feature to add multiple records with proper employee assignments.</p>
-                        </div>
-                    ),
-                    okText: 'Understood'
-                });
-                return;
-            }
-
-            // Create template data structure based on category
+            // Create template data structure based on category (without responsible_bdm fields)
             let templateData = [];
             let headers = [];
 
@@ -1034,11 +1018,9 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     }];
             }
 
-            // Add instructions row
+            // Add important note about responsible BDM
             const instructions = {
-                'Instructions': 'Fill in the data below. Fields marked with * are required.',
-                'Priority Guide': '1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical',
-                'Date Format': 'DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD'
+                'Important Note': 'Responsible BDM assignments cannot be set via Excel import. Use the Bulk Records feature to assign BDMs manually.'
             };
 
             const worksheet = XLSX.utils.json_to_sheet(templateData);
@@ -1046,7 +1028,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
             // Add instructions sheet
             const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
-            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Instructions');
+            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Important Note');
 
             // Add data template sheet
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
@@ -1067,8 +1049,6 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
     const parseDate = (dateStr) => {
         if (!dateStr) return null;
-
-        // Remove any extra spaces
         const cleanDateStr = dateStr.toString().trim();
 
         // Try dd/mm/yyyy format first
@@ -1092,13 +1072,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return null;
     };
 
-    // Handle file upload
+    // Handle file upload - Allow upload but ignore responsible_bdm fields
     const handleFileUpload = (file) => {
-        if (hasResponsibleBDMField) {
-            toast.warning('Excel import is not available for categories with Responsible BDM field. Use Bulk Records instead.');
-            return false;
-        }
-
         setImportLoading(true);
         const reader = new FileReader();
 
@@ -1117,7 +1092,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     return;
                 }
 
-                // Validate data
+                // Validate data (responsible_bdm fields will be ignored)
                 const validatedData = validateExcelData(jsonData);
                 setUploadedData(validatedData.validRows);
                 setValidationResults(validatedData.results);
@@ -1136,17 +1111,32 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         };
 
         reader.readAsArrayBuffer(file);
-        return false; // Prevent default upload behavior
+        return false;
     };
 
-    // Validate Excel data
+    // Validate Excel data - Ignore responsible_bdm fields
     const validateExcelData = (data) => {
         const results = [];
         const validRows = [];
 
         data.forEach((row, index) => {
             const errors = [];
+            const warnings = [];
             const validatedRow = {};
+
+            // Check for responsible_bdm columns and add warning
+            const responsibleBDMColumns = [
+                'responsible_bdm', 'responsible_bdm_ids', 'responsible_bdm_names',
+                'Responsible BDM', 'Responsible BDMs', 'BDM Responsible'
+            ];
+
+            const foundBDMColumns = responsibleBDMColumns.filter(col => 
+                row.hasOwnProperty(col) && row[col] !== undefined && row[col] !== null && row[col] !== ''
+            );
+
+            if (foundBDMColumns.length > 0) {
+                warnings.push(`Responsible BDM columns (${foundBDMColumns.join(', ')}) are ignored. Use Bulk Records feature to assign BDMs.`);
+            }
 
             // Check required fields based on category
             switch (selectedCategory?.id) {
@@ -1233,9 +1223,10 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             }
 
             results.push({
-                row: index + 2, // +2 because Excel rows start at 1 and we have header
+                row: index + 2,
                 data: validatedRow,
                 errors,
+                warnings,
                 isValid: errors.length === 0
             });
 
@@ -1247,7 +1238,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return { results, validRows };
     };
 
-    // Import validated data
+    // Import validated data - Responsible BDM fields are automatically excluded
     const importData = async () => {
         if (uploadedData.length === 0) {
             toast.warning('No valid data to import');
@@ -1278,7 +1269,11 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 );
             }
 
-            toast.success(`Successfully imported ${data.length} records`);
+            const warningMessage = hasResponsibleBDMField 
+                ? `Successfully imported ${data.length} records. Use Bulk Records feature to assign Responsible BDMs.`
+                : `Successfully imported ${data.length} records`;
+
+            toast.success(warningMessage);
             onImportComplete();
             onCancel();
         } catch (error) {
@@ -1314,7 +1309,6 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     key="download"
                     icon={<DownloadOutlined />}
                     onClick={downloadTemplate}
-                    disabled={hasResponsibleBDMField}
                 >
                     Download Template
                 </Button>,
@@ -1324,7 +1318,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     icon={<UploadOutlined />}
                     onClick={importData}
                     loading={importLoading}
-                    disabled={uploadedData.length === 0 || hasResponsibleBDMField}
+                    disabled={uploadedData.length === 0}
                 >
                     Import {uploadedData.length} Records
                 </Button>
@@ -1336,16 +1330,16 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 {/* Warning Alert for categories with responsible_bdm_ids */}
                 {hasResponsibleBDMField && (
                     <Alert
-                        message="Excel Import Not Available"
+                        message="Important Notice: Responsible BDM Assignment"
                         description={
                             <div>
-                                <Text strong style={{ color: '#ff4d4f' }}>
-                                    We cannot create a template for this category, because there is a mandatory column "Responsible BDM" for assigning employees.
+                                <Text strong style={{ color: '#fa8c16' }}>
+                                    Responsible BDM assignments cannot be set via Excel import.
                                 </Text>
                                 <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                                    <li>Use the "Bulk Records" feature to add multiple records with proper employee assignments</li>
-                                    <li>Responsible BDM assignments must be done manually in the system</li>
-                                    <li>This ensures proper tracking and accountability</li>
+                                    <li>Excel import will ignore any Responsible BDM columns</li>
+                                    <li>After import, use the Bulk Records feature to assign Responsible BDMs</li>
+                                    <li>Download the template to see available fields</li>
                                 </ul>
                             </div>
                         }
@@ -1354,75 +1348,92 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     />
                 )}
 
-                {/* Upload Section */}
-                {!hasResponsibleBDMField && (
-                    <>
-                        <Card size="small" title="Upload Excel File">
-                            <Upload.Dragger {...uploadProps}>
-                                <p className="ant-upload-drag-icon">
-                                    <FileExcelOutlined />
-                                </p>
-                                <p className="ant-upload-text">
-                                    Click or drag Excel file to this area to upload
-                                </p>
-                                <p className="ant-upload-hint">
-                                    Support for .xlsx, .xls files only
-                                </p>
-                            </Upload.Dragger>
-                        </Card>
+                {/* Upload Section - Always visible now */}
+                <Card size="small" title="Upload Excel File">
+                    <Upload.Dragger {...uploadProps}>
+                        <p className="ant-upload-drag-icon">
+                            <FileExcelOutlined />
+                        </p>
+                        <p className="ant-upload-text">
+                            Click or drag Excel file to this area to upload
+                        </p>
+                        <p className="ant-upload-hint">
+                            Support for .xlsx, .xls files only
+                        </p>
+                    </Upload.Dragger>
+                </Card>
 
-                        {/* Validation Results */}
-                        {validationResults.length > 0 && (
-                            <Card
-                                size="small"
-                                title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
-                            >
-                                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
-                                    {validationResults.map((result, index) => (
-                                        <Alert
-                                            key={index}
-                                            message={`Row ${result.row}: ${result.isValid ? 'Valid' : 'Has Errors'}`}
-                                            description={
-                                                result.errors.length > 0 ? (
-                                                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                                        {result.errors.map((error, errorIndex) => (
-                                                            <li key={errorIndex}>{error}</li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    'All fields are valid'
-                                                )
-                                            }
-                                            type={result.isValid ? 'success' : 'error'}
-                                            showIcon
-                                            style={{ marginBottom: 8 }}
-                                            size="small"
-                                        />
-                                    ))}
-                                </div>
-                            </Card>
-                        )}
-
-                        {/* Instructions */}
-                        <Alert
-                            message="Import Instructions"
-                            description={
-                                <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                                    <li>Download the template first to ensure correct format</li>
-                                    <li>Required fields are marked with * in the template</li>
-                                    <li>
-                                        <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
-                                    </li>
-                                    <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
-                                    <li>Only valid records will be imported</li>
-                                    <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
-                                </ul>
-                            }
-                            type="info"
-                            showIcon
-                        />
-                    </>
+                {/* Validation Results */}
+                {validationResults.length > 0 && (
+                    <Card
+                        size="small"
+                        title={`Validation Results (${uploadedData.length} valid / ${validationResults.length} total)`}
+                    >
+                        <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                            {validationResults.map((result, index) => (
+                                <Alert
+                                    key={index}
+                                    message={`Row ${result.row}: ${result.isValid ? 'Valid' : result.warnings.length > 0 ? 'Has Warnings' : 'Has Errors'}`}
+                                    description={
+                                        <div>
+                                            {result.errors.length > 0 && (
+                                                <ul style={{ margin: 0, paddingLeft: '16px', color: '#ff4d4f' }}>
+                                                    {result.errors.map((error, errorIndex) => (
+                                                        <li key={errorIndex}>{error}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {result.warnings.length > 0 && (
+                                                <ul style={{ margin: '8px 0 0 0', paddingLeft: '16px', color: '#fa8c16', fontStyle: 'italic' }}>
+                                                    {result.warnings.map((warning, warningIndex) => (
+                                                        <li key={warningIndex}>{warning}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {result.errors.length === 0 && result.warnings.length === 0 && (
+                                                'All fields are valid'
+                                            )}
+                                        </div>
+                                    }
+                                    type={
+                                        result.errors.length > 0 ? 'error' : 
+                                        result.warnings.length > 0 ? 'warning' : 'success'
+                                    }
+                                    showIcon
+                                    style={{ marginBottom: 8 }}
+                                    size="small"
+                                />
+                            ))}
+                        </div>
+                    </Card>
                 )}
+
+                {/* Instructions */}
+                <Alert
+                    message="Import Instructions"
+                    description={
+                        <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                            <li>Download the template first to ensure correct format</li>
+                            <li>Required fields are marked with * in the template</li>
+                            <li>
+                                <Text strong>Date format: DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD</Text>
+                            </li>
+                            <li>Priority must be a number between 1-5 (1=Low, 5=Critical)</li>
+                            <li>Only valid records will be imported</li>
+                            <li>Both date formats (DD/MM/YYYY and YYYY-MM-DD) are accepted</li>
+                            {hasResponsibleBDMField && (
+                                <>
+                                    <li>
+                                        <Text strong>Responsible BDM assignments will be ignored in Excel import</Text>
+                                    </li>
+                                    <li>Use the Bulk Records feature to assign Responsible BDMs</li>
+                                </>
+                            )}
+                        </ul>
+                    }
+                    type="info"
+                    showIcon
+                />
             </Space>
         </Modal>
     );
