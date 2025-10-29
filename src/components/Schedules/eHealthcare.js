@@ -898,7 +898,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
     const [validationResults, setValidationResults] = useState([]);
 
     // Check if category has responsible_bdm_ids field
-    const hasResponsibleBDMField = selectedCategory?.id && 
+    const hasResponsibleBDMField = selectedCategory?.id &&
         ['visit_plan', 'meetings'].includes(selectedCategory.id);
 
     // Download template function - Updated with Responsible BDM warning
@@ -1325,8 +1325,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 };
 
 // Export Button Component - Updated to remove PDF and add Word export
-const ExportButton = ({ 
-    activities = [], 
+const ExportButton = ({
+    activities = [],
     selectedCategory = null,
     moduleName = '',
     priorityLabels = {},
@@ -1477,11 +1477,11 @@ const ExportButton = ({
             }
 
             const headerRow = new TableRow({
-                children: headers.map(header => 
-                    new TableCell({ 
-                        children: [new Paragraph({ 
-                            children: [new TextRun({ text: header, bold: true })] 
-                        })] 
+                children: headers.map(header =>
+                    new TableCell({
+                        children: [new Paragraph({
+                            children: [new TextRun({ text: header, bold: true })]
+                        })]
                     })
                 )
             });
@@ -1543,29 +1543,29 @@ const ExportButton = ({
      * Dropdown menu
      * ----------------------------- */
     const exportItems = [
-        { 
-            key: 'excel', 
-            icon: <FileExcelOutlined />, 
-            label: 'Export to Excel', 
-            onClick: exportToExcel 
+        {
+            key: 'excel',
+            icon: <FileExcelOutlined />,
+            label: 'Export to Excel',
+            onClick: exportToExcel
         },
-        { 
-            key: 'word', 
-            icon: <FileWordOutlined />, 
-            label: 'Export to Word', 
-            onClick: exportToWord 
+        {
+            key: 'word',
+            icon: <FileWordOutlined />,
+            label: 'Export to Word',
+            onClick: exportToWord
         }
     ];
 
     return (
-        <Dropdown 
-            menu={{ items: exportItems }} 
+        <Dropdown
+            menu={{ items: exportItems }}
             placement="bottomRight"
             disabled={activities.length === 0}
         >
-            <Button 
-                type="primary" 
-                icon={<DownloadOutlined />} 
+            <Button
+                type="primary"
+                icon={<DownloadOutlined />}
                 size="large"
                 disabled={activities.length === 0}
             >
@@ -1869,15 +1869,57 @@ const EHealthcare = () => {
 
     const fetchEHealthcareUsers = async () => {
         try {
-            // Get all users in eHealthcare department
-            const { data: usersData, error: usersError } = await supabase
-                .from('profiles')
-                .select('id, full_name, email, department_id')
-                .order('full_name');
+            // First, get the eHealthcare department ID
+            const { data: deptData, error: deptError } = await supabase
+                .from('departments')
+                .select('id')
+                .eq('name', 'eHealthcare')
+                .single();
 
-            if (usersError) throw usersError;
-            safeSetState(setEHealthcareUsers, usersData || []);
+            if (deptError) {
+                console.warn('eHealthcare department not found, trying alternative names:', deptError);
+
+                // Try alternative department names
+                const { data: altDeptData, error: altDeptError } = await supabase
+                    .from('departments')
+                    .select('id')
+                    .or('name.ilike.%ehealthcare%,name.ilike.%e-healthcare%,name.ilike.%healthcare%')
+                    .single();
+
+                if (altDeptError) {
+                    console.error('No eHealthcare department found:', altDeptError);
+                    safeSetState(setEHealthcareUsers, []);
+                    return;
+                }
+
+                // Use the alternative department ID
+                const deptId = altDeptData.id;
+
+                // Get users in eHealthcare department
+                const { data: usersData, error: usersError } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, email, department_id')
+                    .eq('department_id', deptId)
+                    .order('full_name');
+
+                if (usersError) throw usersError;
+                safeSetState(setEHealthcareUsers, usersData || []);
+            } else {
+                // Use the found eHealthcare department ID
+                const deptId = deptData.id;
+
+                // Get users in eHealthcare department
+                const { data: usersData, error: usersError } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, email, department_id')
+                    .eq('department_id', deptId)
+                    .order('full_name');
+
+                if (usersError) throw usersError;
+                safeSetState(setEHealthcareUsers, usersData || []);
+            }
         } catch (error) {
+            console.error('Error fetching eHealthcare users:', error);
             handleError(error, 'fetching eHealthcare users');
             safeSetState(setEHealthcareUsers, []);
         }
@@ -2242,7 +2284,7 @@ const EHealthcare = () => {
 
             // Prepare data for submission
             const submitData = validRecords.map(record => {
-                const preparedRecord = { 
+                const preparedRecord = {
                     ...record
                 };
 
@@ -2718,8 +2760,8 @@ const EHealthcare = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{ 
-                    marginBottom: 16, 
+                style={{
+                    marginBottom: 16,
                     backgroundColor: '#fafafa',
                     borderRadius: '12px',
                     border: '2px solid #1890ff20'
@@ -2820,8 +2862,8 @@ const EHealthcare = () => {
                     style={{ marginBottom: 24 }}
                     extra={
                         <Space>
-                            <Radio.Group 
-                                value={viewMode} 
+                            <Radio.Group
+                                value={viewMode}
                                 onChange={(e) => setViewMode(e.target.value)}
                                 buttonStyle="solid"
                             >
