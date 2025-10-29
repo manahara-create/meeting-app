@@ -479,14 +479,3 @@ export async function manualTrigger() {
 
 // Export configurations for use in other modules
 export { tableConfig, departmentConfig, getCurrentWeekRange };
-
-// If this file is run directly, start the scheduler
-if (import.meta.url === `file://${process.argv[1]}`) {
-    console.log('🚀 Schedify Weekly Record Check System Started');
-    console.log('📧 Using Brevo for email notifications');
-    console.log('📧 Default CC:', DEFAULT_CC_EMAIL);
-
-    // Start the scheduler (choose one method)
-    scheduleWeeklyCheck(); // Uses exact weekly timing
-    // scheduleWeeklyCheckDaily(); // Alternative: checks daily at 9:00 AM
-}
