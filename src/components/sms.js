@@ -2,8 +2,9 @@
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
 
-// Brevo API Key (Replace with your actual API key)
-const BREVO_API_KEY = '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';
+// Moosend API Key (Replace with your actual API key)
+const MOOSEND_API_KEY = '59f3ea13-bb8e-47d7-a12e-9fd881101d8d';
+const MOOSEND_BASE_URL = 'https://api.moosend.com/v3';
 
 // Department configuration with responsible persons
 const departmentConfig = {
@@ -177,25 +178,40 @@ async function checkTableRecords(tableName, config) {
     }
 }
 
-// Function to send email notification using Brevo
-async function sendBrevoEmail(to, cc, subject, htmlContent) {
+// Function to send email notification using Moosend
+async function sendMoosendEmail(to, cc, subject, htmlContent) {
     try {
         console.log(`📧 Attempting to send email to: ${to}, CC: ${cc}`);
-        console.log(`🔑 Using API Key: ${BREVO_API_KEY ? 'Present' : 'MISSING'}`);
+        console.log(`🔑 Using API Key: ${MOOSEND_API_KEY ? 'Present' : 'MISSING'}`);
 
+        // Moosend requires creating a campaign first, then sending
+        // For simplicity, we'll use the transactional email endpoint if available
+        // or create a simple campaign and send immediately
+        
         const emailData = {
-            sender: {
-                name: 'Schedify - Powered by E-Healthcare Solutions',
-                email: 'noreply@schedify.eHealthcare.lk'
+            Subject: subject,
+            HtmlBody: htmlContent,
+            From: {
+                Email: 'noreply@schedify.eHealthcare.lk',
+                Name: 'Schedify - Powered by E-Healthcare Solutions'
             },
-            to: [{ email: to }],
-            cc: cc ? [{ email: cc }] : [],
-            subject: subject,
-            htmlContent: htmlContent,
-            headers: {
-                'X-Mailin-custom': 'Schedify-Weekly-Check'
-            }
+            To: [
+                {
+                    Email: to,
+                    Name: to.split('@')[0] // Simple name extraction
+                }
+            ]
         };
+
+        // Add CC if provided
+        if (cc) {
+            emailData.Cc = [
+                {
+                    Email: cc,
+                    Name: cc.split('@')[0]
+                }
+            ];
+        }
 
         console.log('📨 Email data prepared:', {
             to: to,
@@ -203,39 +219,138 @@ async function sendBrevoEmail(to, cc, subject, htmlContent) {
             subject: subject
         });
 
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        // Moosend API endpoint for sending transactional emails
+        // Note: This endpoint might vary based on your Moosend plan
+        const response = await fetch(`${MOOSEND_BASE_URL}/transactional/emails`, {
             method: 'POST',
             headers: {
-                'accept': 'application/json',
-                'api-key': BREVO_API_KEY,
-                'content-type': 'application/json'
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Moosend-APIKey': MOOSEND_API_KEY
             },
             body: JSON.stringify(emailData)
         });
 
-        console.log(`📨 Brevo API Response Status: ${response.status}`);
+        console.log(`📨 Moosend API Response Status: ${response.status}`);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`❌ Brevo API error response:`, errorText);
+            console.error(`❌ Moosend API error response:`, errorText);
             
-            let errorMessage = `Brevo API error: ${response.status} ${response.statusText}`;
+            let errorMessage = `Moosend API error: ${response.status} ${response.statusText}`;
             try {
                 const errorData = JSON.parse(errorText);
-                errorMessage = `Brevo API error: ${errorData.message || errorData.code || response.statusText}`;
+                errorMessage = `Moosend API error: ${errorData.Error || errorData.Message || response.statusText}`;
             } catch (e) {
                 // If JSON parsing fails, use the text response
-                errorMessage = `Brevo API error: ${response.status} - ${errorText}`;
+                errorMessage = `Moosend API error: ${response.status} - ${errorText}`;
             }
             
             throw new Error(errorMessage);
         }
 
         const result = await response.json();
-        console.log('✅ Brevo email sent successfully:', result.messageId);
-        return { success: true, messageId: result.messageId };
+        console.log('✅ Moosend email sent successfully');
+        return { success: true, result: result };
     } catch (error) {
-        console.error('❌ Brevo email sending failed:', error);
+        console.error('❌ Moosend email sending failed:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Alternative function using Moosend campaign creation and sending
+async function sendMoosendCampaign(to, cc, subject, htmlContent) {
+    try {
+        console.log(`📧 Creating Moosend campaign for: ${to}`);
+
+        // First, create a mailing list with the recipient
+        const mailingListData = {
+            Name: `Schedify_Alert_${Date.now()}`,
+            ConfirmationPage: 'http://schedifiy.moosend.com',
+            RedirectAfterUnsubscribePage: 'http://schedifiy.moosend.com'
+        };
+
+        const listResponse = await fetch(`${MOOSEND_BASE_URL}/lists/create.json?apikey=${MOOSEND_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(mailingListData)
+        });
+
+        if (!listResponse.ok) {
+            throw new Error('Failed to create mailing list');
+        }
+
+        const listResult = await listResponse.json();
+        const mailingListId = listResult.Context;
+
+        // Add subscriber to the mailing list
+        const subscriberData = {
+            Email: to,
+            Name: to.split('@')[0]
+        };
+
+        const subscriberResponse = await fetch(`${MOOSEND_BASE_URL}/subscribers/${mailingListId}/subscribe.json?apikey=${MOOSEND_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscriberData)
+        });
+
+        if (!subscriberResponse.ok) {
+            throw new Error('Failed to add subscriber');
+        }
+
+        // Create campaign
+        const campaignData = {
+            Name: `Schedify Alert - ${subject}`,
+            Subject: subject,
+            Sender: {
+                Name: 'Schedify - Powered by E-Healthcare Solutions',
+                Email: 'noreply@schedify.eHealthcare.lk'
+            },
+            MailingListID: mailingListId,
+            HTMLContent: htmlContent
+        };
+
+        const campaignResponse = await fetch(`${MOOSEND_BASE_URL}/campaigns/create.json?apikey=${MOOSEND_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(campaignData)
+        });
+
+        if (!campaignResponse.ok) {
+            throw new Error('Failed to create campaign');
+        }
+
+        const campaignResult = await campaignResponse.json();
+        const campaignId = campaignResult.Context;
+
+        // Send campaign immediately
+        const sendResponse = await fetch(`${MOOSEND_BASE_URL}/campaigns/${campaignId}/send.json?apikey=${MOOSEND_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!sendResponse.ok) {
+            throw new Error('Failed to send campaign');
+        }
+
+        console.log('✅ Moosend campaign sent successfully');
+        return { success: true, campaignId: campaignId };
+
+    } catch (error) {
+        console.error('❌ Moosend campaign sending failed:', error);
         return { success: false, error: error.message };
     }
 }
@@ -297,7 +412,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
         </div>
         <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>
-            <p>AIPL - Analytical Instruments (Private) Limited</p>
+            <p>eHealthcare Solutions Private Ltd.</p>
         </div>
     </div>
 </body>
@@ -306,17 +421,24 @@ async function sendEmailNotification(department, missingTables, weekRange) {
 
     try {
         console.log(`📧 Preparing to send email for ${department} to ${deptConfig.email}`);
-        const result = await sendBrevoEmail(deptConfig.email, DEFAULT_CC_EMAIL, subject, htmlContent);
+        
+        // Try transactional email first, fallback to campaign method
+        let result = await sendMoosendEmail(deptConfig.email, DEFAULT_CC_EMAIL, subject, htmlContent);
+        
+        if (!result.success) {
+            console.log('🔄 Falling back to campaign method...');
+            result = await sendMoosendCampaign(deptConfig.email, DEFAULT_CC_EMAIL, subject, htmlContent);
+        }
 
         if (result.success) {
-            console.log(`✅ Brevo email sent successfully for ${department}`);
+            console.log(`✅ Moosend email sent successfully for ${department}`);
             return true;
         } else {
-            console.error(`❌ Failed to send Brevo email for ${department}:`, result.error);
+            console.error(`❌ Failed to send Moosend email for ${department}:`, result.error);
             return false;
         }
     } catch (error) {
-        console.error(`❌ Exception sending Brevo email for ${department}:`, error);
+        console.error(`❌ Exception sending Moosend email for ${department}:`, error);
         return false;
     }
 }
@@ -325,7 +447,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
 export async function performWeeklyRecordCheck() {
     console.log('🚀 Schedify - Starting weekly record check...');
     console.log('📅 Date:', new Date().toISOString());
-    console.log(`🔑 Brevo API Key Status: ${BREVO_API_KEY ? 'Present' : 'MISSING - Emails will fail!'}`);
+    console.log(`🔑 Moosend API Key Status: ${MOOSEND_API_KEY ? 'Present' : 'MISSING - Emails will fail!'}`);
 
     const { weekRange } = getCurrentWeekRange();
     console.log(`📆 Checking week: ${weekRange}`);
@@ -359,7 +481,7 @@ export async function performWeeklyRecordCheck() {
         if (missingTables.length > 0) {
             console.log(`⚠️  Department ${department} has ${missingTables.length} missing tables:`, missingTables);
 
-            if (BREVO_API_KEY) {
+            if (MOOSEND_API_KEY) {
                 const notificationSent = await sendEmailNotification(department, missingTables, weekRange);
                 if (notificationSent) {
                     successfulNotifications++;
@@ -368,7 +490,7 @@ export async function performWeeklyRecordCheck() {
                     totalNotifications++; // Count attempted notifications
                 }
             } else {
-                console.log(`❌ Skipping email for ${department} - No Brevo API Key configured`);
+                console.log(`❌ Skipping email for ${department} - No Moosend API Key configured`);
             }
         } else {
             console.log(`✅ Department ${department}: All tables have records`);
@@ -512,43 +634,39 @@ export async function manualTrigger() {
     return await performWeeklyRecordCheck();
 }
 
-// Test function to verify Brevo API key
-export async function testBrevoConnection() {
-    console.log('🧪 Testing Brevo API connection...');
+// Test function to verify Moosend API key
+export async function testMoosendConnection() {
+    console.log('🧪 Testing Moosend API connection...');
     
-    if (!BREVO_API_KEY) {
-        console.error('❌ Brevo API Key is not configured');
+    if (!MOOSEND_API_KEY) {
+        console.error('❌ Moosend API Key is not configured');
         return false;
     }
 
     try {
-        const response = await fetch('https://api.brevo.com/v3/account', {
+        const response = await fetch(`${MOOSEND_BASE_URL}/account/details.json?apikey=${MOOSEND_API_KEY}`, {
             method: 'GET',
             headers: {
-                'accept': 'application/json',
-                'api-key': BREVO_API_KEY
+                'Accept': 'application/json'
             }
         });
 
         if (response.ok) {
             const accountInfo = await response.json();
-            console.log('✅ Brevo API connection successful');
+            console.log('✅ Moosend API connection successful');
             console.log('📧 Account Info:', {
-                email: accountInfo.email,
-                plans: accountInfo.plan,
-                credits: accountInfo.credits
+                company: accountInfo.Company,
+                created: accountInfo.CreatedOn,
+                timezone: accountInfo.Timezone
             });
             return true;
         } else {
             const errorData = await response.json();
-            console.error('❌ Brevo API connection failed:', errorData);
+            console.error('❌ Moosend API connection failed:', errorData);
             return false;
         }
     } catch (error) {
-        console.error('❌ Brevo API connection error:', error);
+        console.error('❌ Moosend API connection error:', error);
         return false;
     }
 }
-
-// Export configurations for use in other modules
-export { tableConfig, departmentConfig, getCurrentWeekRange, BREVO_API_KEY };
