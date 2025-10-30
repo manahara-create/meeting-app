@@ -12,31 +12,31 @@ const EMAILJS_USER_ID = 'schedifiy@gmail.com';
 // Department configuration with responsible persons
 const departmentConfig = {
     'After Sales': { person: 'Not Confirmed Yet', email: null },
-    'BDM': { person: 'Prasadi Nuwanthika', email: 'manahara@ehealthcare.lk' },
-    'Cluster 1': { person: 'Imesha Nilakshi', email: 'manahara@ehealthcare.lk' },
-    'Cluster 2': { person: 'Pradheesha Jeromie', email: 'manahara@ehealthcare.lk' },
-    'Cluster 3': { person: 'Gayathri Silva', email: 'manahara@ehealthcare.lk' },
-    'Cluster 4': { person: 'Imesha Nilakshi', email: 'manahara@ehealthcare.lk' },
-    'Cluster 5': { person: 'Pradheesha Jeromie', email: 'manahara@ehealthcare.lk' },
-    'Cluster 6': { person: 'Gayathri Silva', email: 'manahara@ehealthcare.lk' },
-    'Customer Care': { person: 'Rashmika Premathilaka', email: 'manahara@ehealthcare.lk' },
-    'E-Healthcare': { person: 'Dhara Nethmi', email: 'manahara@ehealthcare.lk' },
+    'BDM': { person: 'Prasadi Nuwanthika', email: 'prasadi.nuwanthika@biomedica.lk' },
+    'Cluster 1': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
+    'Cluster 2': { person: 'Pradheesha Jeromie', email: 'pradheesha.jeromie@biomedica.lk' },
+    'Cluster 3': { person: 'Gayathri Silva', email: 'gayathri.silva@biomedica.lk' },
+    'Cluster 4': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
+    'Cluster 5': { person: 'Pradheesha Jeromie', email: 'pradheesha.jeromie@biomedica.lk' },
+    'Cluster 6': { person: 'Gayathri Silva', email: 'gayathri.silva@biomedica.lk' },
+    'Customer Care': { person: 'Rashmika Premathilaka', email: 'rashmika.premathilaka@biomedica.lk' },
+    'E-Healthcare': { person: 'Dhara Nethmi', email: 'dhara.nethmi@aipl.lk' },
     'Finance': { person: 'Not Confirmed Yet', email: null },
-    'Hi-Tech': { person: 'Sahiru Chathuranga', email: 'manahara@ehealthcare.lk' },
-    'HR': { person: 'Nethmini Koshila', email: 'manahara@ehealthcare.lk' },
-    'Imports': { person: 'Subhashini Sandamalie', email: 'manahara@ehealthcare.lk' },
+    'Hi-Tech': { person: 'Sahiru Chathuranga', email: 'sahiru.chathuranga@aipl.lk' },
+    'HR': { person: 'Nethmini Koshila', email: 'nethmini.koshila@aipl.lk' },
+    'Imports': { person: 'Subhashini Sandamalie', email: 'subhashini.sandamali@aipl.lk' },
     'IT': { person: 'Not Yet Confirmed', email: null },
-    'Regulatory': { person: 'Hiruni Achinthya', email: 'manahara@ehealthcare.lk' },
-    'Sales Operations': { person: 'Imesha Nilakshi', email: 'manahara@ehealthcare.lk' },
-    'Senior Management': { person: 'Madura Liyanaarachchi', email: 'manahara@ehealthcare.lk' },
-    'SOMT': { person: 'Rahul Rupkumar', email: 'manahara@ehealthcare.lk' },
-    'Stores': { person: 'Suranga Silva', email: 'manahara@ehealthcare.lk' },
-    'Surge-Surgecare': { person: 'Shahan Anthony', email: 'manahara@ehealthcare.lk' },
-    'Surge-Surgecare-Image': { person: 'Selvarathnam Rajnikanth', email: 'manahara@ehealthcare.lk' }
+    'Regulatory': { person: 'Hiruni Achinthya', email: 'hiruni.achinthya@aipl.lk' },
+    'Sales Operations': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
+    'Senior Management': { person: 'Madura Liyanaarachchi', email: 'mudusara@aipl.lk' },
+    'SOMT': { person: 'Rahul Rupkumar', email: 'rahul.rupkumar@aipl.lk' },
+    'Stores': { person: 'Suranga Silva', email: 'surangas@aipl.lk' },
+    'Surge-Surgecare': { person: 'Shahan Anthony', email: 'shahan.anthony@aipl.lk' },
+    'Surge-Surgecare-Image': { person: 'Selvarathnam Rajnikanth', email: 'selvarathnam.rajnikanth@aipl.lk' }
 };
 
 // Default CC email
-const DEFAULT_CC_EMAIL = 'chathnindu@ehealthcare.lk';
+const DEFAULT_CC_EMAIL = 'mudusara@aipl.lk';
 
 // Table configuration with department mapping and date fields
 const tableConfig = {
