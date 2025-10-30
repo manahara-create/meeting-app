@@ -1,44 +1,42 @@
-<<<<<<< HEAD
-=======
 // Background Process for Weekly Record Check - Schedify App
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
 
 // EmailJS Configuration
-const EMAILJS_SERVICE_ID = 'service_7gvmz1r';
+const EMAILJS_SERVICE_ID = 'service_mkk3ny8';
 const EMAILJS_TEMPLATE_ID = 'template_schedify_alerts'; 
-const EMAILJS_PUBLIC_KEY = 'wbvU9LIDP6q2LBmOs';
-const EMAILJS_PRIVATE_KEY = 'S9G9d7LGI5MjaGDKK8QXC';
+const EMAILJS_PUBLIC_KEY = 'MhxrILdrk7ltKmDgh';
+const EMAILJS_PRIVATE_KEY = 'ZOCs3mHeol8-_CMGlR-90';
 const EMAILJS_USER_ID = 'schedifiy@gmail.com';
 
 // Department configuration with responsible persons
 const departmentConfig = {
     'After Sales': { person: 'Not Confirmed Yet', email: null },
-    'BDM': { person: 'Prasadi Nuwanthika', email: 'prasadi.nuwanthika@biomedica.lk' },
-    'Cluster 1': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
-    'Cluster 2': { person: 'Pradheesha Jeromie', email: 'pradheesha.jeromie@biomedica.lk' },
-    'Cluster 3': { person: 'Gayathri Silva', email: 'gayathri.silva@biomedica.lk' },
-    'Cluster 4': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
-    'Cluster 5': { person: 'Pradheesha Jeromie', email: 'pradheesha.jeromie@biomedica.lk' },
-    'Cluster 6': { person: 'Gayathri Silva', email: 'gayathri.silva@biomedica.lk' },
-    'Customer Care': { person: 'Rashmika Premathilaka', email: 'rashmika.premathilaka@biomedica.lk' },
-    'E-Healthcare': { person: 'Dhara Nethmi', email: 'dhara.nethmi@aipl.lk' },
+    'BDM': { person: 'Prasadi Nuwanthika', email: 'manahara@ehealthcare.lk' },
+    'Cluster 1': { person: 'Imesha Nilakshi', email: 'manahara@ehealthcare.lk' },
+    'Cluster 2': { person: 'Pradheesha Jeromie', email: 'manahara@ehealthcare.lk' },
+    'Cluster 3': { person: 'Gayathri Silva', email: 'manahara@ehealthcare.lk' },
+    'Cluster 4': { person: 'Imesha Nilakshi', email: 'manahara@ehealthcare.lk' },
+    'Cluster 5': { person: 'Pradheesha Jeromie', email: 'manahara@ehealthcare.lk' },
+    'Cluster 6': { person: 'Gayathri Silva', email: 'manahara@ehealthcare.lk' },
+    'Customer Care': { person: 'Rashmika Premathilaka', email: 'manahara@ehealthcare.lk' },
+    'E-Healthcare': { person: 'Dhara Nethmi', email: 'manahara@ehealthcare.lk' },
     'Finance': { person: 'Not Confirmed Yet', email: null },
-    'Hi-Tech': { person: 'Sahiru Chathuranga', email: 'sahiru.chathuranga@aipl.lk' },
-    'HR': { person: 'Nethmini Koshila', email: 'nethmini.koshila@aipl.lk' },
-    'Imports': { person: 'Subhashini Sandamalie', email: 'subhashini.sandamali@aipl.lk' },
+    'Hi-Tech': { person: 'Sahiru Chathuranga', email: 'manahara@ehealthcare.lk' },
+    'HR': { person: 'Nethmini Koshila', email: 'manahara@ehealthcare.lk' },
+    'Imports': { person: 'Subhashini Sandamalie', email: 'manahara@ehealthcare.lk' },
     'IT': { person: 'Not Yet Confirmed', email: null },
-    'Regulatory': { person: 'Hiruni Achinthya', email: 'hiruni.achinthya@aipl.lk' },
-    'Sales Operations': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
-    'Senior Management': { person: 'Madura Liyanaarachchi', email: 'mudusara@aipl.lk' },
-    'SOMT': { person: 'Rahul Rupkumar', email: 'rahul.rupkumar@aipl.lk' },
-    'Stores': { person: 'Suranga Silva', email: 'surangas@aipl.lk' },
-    'Surge-Surgecare': { person: 'Shahan Anthony', email: 'shahan.anthony@aipl.lk' },
-    'Surge-Surgecare-Image': { person: 'Selvarathnam Rajnikanth', email: 'selvarathnam.rajnikanth@aipl.lk' }
+    'Regulatory': { person: 'Hiruni Achinthya', email: 'manahara@ehealthcare.lk' },
+    'Sales Operations': { person: 'Imesha Nilakshi', email: 'manahara@ehealthcare.lk' },
+    'Senior Management': { person: 'Madura Liyanaarachchi', email: 'manahara@ehealthcare.lk' },
+    'SOMT': { person: 'Rahul Rupkumar', email: 'manahara@ehealthcare.lk' },
+    'Stores': { person: 'Suranga Silva', email: 'manahara@ehealthcare.lk' },
+    'Surge-Surgecare': { person: 'Shahan Anthony', email: 'manahara@ehealthcare.lk' },
+    'Surge-Surgecare-Image': { person: 'Selvarathnam Rajnikanth', email: 'manahara@ehealthcare.lk' }
 };
 
 // Default CC email
-const DEFAULT_CC_EMAIL = 'mudusara@aipl.lk';
+const DEFAULT_CC_EMAIL = 'chathnindu@ehealthcare.lk';
 
 // Table configuration with department mapping and date fields
 const tableConfig = {
@@ -140,54 +138,133 @@ const tableConfig = {
     'surgi_surgicare_visit_plan': { department: 'Surge-Surgecare', dateField: 'schedule_date', departmentId: '6b7336d6-16de-4d41-8f41-6c00d8d06b0f' }
 };
 
-// Function to get current week date range (Monday to Saturday)
-function getCurrentWeekRange() {
+// Function to check if today is Monday
+function isMonday() {
+    const today = new Date();
+    console.log(`📅 Today is: ${today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`);
+    return today.getDay() === 1; // 0 = Sunday, 1 = Monday
+}
+
+// Function to check if current time is 09:00 AM
+function isNineAM() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    console.log(`⏰ Current time: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+    return hours === 9 && minutes === 0;
+}
+
+// Function to check if email was already sent this week
+async function checkEmailSentThisWeek() {
+    try {
+        const startOfWeek = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD'); // Monday of current week
+        
+        const { data, error } = await supabase
+            .from('schedify_email_logs')
+            .select('sent_date')
+            .gte('sent_date', startOfWeek)
+            .limit(1);
+
+        if (error) {
+            console.error('❌ Error checking email log:', error);
+            return false; // If error, assume not sent to allow retry
+        }
+
+        const emailSentThisWeek = data && data.length > 0;
+        console.log(`📧 Email sent this week: ${emailSentThisWeek ? 'YES' : 'NO'}`);
+        
+        return emailSentThisWeek;
+    } catch (error) {
+        console.error('❌ Exception checking email log:', error);
+        return false;
+    }
+}
+
+// Function to log email sent
+async function logEmailSent(department, weekRange) {
+    try {
+        const { data, error } = await supabase
+            .from('schedify_email_logs')
+            .insert([
+                {
+                    department: department,
+                    week_range: weekRange,
+                    sent_date: new Date().toISOString(),
+                    sent_timestamp: new Date().toISOString()
+                }
+            ]);
+
+        if (error) {
+            console.error('❌ Error logging email:', error);
+            return false;
+        }
+
+        console.log(`✅ Email logged for ${department} - Week: ${weekRange}`);
+        return true;
+    } catch (error) {
+        console.error('❌ Exception logging email:', error);
+        return false;
+    }
+}
+
+// Function to get last 5 days date range
+function getLast5DaysRange() {
     const today = dayjs();
-    const startOfWeek = today.startOf('week').add(1, 'day'); // Monday
-    const endOfWeek = startOfWeek.add(5, 'day'); // Saturday
+    const fiveDaysAgo = today.subtract(6, 'day');
 
     return {
-        startDate: startOfWeek.format('YYYY-MM-DD'),
-        endDate: endOfWeek.format('YYYY-MM-DD'),
-        weekRange: `${startOfWeek.format('DD MMM YYYY')} - ${endOfWeek.format('DD MMM YYYY')}`
+        startDate: fiveDaysAgo.format('YYYY-MM-DD'),
+        endDate: today.format('YYYY-MM-DD'),
+        dateRange: `${fiveDaysAgo.format('DD MMM YYYY')} - ${today.format('DD MMM YYYY')}`
     };
 }
 
-// Function to check records for a specific table
-async function checkTableRecords(tableName, config) {
+// Function to check if department has any records in last 5 days
+async function checkDepartmentHasRecords(department) {
     try {
-        const { startDate, endDate } = getCurrentWeekRange();
+        const { startDate, endDate } = getLast5DaysRange();
+        const departmentTables = Object.entries(tableConfig)
+            .filter(([tableName, config]) => config.department === department)
+            .map(([tableName, config]) => ({ tableName, config }));
 
-        const { count, error } = await supabase
-            .from(tableName)
-            .select('*', { count: 'exact', head: true })
-            .gte(config.dateField, startDate)
-            .lte(config.dateField, endDate);
+        console.log(`🔍 Checking ${department} - Last 5 days (${startDate} to ${endDate})`);
+        console.log(`📊 Tables to check: ${departmentTables.map(t => t.tableName).join(', ')}`);
 
-        if (error) {
-            console.error(`Error checking table ${tableName}:`, error);
-            return { hasRecords: false, error: error.message };
+        let hasAnyRecords = false;
+
+        for (const { tableName, config } of departmentTables) {
+            const { count, error } = await supabase
+                .from(tableName)
+                .select('*', { count: 'exact', head: true })
+                .gte(config.dateField, startDate)
+                .lte(config.dateField, endDate);
+
+            if (error) {
+                console.error(`❌ Error checking table ${tableName}:`, error);
+                continue;
+            }
+
+            if (count > 0) {
+                console.log(`✅ ${tableName} has ${count} records in last 5 days`);
+                hasAnyRecords = true;
+                break; // Stop checking if at least one table has records
+            } else {
+                console.log(`❌ ${tableName} has NO records in last 5 days`);
+            }
         }
 
-        return {
-            hasRecords: count > 0,
-            recordCount: count,
-            tableName,
-            department: config.department,
-            dateField: config.dateField,
-            dateRange: `${startDate} to ${endDate}`
-        };
+        console.log(`📋 ${department} - Has records in last 5 days: ${hasAnyRecords ? 'YES' : 'NO'}`);
+        return hasAnyRecords;
     } catch (error) {
-        console.error(`Exception checking table ${tableName}:`, error);
-        return { hasRecords: false, error: error.message };
+        console.error(`❌ Exception checking department ${department}:`, error);
+        return false; // If error, assume no records to be safe
     }
 }
 
 // Function to send email notification using EmailJS
-async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person, missingTables, weekRange) {
+async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person, weekRange) {
     try {
         console.log(`📧 Attempting to send EmailJS email to: ${to}, CC: ${cc}`);
-        console.log(`🔑 Using EmailJS Service ID: ${EMAILJS_SERVICE_ID}`);
 
         // Prepare template parameters for EmailJS
         const templateParams = {
@@ -197,9 +274,6 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
             department: department,
             person_name: person,
             week_range: weekRange,
-            missing_tables_count: missingTables.length,
-            missing_tables_list: missingTables.join(', '),
-            html_content: htmlContent,
             from_name: 'Schedify - Powered by E-Healthcare Solutions',
             reply_to: 'noreply@schedify.eHealthcare.lk',
             current_year: new Date().getFullYear().toString()
@@ -232,21 +306,11 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`❌ EmailJS API error response:`, errorText);
-            
-            let errorMessage = `EmailJS API error: ${response.status} ${response.statusText}`;
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMessage = `EmailJS API error: ${errorData.message || errorData.error || response.statusText}`;
-            } catch (e) {
-                // If JSON parsing fails, use the text response
-                errorMessage = `EmailJS API error: ${response.status} - ${errorText}`;
-            }
-            
-            throw new Error(errorMessage);
+            throw new Error(`EmailJS API error: ${response.status} ${response.statusText}`);
         }
 
         const result = await response.json();
-        console.log('✅ EmailJS email sent successfully:', result);
+        console.log('✅ EmailJS email sent successfully');
         return { success: true, result: result };
     } catch (error) {
         console.error('❌ EmailJS email sending failed:', error);
@@ -254,76 +318,8 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
     }
 }
 
-// Alternative EmailJS function using their recommended format
-async function sendEmailJSAlternative(to, cc, subject, htmlContent, department, person, missingTables, weekRange) {
-    try {
-        console.log(`📧 Attempting to send EmailJS email (alternative method) to: ${to}`);
-
-        // Create a plain text version for email clients that don't support HTML
-        const plainText = `
-Schedify Alert - Missing Records
-Department: ${department}
-Person: ${person}
-Week: ${weekRange}
-
-Missing Tables (${missingTables.length}):
-${missingTables.map((table, index) => `${index + 1}. ${table}`).join('\n')}
-
-Action Required:
-Please ensure that all relevant records are entered into Schedify for the current week to maintain data completeness and operational visibility.
-
-This is an automated message from Schedify - The Schedule Application For Analytical Instruments.
-        `.trim();
-
-        const templateParams = {
-            to_email: to,
-            cc_email: cc || '',
-            subject: subject,
-            department: department,
-            person_name: person,
-            week_range: weekRange,
-            missing_tables_count: missingTables.length.toString(),
-            missing_tables_list: missingTables.join('\n'),
-            message: plainText,
-            html_content: htmlContent,
-            from_name: 'Schedify - Powered by E-Healthcare Solutions',
-            reply_to: 'noreply@schedify.eHealthcare.lk'
-        };
-
-        const emailData = {
-            service_id: EMAILJS_SERVICE_ID,
-            template_id: EMAILJS_TEMPLATE_ID,
-            user_id: EMAILJS_PUBLIC_KEY,
-            template_params: templateParams,
-            accessToken: EMAILJS_PRIVATE_KEY
-        };
-
-        console.log('📨 Sending EmailJS request...');
-        
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(emailData)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`EmailJS error: ${response.status} - ${errorText}`);
-        }
-
-        const result = await response.text(); // EmailJS returns text response
-        console.log('✅ EmailJS email sent successfully');
-        return { success: true, result: result };
-    } catch (error) {
-        console.error('❌ EmailJS alternative method failed:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-// Function to send email notification
-async function sendEmailNotification(department, missingTables, weekRange) {
+// Function to send department notification
+async function sendDepartmentNotification(department, weekRange) {
     const deptConfig = departmentConfig[department];
 
     if (!deptConfig || !deptConfig.email) {
@@ -331,7 +327,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
         return false;
     }
 
-    const subject = `🚨 Schedify Alert - Missing Records - ${department} - Week ${weekRange}`;
+    const subject = `🚨 Schedify Alert - No Records Found - ${department} - Week ${weekRange}`;
 
     // Create HTML content for the email
     const htmlContent = `
@@ -383,21 +379,6 @@ async function sendEmailNotification(department, missingTables, weekRange) {
             margin: 20px 0; 
             border-left: 4px solid #ffc107;
         }
-        .table-list { 
-            background: #f8f9fa; 
-            padding: 20px; 
-            border-radius: 8px; 
-            margin: 20px 0; 
-            border: 1px solid #e9ecef;
-        }
-        .table-list ul { 
-            margin: 0; 
-            padding-left: 20px; 
-        }
-        .table-list li { 
-            margin-bottom: 8px; 
-            padding: 5px 0;
-        }
         .footer { 
             text-align: center; 
             margin-top: 30px; 
@@ -406,15 +387,6 @@ async function sendEmailNotification(department, missingTables, weekRange) {
             font-size: 12px; 
             background: #f8f9fa;
             border-top: 1px solid #e9ecef;
-        }
-        .button { 
-            display: inline-block; 
-            padding: 12px 24px; 
-            background: #007bff; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 5px; 
-            margin: 10px 0; 
         }
         .highlight { 
             background: #fff3cd; 
@@ -428,7 +400,7 @@ async function sendEmailNotification(department, missingTables, weekRange) {
     <div class="container">
         <div class="header">
             <h1>🚨 Schedify Alert</h1>
-            <p>Missing Records Notification - ${department}</p>
+            <p>No Records Found - ${department}</p>
         </div>
         <div class="content">
             <p>Dear <strong>${deptConfig.person}</strong>,</p>
@@ -437,17 +409,13 @@ async function sendEmailNotification(department, missingTables, weekRange) {
                 <p style="margin: 0;">This is an automated notification from <strong>Schedify - The Schedule Application For Analytical Instruments</strong>.</p>
             </div>
 
-            <p>We have detected that the following tables in your department (<span class="highlight">${department}</span>) have <span class="highlight">NO records</span> for the current week (<span class="highlight">${weekRange}</span>):</p>
+            <p>We have detected that your department (<span class="highlight">${department}</span>) has <span class="highlight">NO records</span> in any of the scheduled tables for the last 5 days.</p>
 
-            <div class="table-list">
-                <h3 style="margin-top: 0; color: #dc3545;">Missing Tables (${missingTables.length}):</h3>
-                <ul>
-                    ${missingTables.map(table => `<li><strong>${table}</strong></li>`).join('')}
-                </ul>
-            </div>
+            <p><strong>Week:</strong> ${weekRange}</p>
+            <p><strong>Check Period:</strong> Last 5 days</p>
 
             <h3>📋 Action Required:</h3>
-            <p>Please ensure that all relevant records are entered into Schedify for the current week to maintain:</p>
+            <p>Please ensure that relevant records are entered into Schedify to maintain:</p>
             <ul>
                 <li>Data completeness and accuracy</li>
                 <li>Operational visibility</li>
@@ -474,287 +442,200 @@ async function sendEmailNotification(department, missingTables, weekRange) {
     try {
         console.log(`📧 Preparing to send email for ${department} to ${deptConfig.email}`);
         
-        // Try the main EmailJS function first
-        let result = await sendEmailJSEmail(
+        const result = await sendEmailJSEmail(
             deptConfig.email, 
             DEFAULT_CC_EMAIL, 
             subject, 
             htmlContent,
             department,
             deptConfig.person,
-            missingTables,
             weekRange
         );
 
-        // If main method fails, try alternative method
-        if (!result.success) {
-            console.log('🔄 Trying alternative EmailJS method...');
-            result = await sendEmailJSAlternative(
-                deptConfig.email, 
-                DEFAULT_CC_EMAIL, 
-                subject, 
-                htmlContent,
-                department,
-                deptConfig.person,
-                missingTables,
-                weekRange
-            );
-        }
-
         if (result.success) {
-            console.log(`✅ EmailJS email sent successfully for ${department}`);
+            console.log(`✅ Email sent successfully for ${department}`);
+            // Log the email sent
+            await logEmailSent(department, weekRange);
             return true;
         } else {
-            console.error(`❌ Failed to send EmailJS email for ${department}:`, result.error);
+            console.error(`❌ Failed to send email for ${department}:`, result.error);
             return false;
         }
     } catch (error) {
-        console.error(`❌ Exception sending EmailJS email for ${department}:`, error);
+        console.error(`❌ Exception sending email for ${department}:`, error);
         return false;
     }
 }
 
-// Main function to check all tables and send notifications
+// Main function to perform weekly record check
 export async function performWeeklyRecordCheck() {
     console.log('🚀 Schedify - Starting weekly record check...');
     console.log('📅 Date:', new Date().toISOString());
-    console.log(`🔑 EmailJS Configuration:`);
-    console.log(`   Service ID: ${EMAILJS_SERVICE_ID}`);
-    console.log(`   Public Key: ${EMAILJS_PUBLIC_KEY ? 'Present' : 'MISSING'}`);
-    console.log(`   Private Key: ${EMAILJS_PRIVATE_KEY ? 'Present' : 'MISSING'}`);
 
-    const { weekRange } = getCurrentWeekRange();
-    console.log(`📆 Checking week: ${weekRange}`);
-
-    const departmentResults = {};
-    const allTableResults = [];
-
-    // Check all tables
-    for (const [tableName, config] of Object.entries(tableConfig)) {
-        console.log(`🔍 Checking table: ${tableName}`);
-
-        const result = await checkTableRecords(tableName, config);
-        allTableResults.push(result);
-
-        // Group by department
-        if (!departmentResults[config.department]) {
-            departmentResults[config.department] = [];
-        }
-        departmentResults[config.department].push(result);
+    // Check if today is Monday
+    if (!isMonday()) {
+        console.log('❌ Today is not Monday. Weekly check aborted.');
+        return {
+            status: 'skipped',
+            reason: 'Not Monday',
+            timestamp: new Date().toISOString()
+        };
     }
 
-    // Process results and send notifications
-    let totalNotifications = 0;
-    let successfulNotifications = 0;
+    // Check if it's 09:00 AM
+    if (!isNineAM()) {
+        console.log('❌ Current time is not 09:00 AM. Weekly check aborted.');
+        return {
+            status: 'skipped',
+            reason: 'Not 09:00 AM',
+            timestamp: new Date().toISOString()
+        };
+    }
 
-    for (const [department, tableResults] of Object.entries(departmentResults)) {
-        const missingTables = tableResults
-            .filter(result => !result.hasRecords)
-            .map(result => result.tableName);
+    // Check if email was already sent this week
+    const emailAlreadySent = await checkEmailSentThisWeek();
+    if (emailAlreadySent) {
+        console.log('❌ Email already sent this week. Weekly check aborted.');
+        return {
+            status: 'skipped',
+            reason: 'Email already sent this week',
+            timestamp: new Date().toISOString()
+        };
+    }
 
-        if (missingTables.length > 0) {
-            console.log(`⚠️  Department ${department} has ${missingTables.length} missing tables:`, missingTables);
+    console.log('✅ Conditions met: Monday, 09:00 AM, no email sent this week');
+    
+    const { dateRange } = getLast5DaysRange();
+    console.log(`📆 Checking last 5 days: ${dateRange}`);
 
-            if (EMAILJS_PUBLIC_KEY && EMAILJS_SERVICE_ID) {
-                const notificationSent = await sendEmailNotification(department, missingTables, weekRange);
-                if (notificationSent) {
-                    successfulNotifications++;
-                    totalNotifications++;
-                } else {
-                    totalNotifications++; // Count attempted notifications
-                }
+    let departmentsNotified = 0;
+    let totalDepartmentsChecked = 0;
+
+    // Check each department
+    for (const [department, deptConfig] of Object.entries(departmentConfig)) {
+        // Skip departments without email configuration
+        if (!deptConfig.email) {
+            console.log(`⏭️ Skipping ${department} - No email configured`);
+            continue;
+        }
+
+        totalDepartmentsChecked++;
+        console.log(`\n🔍 Processing department: ${department}`);
+
+        // Check if department has any records in last 5 days
+        const hasRecords = await checkDepartmentHasRecords(department);
+
+        if (!hasRecords) {
+            console.log(`🚨 ${department} has NO records in last 5 days - Sending notification`);
+            const notificationSent = await sendDepartmentNotification(department, dateRange);
+            
+            if (notificationSent) {
+                departmentsNotified++;
+                console.log(`✅ Notification sent successfully for ${department}`);
             } else {
-                console.log(`❌ Skipping email for ${department} - EmailJS not properly configured`);
+                console.log(`❌ Failed to send notification for ${department}`);
             }
         } else {
-            console.log(`✅ Department ${department}: All tables have records`);
+            console.log(`✅ ${department} has records in last 5 days - No notification needed`);
         }
     }
 
-    // Generate summary report
-    const totalTables = allTableResults.length;
-    const tablesWithRecords = allTableResults.filter(r => r.hasRecords).length;
-    const tablesWithoutRecords = allTableResults.filter(r => !r.hasRecords).length;
-
-    console.log('\n📊 SCHEDIFY WEEKLY CHECK SUMMARY:');
-    console.log(`📅 Week: ${weekRange}`);
-    console.log(`📋 Total Tables Checked: ${totalTables}`);
-    console.log(`✅ Tables With Records: ${tablesWithRecords}`);
-    console.log(`❌ Tables Without Records: ${tablesWithoutRecords}`);
-    console.log(`📧 Notifications Attempted: ${totalNotifications}`);
-    console.log(`✅ Successful Notifications: ${successfulNotifications}`);
+    console.log('\n📊 WEEKLY CHECK SUMMARY:');
+    console.log(`📅 Check Period: ${dateRange}`);
+    console.log(`🏢 Total Departments Checked: ${totalDepartmentsChecked}`);
+    console.log(`📧 Departments Notified: ${departmentsNotified}`);
     console.log('🎯 Weekly record check completed!');
 
-    // Log the result to a monitoring table
-    await logWeeklyCheckResult({
-        weekRange,
-        totalTables,
-        tablesWithRecords,
-        tablesWithoutRecords,
-        notificationsSent: successfulNotifications,
-        timestamp: new Date().toISOString()
-    });
-
     return {
-        weekRange,
-        totalTables,
-        tablesWithRecords,
-        tablesWithoutRecords,
-        notificationsAttempted: totalNotifications,
-        notificationsSuccessful: successfulNotifications,
+        status: 'completed',
+        departmentsChecked: totalDepartmentsChecked,
+        departmentsNotified: departmentsNotified,
+        checkPeriod: dateRange,
         timestamp: new Date().toISOString()
     };
 }
 
-// Function to log weekly check results to database
-async function logWeeklyCheckResult(result) {
-    try {
-        const { data, error } = await supabase
-            .from('schedify_weekly_checks')
-            .insert([
-                {
-                    week_range: result.weekRange,
-                    total_tables: result.totalTables,
-                    tables_with_records: result.tablesWithRecords,
-                    tables_without_records: result.tablesWithoutRecords,
-                    notifications_sent: result.notificationsSent,
-                    check_timestamp: result.timestamp
-                }
-            ]);
-
-        if (error) {
-            console.error('Error logging weekly check result:', error);
-            return;
-        }
-
-        console.log('✅ Weekly check result logged to database');
-    } catch (error) {
-        console.error('Exception logging weekly check result:', error);
-    }
-}
-
-// Simple scheduler using setTimeout (runs every Monday at 9:00 AM)
+// Scheduler that runs every minute to check if it's Monday 09:00 AM
 export function scheduleWeeklyCheck() {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    console.log('⏰ Schedify - Starting weekly check scheduler...');
     
-    // Calculate milliseconds until next Monday 9:00 AM
-    let daysUntilMonday = (8 - dayOfWeek) % 7; // 1 for Monday
-    if (daysUntilMonday === 0 && (hours < 9 || (hours === 9 && minutes === 0))) {
-        daysUntilMonday = 0; // Today is Monday but before 9:00 AM
-    } else if (daysUntilMonday === 0) {
-        daysUntilMonday = 7; // Today is Monday but after 9:00 AM, go to next Monday
-    }
-    
-    const nextMonday = new Date(now);
-    nextMonday.setDate(now.getDate() + daysUntilMonday);
-    nextMonday.setHours(9, 0, 0, 0);
-    
-    const msUntilNextMonday = nextMonday.getTime() - now.getTime();
-    
-    console.log(`⏰ Next weekly check scheduled for: ${nextMonday.toLocaleString()}`);
-    
-    // Schedule the first run
-    setTimeout(() => {
-        console.log('⏰ Schedify - Scheduled weekly record check started...');
-        performWeeklyRecordCheck().catch(console.error);
-        
-        // Schedule subsequent runs (every 7 days)
-        setInterval(() => {
-            console.log('⏰ Schedify - Scheduled weekly record check started...');
-            performWeeklyRecordCheck().catch(console.error);
-        }, 7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
-    }, msUntilNextMonday);
-}
+    // Check every minute
+    setInterval(async () => {
+        const now = new Date();
+        const isMondayToday = now.getDay() === 1;
+        const isNineAMNow = now.getHours() === 9 && now.getMinutes() === 0;
 
-// Alternative scheduler using setInterval with daily check for Monday 9:00 AM
-export function scheduleWeeklyCheckDaily() {
-    // Check every day at 9:00 AM if it's Monday
-    const now = new Date();
-    const checkTime = new Date(now);
-    checkTime.setHours(9, 0, 0, 0);
-    
-    let initialDelay = checkTime.getTime() - now.getTime();
-    if (initialDelay < 0) {
-        initialDelay += 24 * 60 * 60 * 1000; // Add 24 hours if already past 9:00 AM today
-    }
-    
-    console.log(`⏰ Daily scheduler started. Next check in ${Math.round(initialDelay / 1000 / 60)} minutes`);
-    
-    setTimeout(() => {
-        // Initial check
-        checkAndRunIfMonday();
-        
-        // Then check every 24 hours
-        setInterval(checkAndRunIfMonday, 24 * 60 * 60 * 1000);
-    }, initialDelay);
-    
-    async function checkAndRunIfMonday() {
-        const today = new Date();
-        if (today.getDay() === 1) { // Monday
-            console.log('⏰ Schedify - Scheduled weekly record check started (Monday 9:00 AM)...');
-            await performWeeklyRecordCheck();
-        } else {
-            console.log(`⏰ Daily check: Today is not Monday (${today.toLocaleDateString('en-US', { weekday: 'long'})}), skipping weekly check.`);
+        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00: ${isNineAMNow}`);
+
+        if (isMondayToday && isNineAMNow) {
+            console.log('🎯 Scheduler triggered - Monday 09:00 AM detected');
+            try {
+                await performWeeklyRecordCheck();
+            } catch (error) {
+                console.error('❌ Error in scheduled weekly check:', error);
+            }
         }
-    }
+    }, 60 * 1000); // Check every minute
+
+    console.log('✅ Weekly check scheduler started - Checking every minute for Monday 09:00 AM');
 }
 
-// Manual trigger function (for testing)
+// Manual trigger for testing (bypasses day/time checks)
 export async function manualTrigger() {
-    console.log('🔧 Schedify - Manual trigger activated');
-    return await performWeeklyRecordCheck();
-}
-
-// Test function to verify EmailJS connection
-export async function testEmailJSConnection() {
-    console.log('🧪 Testing EmailJS connection...');
+    console.log('🔧 Schedify - Manual trigger activated (bypassing day/time checks)');
     
-    if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID) {
-        console.error('❌ EmailJS not properly configured');
-        return false;
-    }
+    // Bypass the Monday and 09:00 AM checks for manual testing
+    console.log('🚀 Bypassing day/time checks for manual testing');
+    
+    const { dateRange } = getLast5DaysRange();
+    console.log(`📆 Checking last 5 days: ${dateRange}`);
 
-    try {
-        // Test by sending a simple email
-        const testEmail = 'schedifiy@gmail.com';
-        const testSubject = '🧪 Schedify - EmailJS Connection Test';
-        const testHtml = `
-            <h1>EmailJS Test</h1>
-            <p>This is a test email to verify EmailJS integration with Schedify.</p>
-            <p>Timestamp: ${new Date().toISOString()}</p>
-        `;
+    let departmentsNotified = 0;
+    let totalDepartmentsChecked = 0;
 
-        console.log('📧 Sending test email...');
-        
-        const result = await sendEmailJSEmail(
-            testEmail,
-            null,
-            testSubject,
-            testHtml,
-            'Test Department',
-            'Test User',
-            ['test_table_1', 'test_table_2'],
-            'Test Week Range'
-        );
-
-        if (result.success) {
-            console.log('✅ EmailJS connection test successful!');
-            return true;
-        } else {
-            console.error('❌ EmailJS connection test failed:', result.error);
-            return false;
+    // Check each department
+    for (const [department, deptConfig] of Object.entries(departmentConfig)) {
+        if (!deptConfig.email) {
+            console.log(`⏭️ Skipping ${department} - No email configured`);
+            continue;
         }
-    } catch (error) {
-        console.error('❌ EmailJS connection test error:', error);
-        return false;
+
+        totalDepartmentsChecked++;
+        console.log(`\n🔍 Processing department: ${department}`);
+
+        const hasRecords = await checkDepartmentHasRecords(department);
+
+        if (!hasRecords) {
+            console.log(`🚨 ${department} has NO records in last 5 days - Sending notification`);
+            const notificationSent = await sendDepartmentNotification(department, dateRange);
+            
+            if (notificationSent) {
+                departmentsNotified++;
+                console.log(`✅ Notification sent successfully for ${department}`);
+            } else {
+                console.log(`❌ Failed to send notification for ${department}`);
+            }
+        } else {
+            console.log(`✅ ${department} has records in last 5 days - No notification needed`);
+        }
     }
+
+    console.log('\n📊 MANUAL CHECK SUMMARY:');
+    console.log(`📅 Check Period: ${dateRange}`);
+    console.log(`🏢 Total Departments Checked: ${totalDepartmentsChecked}`);
+    console.log(`📧 Departments Notified: ${departmentsNotified}`);
+    
+    return {
+        status: 'manual_completed',
+        departmentsChecked: totalDepartmentsChecked,
+        departmentsNotified: departmentsNotified,
+        checkPeriod: dateRange,
+        timestamp: new Date().toISOString()
+    };
 }
 
-// Initialize EmailJS on module load
-console.log('📧 EmailJS Initialized for Schedify');
+// Initialize
+console.log('📧 Schedify Weekly Check System Initialized');
 console.log(`   Service: ${EMAILJS_SERVICE_ID}`);
-console.log(`   User: ${EMAILJS_USER_ID}`);
->>>>>>> 4277c086c3fee7775fced2f303de6e665eb10e82
+console.log(`   Departments: ${Object.keys(departmentConfig).length}`);
+console.log(`   Tables: ${Object.keys(tableConfig).length}`);
