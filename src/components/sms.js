@@ -2,9 +2,12 @@
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
 
-// Moosend API Key (Replace with your actual API key)
-const MOOSEND_API_KEY = '59f3ea13-bb8e-47d7-a12e-9fd881101d8d';
-const MOOSEND_BASE_URL = 'https://api.moosend.com/v3';
+// EmailJS Configuration
+const EMAILJS_SERVICE_ID = 'service_7gvmz1r';
+const EMAILJS_TEMPLATE_ID = 'template_schedify_alerts'; 
+const EMAILJS_PUBLIC_KEY = 'wbvU9LIDP6q2LBmOs';
+const EMAILJS_PRIVATE_KEY = 'S9G9d7LGI5MjaGDKK8QXC';
+const EMAILJS_USER_ID = 'schedifiy@gmail.com';
 
 // Department configuration with responsible persons
 const departmentConfig = {
@@ -178,179 +181,141 @@ async function checkTableRecords(tableName, config) {
     }
 }
 
-// Function to send email notification using Moosend
-async function sendMoosendEmail(to, cc, subject, htmlContent) {
+// Function to send email notification using EmailJS
+async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person, missingTables, weekRange) {
     try {
-        console.log(`📧 Attempting to send email to: ${to}, CC: ${cc}`);
-        console.log(`🔑 Using API Key: ${MOOSEND_API_KEY ? 'Present' : 'MISSING'}`);
+        console.log(`📧 Attempting to send EmailJS email to: ${to}, CC: ${cc}`);
+        console.log(`🔑 Using EmailJS Service ID: ${EMAILJS_SERVICE_ID}`);
 
-        // Moosend requires creating a campaign first, then sending
-        // For simplicity, we'll use the transactional email endpoint if available
-        // or create a simple campaign and send immediately
-        
-        const emailData = {
-            Subject: subject,
-            HtmlBody: htmlContent,
-            From: {
-                Email: 'noreply@schedify.eHealthcare.lk',
-                Name: 'Schedify - Powered by E-Healthcare Solutions'
-            },
-            To: [
-                {
-                    Email: to,
-                    Name: to.split('@')[0] // Simple name extraction
-                }
-            ]
+        // Prepare template parameters for EmailJS
+        const templateParams = {
+            to_email: to,
+            cc_email: cc || '',
+            subject: subject,
+            department: department,
+            person_name: person,
+            week_range: weekRange,
+            missing_tables_count: missingTables.length,
+            missing_tables_list: missingTables.join(', '),
+            html_content: htmlContent,
+            from_name: 'Schedify - Powered by E-Healthcare Solutions',
+            reply_to: 'noreply@schedify.eHealthcare.lk',
+            current_year: new Date().getFullYear().toString()
         };
 
-        // Add CC if provided
-        if (cc) {
-            emailData.Cc = [
-                {
-                    Email: cc,
-                    Name: cc.split('@')[0]
-                }
-            ];
-        }
-
-        console.log('📨 Email data prepared:', {
-            to: to,
-            cc: cc,
-            subject: subject
+        console.log('📨 EmailJS template params prepared:', {
+            to_email: to,
+            cc_email: cc,
+            subject: subject,
+            department: department
         });
 
-        // Moosend API endpoint for sending transactional emails
-        // Note: This endpoint might vary based on your Moosend plan
-        const response = await fetch(`${MOOSEND_BASE_URL}/transactional/emails`, {
+        // Send email using EmailJS
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
             method: 'POST',
             headers: {
-                'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'X-Moosend-APIKey': MOOSEND_API_KEY
             },
-            body: JSON.stringify(emailData)
+            body: JSON.stringify({
+                service_id: EMAILJS_SERVICE_ID,
+                template_id: EMAILJS_TEMPLATE_ID,
+                user_id: EMAILJS_PUBLIC_KEY,
+                template_params: templateParams,
+                accessToken: EMAILJS_PRIVATE_KEY
+            })
         });
 
-        console.log(`📨 Moosend API Response Status: ${response.status}`);
+        console.log(`📨 EmailJS API Response Status: ${response.status}`);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`❌ Moosend API error response:`, errorText);
+            console.error(`❌ EmailJS API error response:`, errorText);
             
-            let errorMessage = `Moosend API error: ${response.status} ${response.statusText}`;
+            let errorMessage = `EmailJS API error: ${response.status} ${response.statusText}`;
             try {
                 const errorData = JSON.parse(errorText);
-                errorMessage = `Moosend API error: ${errorData.Error || errorData.Message || response.statusText}`;
+                errorMessage = `EmailJS API error: ${errorData.message || errorData.error || response.statusText}`;
             } catch (e) {
                 // If JSON parsing fails, use the text response
-                errorMessage = `Moosend API error: ${response.status} - ${errorText}`;
+                errorMessage = `EmailJS API error: ${response.status} - ${errorText}`;
             }
             
             throw new Error(errorMessage);
         }
 
         const result = await response.json();
-        console.log('✅ Moosend email sent successfully');
+        console.log('✅ EmailJS email sent successfully:', result);
         return { success: true, result: result };
     } catch (error) {
-        console.error('❌ Moosend email sending failed:', error);
+        console.error('❌ EmailJS email sending failed:', error);
         return { success: false, error: error.message };
     }
 }
 
-// Alternative function using Moosend campaign creation and sending
-async function sendMoosendCampaign(to, cc, subject, htmlContent) {
+// Alternative EmailJS function using their recommended format
+async function sendEmailJSAlternative(to, cc, subject, htmlContent, department, person, missingTables, weekRange) {
     try {
-        console.log(`📧 Creating Moosend campaign for: ${to}`);
+        console.log(`📧 Attempting to send EmailJS email (alternative method) to: ${to}`);
 
-        // First, create a mailing list with the recipient
-        const mailingListData = {
-            Name: `Schedify_Alert_${Date.now()}`,
-            ConfirmationPage: 'http://schedifiy.moosend.com',
-            RedirectAfterUnsubscribePage: 'http://schedifiy.moosend.com'
+        // Create a plain text version for email clients that don't support HTML
+        const plainText = `
+Schedify Alert - Missing Records
+Department: ${department}
+Person: ${person}
+Week: ${weekRange}
+
+Missing Tables (${missingTables.length}):
+${missingTables.map((table, index) => `${index + 1}. ${table}`).join('\n')}
+
+Action Required:
+Please ensure that all relevant records are entered into Schedify for the current week to maintain data completeness and operational visibility.
+
+This is an automated message from Schedify - The Schedule Application For Analytical Instruments.
+        `.trim();
+
+        const templateParams = {
+            to_email: to,
+            cc_email: cc || '',
+            subject: subject,
+            department: department,
+            person_name: person,
+            week_range: weekRange,
+            missing_tables_count: missingTables.length.toString(),
+            missing_tables_list: missingTables.join('\n'),
+            message: plainText,
+            html_content: htmlContent,
+            from_name: 'Schedify - Powered by E-Healthcare Solutions',
+            reply_to: 'noreply@schedify.eHealthcare.lk'
         };
 
-        const listResponse = await fetch(`${MOOSEND_BASE_URL}/lists/create.json?apikey=${MOOSEND_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(mailingListData)
-        });
-
-        if (!listResponse.ok) {
-            throw new Error('Failed to create mailing list');
-        }
-
-        const listResult = await listResponse.json();
-        const mailingListId = listResult.Context;
-
-        // Add subscriber to the mailing list
-        const subscriberData = {
-            Email: to,
-            Name: to.split('@')[0]
+        const emailData = {
+            service_id: EMAILJS_SERVICE_ID,
+            template_id: EMAILJS_TEMPLATE_ID,
+            user_id: EMAILJS_PUBLIC_KEY,
+            template_params: templateParams,
+            accessToken: EMAILJS_PRIVATE_KEY
         };
 
-        const subscriberResponse = await fetch(`${MOOSEND_BASE_URL}/subscribers/${mailingListId}/subscribe.json?apikey=${MOOSEND_API_KEY}`, {
+        console.log('📨 Sending EmailJS request...');
+        
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
             method: 'POST',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify(subscriberData)
+            body: JSON.stringify(emailData)
         });
 
-        if (!subscriberResponse.ok) {
-            throw new Error('Failed to add subscriber');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`EmailJS error: ${response.status} - ${errorText}`);
         }
 
-        // Create campaign
-        const campaignData = {
-            Name: `Schedify Alert - ${subject}`,
-            Subject: subject,
-            Sender: {
-                Name: 'Schedify - Powered by E-Healthcare Solutions',
-                Email: 'noreply@schedify.eHealthcare.lk'
-            },
-            MailingListID: mailingListId,
-            HTMLContent: htmlContent
-        };
-
-        const campaignResponse = await fetch(`${MOOSEND_BASE_URL}/campaigns/create.json?apikey=${MOOSEND_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(campaignData)
-        });
-
-        if (!campaignResponse.ok) {
-            throw new Error('Failed to create campaign');
-        }
-
-        const campaignResult = await campaignResponse.json();
-        const campaignId = campaignResult.Context;
-
-        // Send campaign immediately
-        const sendResponse = await fetch(`${MOOSEND_BASE_URL}/campaigns/${campaignId}/send.json?apikey=${MOOSEND_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!sendResponse.ok) {
-            throw new Error('Failed to send campaign');
-        }
-
-        console.log('✅ Moosend campaign sent successfully');
-        return { success: true, campaignId: campaignId };
-
+        const result = await response.text(); // EmailJS returns text response
+        console.log('✅ EmailJS email sent successfully');
+        return { success: true, result: result };
     } catch (error) {
-        console.error('❌ Moosend campaign sending failed:', error);
+        console.error('❌ EmailJS alternative method failed:', error);
         return { success: false, error: error.message };
     }
 }
@@ -366,79 +331,183 @@ async function sendEmailNotification(department, missingTables, weekRange) {
 
     const subject = `🚨 Schedify Alert - Missing Records - ${department} - Week ${weekRange}`;
 
+    // Create HTML content for the email
     const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px; }
-        .alert { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        .table-list { background: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        .footer { text-align: center; margin-top: 20px; padding: 20px; color: #666; font-size: 12px; }
+        body { 
+            font-family: 'Arial', sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f9f9f9;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center; 
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header p { 
+            margin: 10px 0 0 0; 
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .content { 
+            padding: 30px; 
+        }
+        .alert { 
+            background: #fff3cd; 
+            border: 1px solid #ffeaa7; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            border-left: 4px solid #ffc107;
+        }
+        .table-list { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            border: 1px solid #e9ecef;
+        }
+        .table-list ul { 
+            margin: 0; 
+            padding-left: 20px; 
+        }
+        .table-list li { 
+            margin-bottom: 8px; 
+            padding: 5px 0;
+        }
+        .footer { 
+            text-align: center; 
+            margin-top: 30px; 
+            padding: 20px; 
+            color: #666; 
+            font-size: 12px; 
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+        .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        .highlight { 
+            background: #fff3cd; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🚨 Schedify Alert</h1>
-            <p>Missing Records Notification</p>
+            <p>Missing Records Notification - ${department}</p>
         </div>
         <div class="content">
             <p>Dear <strong>${deptConfig.person}</strong>,</p>
             
             <div class="alert">
-                <p>This is an automated notification from <strong>Schedify - The Schedule Application For Analytical Instruments</strong>.</p>
+                <p style="margin: 0;">This is an automated notification from <strong>Schedify - The Schedule Application For Analytical Instruments</strong>.</p>
             </div>
 
-            <p>We have detected that the following tables in your department (<strong>${department}</strong>) have <strong>NO records</strong> for the current week (<strong>${weekRange}</strong>):</p>
+            <p>We have detected that the following tables in your department (<span class="highlight">${department}</span>) have <span class="highlight">NO records</span> for the current week (<span class="highlight">${weekRange}</span>):</p>
 
             <div class="table-list">
+                <h3 style="margin-top: 0; color: #dc3545;">Missing Tables (${missingTables.length}):</h3>
                 <ul>
                     ${missingTables.map(table => `<li><strong>${table}</strong></li>`).join('')}
                 </ul>
-                <p><strong>Total Missing Tables: ${missingTables.length}</strong></p>
             </div>
 
-            <h3>Action Required:</h3>
-            <p>Please ensure that all relevant records are entered into Schedify for the current week to maintain data completeness and operational visibility.</p>
+            <h3>📋 Action Required:</h3>
+            <p>Please ensure that all relevant records are entered into Schedify for the current week to maintain:</p>
+            <ul>
+                <li>Data completeness and accuracy</li>
+                <li>Operational visibility</li>
+                <li>Compliance with reporting requirements</li>
+            </ul>
             
-            <p>If you have already entered records but are still receiving this notification, please contact the IT department.</p>
+            <p>If you have already entered records but are still receiving this notification, or if you need assistance, please contact the IT department.</p>
 
-            <p>Best regards,<br>
-            <strong>Schedify - Automated Monitoring System</strong></p>
+            <p style="margin-top: 30px;">
+                Best regards,<br>
+                <strong>Schedify - Automated Monitoring System</strong><br>
+                <em>Powered by E-Healthcare Solutions</em>
+            </p>
         </div>
         <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>
-            <p>eHealthcare Solutions Private Ltd.</p>
+            <p>© ${new Date().getFullYear()} AIPL - Analytical Instruments (Private) Limited. All rights reserved.</p>
         </div>
     </div>
 </body>
 </html>
-  `;
+    `;
 
     try {
         console.log(`📧 Preparing to send email for ${department} to ${deptConfig.email}`);
         
-        // Try transactional email first, fallback to campaign method
-        let result = await sendMoosendEmail(deptConfig.email, DEFAULT_CC_EMAIL, subject, htmlContent);
-        
+        // Try the main EmailJS function first
+        let result = await sendEmailJSEmail(
+            deptConfig.email, 
+            DEFAULT_CC_EMAIL, 
+            subject, 
+            htmlContent,
+            department,
+            deptConfig.person,
+            missingTables,
+            weekRange
+        );
+
+        // If main method fails, try alternative method
         if (!result.success) {
-            console.log('🔄 Falling back to campaign method...');
-            result = await sendMoosendCampaign(deptConfig.email, DEFAULT_CC_EMAIL, subject, htmlContent);
+            console.log('🔄 Trying alternative EmailJS method...');
+            result = await sendEmailJSAlternative(
+                deptConfig.email, 
+                DEFAULT_CC_EMAIL, 
+                subject, 
+                htmlContent,
+                department,
+                deptConfig.person,
+                missingTables,
+                weekRange
+            );
         }
 
         if (result.success) {
-            console.log(`✅ Moosend email sent successfully for ${department}`);
+            console.log(`✅ EmailJS email sent successfully for ${department}`);
             return true;
         } else {
-            console.error(`❌ Failed to send Moosend email for ${department}:`, result.error);
+            console.error(`❌ Failed to send EmailJS email for ${department}:`, result.error);
             return false;
         }
     } catch (error) {
-        console.error(`❌ Exception sending Moosend email for ${department}:`, error);
+        console.error(`❌ Exception sending EmailJS email for ${department}:`, error);
         return false;
     }
 }
@@ -447,7 +516,10 @@ async function sendEmailNotification(department, missingTables, weekRange) {
 export async function performWeeklyRecordCheck() {
     console.log('🚀 Schedify - Starting weekly record check...');
     console.log('📅 Date:', new Date().toISOString());
-    console.log(`🔑 Moosend API Key Status: ${MOOSEND_API_KEY ? 'Present' : 'MISSING - Emails will fail!'}`);
+    console.log(`🔑 EmailJS Configuration:`);
+    console.log(`   Service ID: ${EMAILJS_SERVICE_ID}`);
+    console.log(`   Public Key: ${EMAILJS_PUBLIC_KEY ? 'Present' : 'MISSING'}`);
+    console.log(`   Private Key: ${EMAILJS_PRIVATE_KEY ? 'Present' : 'MISSING'}`);
 
     const { weekRange } = getCurrentWeekRange();
     console.log(`📆 Checking week: ${weekRange}`);
@@ -481,7 +553,7 @@ export async function performWeeklyRecordCheck() {
         if (missingTables.length > 0) {
             console.log(`⚠️  Department ${department} has ${missingTables.length} missing tables:`, missingTables);
 
-            if (MOOSEND_API_KEY) {
+            if (EMAILJS_PUBLIC_KEY && EMAILJS_SERVICE_ID) {
                 const notificationSent = await sendEmailNotification(department, missingTables, weekRange);
                 if (notificationSent) {
                     successfulNotifications++;
@@ -490,7 +562,7 @@ export async function performWeeklyRecordCheck() {
                     totalNotifications++; // Count attempted notifications
                 }
             } else {
-                console.log(`❌ Skipping email for ${department} - No Moosend API Key configured`);
+                console.log(`❌ Skipping email for ${department} - EmailJS not properly configured`);
             }
         } else {
             console.log(`✅ Department ${department}: All tables have records`);
@@ -634,39 +706,52 @@ export async function manualTrigger() {
     return await performWeeklyRecordCheck();
 }
 
-// Test function to verify Moosend API key
-export async function testMoosendConnection() {
-    console.log('🧪 Testing Moosend API connection...');
+// Test function to verify EmailJS connection
+export async function testEmailJSConnection() {
+    console.log('🧪 Testing EmailJS connection...');
     
-    if (!MOOSEND_API_KEY) {
-        console.error('❌ Moosend API Key is not configured');
+    if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID) {
+        console.error('❌ EmailJS not properly configured');
         return false;
     }
 
     try {
-        const response = await fetch(`${MOOSEND_BASE_URL}/account/details.json?apikey=${MOOSEND_API_KEY}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
+        // Test by sending a simple email
+        const testEmail = 'schedifiy@gmail.com';
+        const testSubject = '🧪 Schedify - EmailJS Connection Test';
+        const testHtml = `
+            <h1>EmailJS Test</h1>
+            <p>This is a test email to verify EmailJS integration with Schedify.</p>
+            <p>Timestamp: ${new Date().toISOString()}</p>
+        `;
 
-        if (response.ok) {
-            const accountInfo = await response.json();
-            console.log('✅ Moosend API connection successful');
-            console.log('📧 Account Info:', {
-                company: accountInfo.Company,
-                created: accountInfo.CreatedOn,
-                timezone: accountInfo.Timezone
-            });
+        console.log('📧 Sending test email...');
+        
+        const result = await sendEmailJSEmail(
+            testEmail,
+            null,
+            testSubject,
+            testHtml,
+            'Test Department',
+            'Test User',
+            ['test_table_1', 'test_table_2'],
+            'Test Week Range'
+        );
+
+        if (result.success) {
+            console.log('✅ EmailJS connection test successful!');
             return true;
         } else {
-            const errorData = await response.json();
-            console.error('❌ Moosend API connection failed:', errorData);
+            console.error('❌ EmailJS connection test failed:', result.error);
             return false;
         }
     } catch (error) {
-        console.error('❌ Moosend API connection error:', error);
+        console.error('❌ EmailJS connection test error:', error);
         return false;
     }
 }
+
+// Initialize EmailJS on module load
+console.log('📧 EmailJS Initialized for Schedify');
+console.log(`   Service: ${EMAILJS_SERVICE_ID}`);
+console.log(`   User: ${EMAILJS_USER_ID}`);
