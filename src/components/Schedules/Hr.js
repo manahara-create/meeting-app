@@ -1286,7 +1286,7 @@ const HR = () => {
         {
             id: 'training',
             name: 'Training Programs',
-            table: 'hr_training_programs',
+            table: 'hr_training',
             type: 'Training',
             icon: <BookOutlined />,
             dateField: 'date',
