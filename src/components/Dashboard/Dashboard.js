@@ -1750,49 +1750,72 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
 
 const exportToWord = async () => {
   try {
-    // Define headers
+    // Helper to safely convert values to string and optionally truncate
+    const safeText = (value, maxLength = null) => {
+      if (value === null || value === undefined) return '';
+      // Arrays -> join
+      if (Array.isArray(value)) value = value.join(', ');
+      // Objects -> try to read a sensible property, otherwise JSON stringify
+      if (typeof value === 'object') {
+        // If it's a plain object with a 'name' property, prefer that
+        if (value.name && (typeof value.name === 'string' || Array.isArray(value.name))) {
+          value = Array.isArray(value.name) ? value.name.join(', ') : String(value.name);
+        } else {
+          try {
+            value = JSON.stringify(value);
+          } catch {
+            value = String(value);
+          }
+        }
+      } else {
+        // Convert primitives to string
+        value = String(value);
+      }
+
+      if (maxLength && typeof value.substring === 'function') {
+        return value.substring(0, maxLength);
+      }
+      return value;
+    };
+
+    // Headers
     const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
 
-    // Create header row
+    // Header row
     const headerRow = new TableRow({
-      children: headers.map(header =>
+      children: headers.map(h =>
         new TableCell({
           children: [
             new Paragraph({
-              children: [new TextRun({ text: header, bold: true })],
+              children: [new TextRun({ text: h, bold: true })],
             }),
           ],
         })
       ),
     });
 
-    // Create table rows from activities
+    // Table rows
     const tableRows = activities.map(activity => {
-      const rowCells = [
-        new TableCell({
-          children: [new Paragraph(activity.title?.substring(0, 25) || 'Untitled Activity')],
-        }),
-        new TableCell({
-          children: [new Paragraph(departments[activity.department]?.name || activity.department || '')],
-        }),
-        new TableCell({
-          children: [new Paragraph(activity.categoryName?.substring(0, 20) || '')],
-        }),
-        new TableCell({
-          children: [new Paragraph(activity.type === 'meeting' ? 'Meeting' : 'Task')],
-        }),
-        new TableCell({
-          children: [new Paragraph(new Date(activity.date || activity.start || activity.created_at).toLocaleDateString())],
-        }),
-        new TableCell({
-          children: [new Paragraph(priorityLabels[activity.priority] || '')],
-        }),
+      const title = safeText(activity.title, 25) || 'Untitled Activity';
+      const departmentName = safeText(departments?.[activity.department]?.name || activity.department || '', 25);
+      const category = safeText(activity.categoryName || activity.category || '', 20);
+      const type = activity.type === 'meeting' ? 'Meeting' : 'Task';
+      const dateRaw = activity.date || activity.start || activity.created_at || null;
+      const dateText = dateRaw ? dayjs(dateRaw).format('DD/MM/YYYY') : '';
+      const priority = safeText(priorityLabels?.[activity.priority] || activity.priority || '');
+
+      const cells = [
+        new TableCell({ children: [new Paragraph(title)] }),
+        new TableCell({ children: [new Paragraph(departmentName)] }),
+        new TableCell({ children: [new Paragraph(category)] }),
+        new TableCell({ children: [new Paragraph(type)] }),
+        new TableCell({ children: [new Paragraph(dateText)] }),
+        new TableCell({ children: [new Paragraph(priority)] }),
       ];
 
-      return new TableRow({ children: rowCells });
+      return new TableRow({ children: cells });
     });
 
-    // Build the Word table
     const table = new DocTable({
       width: {
         size: 100,
@@ -1801,7 +1824,6 @@ const exportToWord = async () => {
       rows: [headerRow, ...tableRows],
     });
 
-    // Build the document
     const doc = new Document({
       sections: [
         {
@@ -1819,20 +1841,18 @@ const exportToWord = async () => {
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `View: ${currentView}${
-                    selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : ''
-                  } | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`,
+                  text: `View: ${safeText(currentView)}${selectedDepartment ? ` | Department: ${safeText(departments?.[selectedDepartment]?.name || selectedDepartment)}` : ''} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`,
                   size: 20,
                 }),
               ],
             }),
-            new Paragraph({ text: "" }), // Blank line
+            new Paragraph({ text: "" }),
             table,
-            new Paragraph({ text: "" }), // Blank line
+            new Paragraph({ text: "" }),
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `Total Records: ${activities.length}`,
+                  text: `Total Records: ${activities?.length ?? 0}`,
                   italics: true,
                 }),
               ],
@@ -1842,7 +1862,6 @@ const exportToWord = async () => {
       ],
     });
 
-    // Create and download the Word file
     const blob = await Packer.toBlob(doc);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
