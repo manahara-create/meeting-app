@@ -61,6 +61,7 @@ import weekOfYear from 'dayjs/plugin/weekOfYear';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { Document, Packer, Paragraph, TextRun, Table as DocTable, TableRow, TableCell, WidthType } from 'docx';
 
 dayjs.extend(weekOfYear);
 
@@ -1747,79 +1748,120 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
     }
   };
 
-  const exportToPDF = () => {
-    try {
-      const doc = new jsPDF();
+const exportToWord = async () => {
+  try {
+    // Define headers
+    const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
 
-      // Title
-      doc.setFontSize(16);
-      doc.text('Organizational Calendar Export', 14, 15);
-      doc.setFontSize(10);
-      const departmentText = selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : '';
-      doc.text(`View: ${currentView}${departmentText} | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`, 14, 22);
+    // Create header row
+    const headerRow = new TableRow({
+      children: headers.map(header =>
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: header, bold: true })],
+            }),
+          ],
+        })
+      ),
+    });
 
-      // Prepare table data manually without autoTable
-      const headers = ['Title', 'Department', 'Category', 'Type', 'Date', 'Priority'];
-      const tableData = activities.map(activity => [
-        activity.title?.substring(0, 25) || 'Untitled Activity',
-        departments[activity.department]?.name || activity.department,
-        activity.categoryName.substring(0, 20),
-        activity.type === 'meeting' ? 'Meeting' : 'Task',
-        new Date(activity.date || activity.start || activity.created_at).toLocaleDateString(),
-        priorityLabels[activity.priority]
-      ]);
+    // Create table rows from activities
+    const tableRows = activities.map(activity => {
+      const rowCells = [
+        new TableCell({
+          children: [new Paragraph(activity.title?.substring(0, 25) || 'Untitled Activity')],
+        }),
+        new TableCell({
+          children: [new Paragraph(departments[activity.department]?.name || activity.department || '')],
+        }),
+        new TableCell({
+          children: [new Paragraph(activity.categoryName?.substring(0, 20) || '')],
+        }),
+        new TableCell({
+          children: [new Paragraph(activity.type === 'meeting' ? 'Meeting' : 'Task')],
+        }),
+        new TableCell({
+          children: [new Paragraph(new Date(activity.date || activity.start || activity.created_at).toLocaleDateString())],
+        }),
+        new TableCell({
+          children: [new Paragraph(priorityLabels[activity.priority] || '')],
+        }),
+      ];
 
-      // Simple table implementation
-      let yPosition = 35;
-      const lineHeight = 7;
-      const colWidths = [40, 25, 30, 20, 20, 20];
-      const pageHeight = doc.internal.pageSize.height;
+      return new TableRow({ children: rowCells });
+    });
 
-      // Draw headers
-      doc.setFillColor(52, 152, 219);
-      doc.setTextColor(255, 255, 255);
-      let xPosition = 14;
+    // Build the Word table
+    const table = new DocTable({
+      width: {
+        size: 100,
+        type: WidthType.PERCENTAGE,
+      },
+      rows: [headerRow, ...tableRows],
+    });
 
-      headers.forEach((header, index) => {
-        doc.rect(xPosition, yPosition - 5, colWidths[index], 8, 'F');
-        doc.text(header, xPosition + 2, yPosition);
-        xPosition += colWidths[index];
-      });
+    // Build the document
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Organizational Calendar Export",
+                  bold: true,
+                  size: 28,
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `View: ${currentView}${
+                    selectedDepartment ? ` | Department: ${departments[selectedDepartment]?.name}` : ''
+                  } | Generated: ${dayjs().format('MMMM D, YYYY h:mm A')}`,
+                  size: 20,
+                }),
+              ],
+            }),
+            new Paragraph({ text: "" }), // Blank line
+            table,
+            new Paragraph({ text: "" }), // Blank line
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Total Records: ${activities.length}`,
+                  italics: true,
+                }),
+              ],
+            }),
+          ],
+        },
+      ],
+    });
 
-      yPosition += 10;
-      doc.setTextColor(0, 0, 0);
+    // Create and download the Word file
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : "";
+    const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format("YYYY-MM-DD")}.docx`;
 
-      // Draw rows
-      tableData.forEach((row, rowIndex) => {
-        // Check if we need a new page
-        if (yPosition > pageHeight - 20) {
-          doc.addPage();
-          yPosition = 20;
-        }
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-        xPosition = 14;
-        row.forEach((cell, cellIndex) => {
-          doc.text(cell.toString(), xPosition + 2, yPosition);
-          xPosition += colWidths[cellIndex];
-        });
-
-        // Draw line separator
-        doc.setDrawColor(200, 200, 200);
-        doc.line(14, yPosition + 2, 14 + colWidths.reduce((a, b) => a + b, 0), yPosition + 2);
-
-        yPosition += lineHeight;
-      });
-
-      const departmentSuffix = selectedDepartment ? `_${selectedDepartment}` : '';
-      const fileName = `calendar_export_${currentView}${departmentSuffix}_${dayjs().format('YYYY-MM-DD')}.pdf`;
-      doc.save(fileName);
-
-      toast.success('PDF file exported successfully!');
-    } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      toast.error('Failed to export PDF file');
-    }
-  };
+    toast.success("Word document exported successfully!");
+  } catch (error) {
+    console.error("Error exporting Word document:", error);
+    toast.error("Failed to export Word document");
+  }
+};
 
   const exportItems = [
     {
@@ -1831,8 +1873,8 @@ const ExportButton = ({ activities, currentView, currentDate, selectedDepartment
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export to PDF',
-      onClick: exportToPDF
+      label: 'Export to Word',
+      onClick: exportToWord
     }
   ];
 
