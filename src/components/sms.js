@@ -3,10 +3,10 @@ import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
 
 // EmailJS Configuration
-const EMAILJS_SERVICE_ID = 'service_mkk3ny8';
+const EMAILJS_SERVICE_ID = 'service_mz47751';
 const EMAILJS_TEMPLATE_ID = 'template_schedify_alerts'; 
-const EMAILJS_PUBLIC_KEY = 'MhxrILdrk7ltKmDgh';
-const EMAILJS_PRIVATE_KEY = 'ZOCs3mHeol8-_CMGlR-90';
+const EMAILJS_PUBLIC_KEY = 'vOG0vTMzPXbHlzn1_';
+const EMAILJS_PRIVATE_KEY = '4GHncW2I1aJuHRNcC5lGU';
 const EMAILJS_USER_ID = 'schedifiy@gmail.com';
 
 // Department configuration with responsible persons - UPDATED WITH VALID EMAILS
@@ -193,15 +193,15 @@ function isMonday() {
     return today.getDay() === 1; // 0 = Sunday, 1 = Monday
 }
 
-// Function to check if current time is between 09:00 AM and 10:00 AM
+// Function to check if current time is between 09:00 AM and 11:00 AM
 function isBetweenNineToTenAM() {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
     console.log(`⏰ Current time: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
     
-    // Check if time is between 09:00 and 10:00 AM
-    return (hours === 9) || (hours === 10 && minutes === 0);
+    // Check if time is between 09:00 and 11:00 AM
+    return (hours === 9) || (hours === 11 && minutes === 0);
 }
 
 // Function to check if email was already sent this week
@@ -501,12 +501,12 @@ export async function performWeeklyRecordCheck() {
         };
     }
 
-    // Check if it's between 09:00 AM and 10:00 AM
+    // Check if it's between 09:00 AM and 11:00 AM
     if (!isBetweenNineToTenAM()) {
-        console.log('❌ Current time is not between 09:00 AM and 10:00 AM. Weekly check aborted.');
+        console.log('❌ Current time is not between 09:00 AM and 11:00 AM. Weekly check aborted.');
         return {
             status: 'skipped',
-            reason: 'Not between 09:00 AM and 10:00 AM',
+            reason: 'Not between 09:00 AM and 11:00 AM',
             timestamp: new Date().toISOString()
         };
     }
@@ -522,7 +522,7 @@ export async function performWeeklyRecordCheck() {
         };
     }
 
-    console.log('✅ Conditions met: Monday, between 09:00-10:00 AM, no email sent this week');
+    console.log('✅ Conditions met: Monday, between 09:00-11:00 AM, no email sent this week');
     
     const { dateRange } = getLast5DaysRange();
     console.log(`📆 Checking last 5 days: ${dateRange}`);
@@ -581,7 +581,7 @@ export async function performWeeklyRecordCheck() {
     };
 }
 
-// Scheduler that runs every minute to check if it's Monday between 09:00-10:00 AM
+// Scheduler that runs every minute to check if it's Monday between 09:00-11:00 AM
 export function scheduleWeeklyCheck() {
     console.log('⏰ Schedify - Starting weekly check scheduler...');
     
@@ -589,12 +589,12 @@ export function scheduleWeeklyCheck() {
     setInterval(async () => {
         const now = new Date();
         const isMondayToday = now.getDay() === 1;
-        const isBetweenNineToTenAMNow = (now.getHours() === 9) || (now.getHours() === 10 && now.getMinutes() === 0);
+        const isBetweenNineToTenAMNow = (now.getHours() === 9) || (now.getHours() === 11 && now.getMinutes() === 0);
 
-        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00-10:00: ${isBetweenNineToTenAMNow}`);
+        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00-11:00: ${isBetweenNineToTenAMNow}`);
 
         if (isMondayToday && isBetweenNineToTenAMNow) {
-            console.log('🎯 Scheduler triggered - Monday between 09:00-10:00 AM detected');
+            console.log('🎯 Scheduler triggered - Monday between 09:00-11:00 AM detected');
             try {
                 await performWeeklyRecordCheck();
             } catch (error) {
@@ -603,7 +603,7 @@ export function scheduleWeeklyCheck() {
         }
     }, 60 * 1000); // Check every minute
 
-    console.log('✅ Weekly check scheduler started - Checking every minute for Monday between 09:00-10:00 AM');
+    console.log('✅ Weekly check scheduler started - Checking every minute for Monday between 09:00-11:00 AM');
 }
 
 // Manual trigger for testing (bypasses day/time checks)
