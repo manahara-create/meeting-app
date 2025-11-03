@@ -145,13 +145,15 @@ function isMonday() {
     return today.getDay() === 1; // 0 = Sunday, 1 = Monday
 }
 
-// Function to check if current time is 09:00 AM
-function isNineAM() {
+// Function to check if current time is between 09:00 AM and 10:00 AM
+function isBetweenNineToTenAM() {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
     console.log(`⏰ Current time: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
-    return hours === 9 && minutes === 0;
+    
+    // Check if time is between 09:00 and 10:00 AM
+    return (hours === 9) || (hours === 10 && minutes === 0);
 }
 
 // Function to check if email was already sent this week
@@ -266,10 +268,23 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
     try {
         console.log(`📧 Attempting to send EmailJS email to: ${to}, CC: ${cc}`);
 
+        // Validate email parameters
+        if (!to || to.trim() === '') {
+            console.error('❌ Recipient email address is empty');
+            return { success: false, error: 'Recipient email address is empty' };
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(to)) {
+            console.error(`❌ Invalid recipient email format: ${to}`);
+            return { success: false, error: 'Invalid recipient email format' };
+        }
+
         // Prepare template parameters for EmailJS
         const templateParams = {
-            to_email: to,
-            cc_email: cc || '',
+            to_email: to.trim(),
+            cc_email: cc && cc.trim() !== '' ? cc.trim() : '',
             subject: subject,
             department: department,
             person_name: person,
@@ -280,8 +295,8 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
         };
 
         console.log('📨 EmailJS template params prepared:', {
-            to_email: to,
-            cc_email: cc,
+            to_email: templateParams.to_email,
+            cc_email: templateParams.cc_email,
             subject: subject,
             department: department
         });
@@ -322,8 +337,21 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
 async function sendDepartmentNotification(department, weekRange) {
     const deptConfig = departmentConfig[department];
 
-    if (!deptConfig || !deptConfig.email) {
-        console.log(`⚠️ No email configured for department: ${department}`);
+    // Enhanced validation for department configuration
+    if (!deptConfig) {
+        console.error(`❌ No configuration found for department: ${department}`);
+        return false;
+    }
+
+    if (!deptConfig.email || deptConfig.email.trim() === '') {
+        console.error(`❌ No email configured for department: ${department}`);
+        return false;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(deptConfig.email.trim())) {
+        console.error(`❌ Invalid email format for ${department}: ${deptConfig.email}`);
         return false;
     }
 
@@ -482,12 +510,12 @@ export async function performWeeklyRecordCheck() {
         };
     }
 
-    // Check if it's 09:00 AM
-    if (!isNineAM()) {
-        console.log('❌ Current time is not 09:00 AM. Weekly check aborted.');
+    // Check if it's between 09:00 AM and 10:00 AM
+    if (!isBetweenNineToTenAM()) {
+        console.log('❌ Current time is not between 09:00 AM and 10:00 AM. Weekly check aborted.');
         return {
             status: 'skipped',
-            reason: 'Not 09:00 AM',
+            reason: 'Not between 09:00 AM and 10:00 AM',
             timestamp: new Date().toISOString()
         };
     }
@@ -503,7 +531,7 @@ export async function performWeeklyRecordCheck() {
         };
     }
 
-    console.log('✅ Conditions met: Monday, 09:00 AM, no email sent this week');
+    console.log('✅ Conditions met: Monday, between 09:00-10:00 AM, no email sent this week');
     
     const { dateRange } = getLast5DaysRange();
     console.log(`📆 Checking last 5 days: ${dateRange}`);
@@ -555,7 +583,7 @@ export async function performWeeklyRecordCheck() {
     };
 }
 
-// Scheduler that runs every minute to check if it's Monday 09:00 AM
+// Scheduler that runs every minute to check if it's Monday between 09:00-10:00 AM
 export function scheduleWeeklyCheck() {
     console.log('⏰ Schedify - Starting weekly check scheduler...');
     
@@ -563,12 +591,12 @@ export function scheduleWeeklyCheck() {
     setInterval(async () => {
         const now = new Date();
         const isMondayToday = now.getDay() === 1;
-        const isNineAMNow = now.getHours() === 9 && now.getMinutes() === 0;
+        const isBetweenNineToTenAMNow = (now.getHours() === 9) || (now.getHours() === 10 && now.getMinutes() === 0);
 
-        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00: ${isNineAMNow}`);
+        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00-10:00: ${isBetweenNineToTenAMNow}`);
 
-        if (isMondayToday && isNineAMNow) {
-            console.log('🎯 Scheduler triggered - Monday 09:00 AM detected');
+        if (isMondayToday && isBetweenNineToTenAMNow) {
+            console.log('🎯 Scheduler triggered - Monday between 09:00-10:00 AM detected');
             try {
                 await performWeeklyRecordCheck();
             } catch (error) {
@@ -577,14 +605,14 @@ export function scheduleWeeklyCheck() {
         }
     }, 60 * 1000); // Check every minute
 
-    console.log('✅ Weekly check scheduler started - Checking every minute for Monday 09:00 AM');
+    console.log('✅ Weekly check scheduler started - Checking every minute for Monday between 09:00-10:00 AM');
 }
 
 // Manual trigger for testing (bypasses day/time checks)
 export async function manualTrigger() {
     console.log('🔧 Schedify - Manual trigger activated (bypassing day/time checks)');
     
-    // Bypass the Monday and 09:00 AM checks for manual testing
+    // Bypass the Monday and time checks for manual testing
     console.log('🚀 Bypassing day/time checks for manual testing');
     
     const { dateRange } = getLast5DaysRange();
@@ -639,3 +667,6 @@ console.log('📧 Schedify Weekly Check System Initialized');
 console.log(`   Service: ${EMAILJS_SERVICE_ID}`);
 console.log(`   Departments: ${Object.keys(departmentConfig).length}`);
 console.log(`   Tables: ${Object.keys(tableConfig).length}`);
+
+// Start the scheduler automatically
+scheduleWeeklyCheck();
