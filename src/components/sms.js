@@ -1,13 +1,39 @@
 // Background Process for Weekly Record Check - Schedify App
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
+import nodemailer from 'nodemailer';
 
-// EmailJS Configuration
-const EMAILJS_SERVICE_ID = 'service_mz47751';
-const EMAILJS_TEMPLATE_ID = 'template_schedify_alerts';
-const EMAILJS_PUBLIC_KEY = 'vOG0vTMzPXbHlzn1_';
-const EMAILJS_PRIVATE_KEY = '4GHncW2I1aJuHRNcC5lGU';
-const EMAILJS_USER_ID = 'schedifiy@gmail.com';
+// MailerSend Configuration
+const MAILERSEND_SMTP_SERVER = 'smtp.mailersend.net';
+const MAILERSEND_SMTP_PORT = 587;
+const MAILERSEND_SMTP_USERNAME = 'MS_TldgFx@test-68zxl27qop34j905.mlsender.net';
+const MAILERSEND_SMTP_PASSWORD = 'mssp.7BAOjvm.neqvygm3r98l0p7w.z0eMLns';
+const MAILERSEND_FROM_EMAIL = 'schedifiy@gmail.com';
+const MAILERSEND_FROM_NAME = 'Schedify - Powered by E-Healthcare Solutions';
+
+// Create nodemailer transporter
+const mailerSendTransporter = nodemailer.createTransport({
+    host: MAILERSEND_SMTP_SERVER,
+    port: MAILERSEND_SMTP_PORT,
+    secure: false, // Use TLS
+    auth: {
+        user: MAILERSEND_SMTP_USERNAME,
+        pass: MAILERSEND_SMTP_PASSWORD,
+    },
+});
+
+// Test the transporter connection
+async function testMailerSendConnection() {
+    try {
+        console.log('🔗 Testing MailerSend SMTP connection...');
+        await mailerSendTransporter.verify();
+        console.log('✅ MailerSend SMTP connection established successfully');
+        return true;
+    } catch (error) {
+        console.error('❌ MailerSend SMTP connection failed:', error);
+        return false;
+    }
+}
 
 // Department configuration with responsible persons - UPDATED WITH VALID EMAILS
 const departmentConfig = {
@@ -312,10 +338,74 @@ async function checkDepartmentHasRecords(department) {
     }
 }
 
-// Function to send email notification using EmailJS - ENHANCED WITH DEBUGGING
-async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person, weekRange) {
+// Function to generate email HTML content
+function generateEmailHTML(department, person, weekRange) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px; }
+        .alert { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+        .button { background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Schedify Alert</h1>
+            <p>Weekly Activity Monitoring System</p>
+        </div>
+        <div class="content">
+            <h2>No Records Found - ${department}</h2>
+            
+            <div class="alert">
+                <h3>⚠️ Attention Required</h3>
+                <p>Dear <strong>${person}</strong>,</p>
+                <p>Our monitoring system has detected that <strong>no activity records</strong> were found for the <strong>${department}</strong> department during the period:</p>
+                <p style="text-align: center; font-size: 18px; font-weight: bold; color: #dc3545;">${weekRange}</p>
+            </div>
+
+            <h3>📊 What this means:</h3>
+            <ul>
+                <li>No meetings, visits, or activities were recorded in Schedify</li>
+                <li>This could indicate missed data entry or lack of departmental activities</li>
+                <li>Please ensure all departmental activities are properly recorded</li>
+            </ul>
+
+            <h3>🔧 Required Action:</h3>
+            <ol>
+                <li>Review departmental activities for the mentioned period</li>
+                <li>Ensure all completed activities are recorded in Schedify</li>
+                <li>Update any missing records promptly</li>
+                <li>Contact your team members to verify activity completion</li>
+            </ol>
+
+            <div style="text-align: center; margin: 25px 0;">
+                <a href="https://schedify.eHealthcare.lk" class="button">Access Schedify Now</a>
+            </div>
+
+            <p><strong>Note:</strong> This is an automated alert from the Schedify monitoring system. Please ensure regular updates to maintain accurate activity tracking.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} Schedify - Powered by E-Healthcare Solutions</p>
+            <p>This email was automatically generated. Please do not reply to this message.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+}
+
+// Function to send email notification using MailerSend - ENHANCED WITH DEBUGGING
+async function sendMailerSendEmail(to, cc, subject, htmlContent, department, person, weekRange) {
     try {
-        console.log(`\n🔍 DEBUG: sendEmailJSEmail called with parameters:`);
+        console.log(`\n🔍 DEBUG: sendMailerSendEmail called with parameters:`);
         console.log(`   To: "${to}"`);
         console.log(`   CC: "${cc}"`);
         console.log(`   Department: "${department}"`);
@@ -347,60 +437,31 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
 
         console.log(`✅ DEBUG: Email validation passed for recipient: ${trimmedTo}`);
 
-        // Prepare template parameters for EmailJS
-        const templateParams = {
-            to_email: trimmedTo,
-            cc_email: cc && cc.trim() !== '' ? cc.trim() : '',
+        // Prepare mail options
+        const mailOptions = {
+            from: {
+                name: MAILERSEND_FROM_NAME,
+                address: MAILERSEND_FROM_EMAIL
+            },
+            to: trimmedTo,
+            cc: cc && cc.trim() !== '' ? cc.trim() : undefined,
             subject: subject,
-            department: department,
-            person_name: person,
-            week_range: weekRange,
-            from_name: 'Schedify - Powered by E-Healthcare Solutions',
-            reply_to: 'noreply@schedify.eHealthcare.lk',
-            current_year: new Date().getFullYear().toString()
+            html: htmlContent,
+            replyTo: 'noreply@schedify.eHealthcare.lk'
         };
 
-        console.log('📨 DEBUG: Final template params for EmailJS:');
-        console.log(JSON.stringify(templateParams, null, 2));
+        console.log('📨 DEBUG: Final mail options for MailerSend:');
+        console.log(JSON.stringify(mailOptions, null, 2));
 
-        // Send email using EmailJS
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                service_id: EMAILJS_SERVICE_ID,
-                template_id: EMAILJS_TEMPLATE_ID,
-                user_id: EMAILJS_PUBLIC_KEY,
-                template_params: templateParams,
-                accessToken: EMAILJS_PRIVATE_KEY
-            })
-        });
-
-        console.log(`📨 EmailJS API Response Status: ${response.status}`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`❌ EmailJS API error response:`, errorText);
-
-            // Try to parse the error response
-            try {
-                const errorJson = JSON.parse(errorText);
-                console.error(`❌ EmailJS API error details:`, errorJson);
-            } catch (e) {
-                console.error(`❌ EmailJS API raw error:`, errorText);
-            }
-
-            throw new Error(`EmailJS API error: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log('✅ EmailJS email sent successfully');
-        console.log('📧 EmailJS response:', result);
+        // Send email using MailerSend SMTP
+        const result = await mailerSendTransporter.sendMail(mailOptions);
+        
+        console.log('✅ MailerSend email sent successfully');
+        console.log('📧 MailerSend response:', result);
+        
         return { success: true, result: result };
     } catch (error) {
-        console.error('❌ EmailJS email sending failed:', error);
+        console.error('❌ MailerSend email sending failed:', error);
         return { success: false, error: error.message };
     }
 }
@@ -446,15 +507,16 @@ async function sendDepartmentNotification(department, weekRange) {
     console.log(`✅ DEBUG: Email validation passed for ${department}: ${trimmedEmail}`);
 
     const subject = `🚨 Schedify Alert - No Records Found - ${department} - Week ${weekRange}`;
+    const htmlContent = generateEmailHTML(department, deptConfig.person, weekRange);
 
     try {
         console.log(`📧 DEBUG: Preparing to send email for ${department} to ${trimmedEmail}`);
 
-        const result = await sendEmailJSEmail(
+        const result = await sendMailerSendEmail(
             trimmedEmail,
             DEFAULT_CC_EMAIL,
             subject,
-            '', // Empty HTML content since EmailJS uses template
+            htmlContent,
             department,
             deptConfig.person,
             weekRange
@@ -479,7 +541,19 @@ export async function performWeeklyRecordCheck() {
     console.log('🚀 Schedify - Starting weekly record check...');
     console.log('📅 Date:', new Date().toISOString());
 
-    // Run diagnosis first
+    // Test MailerSend connection first
+    console.log('\n🔗 Testing MailerSend connection...');
+    const connectionTest = await testMailerSendConnection();
+    if (!connectionTest) {
+        console.error('❌ MailerSend connection failed. Aborting weekly check.');
+        return {
+            status: 'error',
+            reason: 'MailerSend connection failed',
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    // Run diagnosis
     console.log('\n🔍 Running configuration diagnosis...');
     const configValid = diagnoseDepartmentConfig();
 
@@ -611,7 +685,19 @@ export function scheduleWeeklyCheck() {
 export async function manualTrigger() {
     console.log('🔧 Schedify - Manual trigger activated (bypassing day/time checks)');
 
-    // Run diagnosis first
+    // Test MailerSend connection first
+    console.log('\n🔗 Testing MailerSend connection...');
+    const connectionTest = await testMailerSendConnection();
+    if (!connectionTest) {
+        console.error('❌ MailerSend connection failed. Aborting manual check.');
+        return {
+            status: 'error',
+            reason: 'MailerSend connection failed',
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    // Run diagnosis
     console.log('\n🔍 Running configuration diagnosis...');
     diagnoseDepartmentConfig();
 
@@ -675,9 +761,14 @@ export async function manualTrigger() {
 
 // Initialize
 console.log('📧 Schedify Weekly Check System Initialized');
-console.log(`   Service: ${EMAILJS_SERVICE_ID}`);
+console.log(`   Email Provider: MailerSend`);
+console.log(`   SMTP Server: ${MAILERSEND_SMTP_SERVER}`);
+console.log(`   From Email: ${MAILERSEND_FROM_EMAIL}`);
 console.log(`   Departments: ${Object.keys(departmentConfig).length}`);
 console.log(`   Tables: ${Object.keys(tableConfig).length}`);
+
+// Test MailerSend connection on startup
+testMailerSendConnection();
 
 // Run diagnosis on startup
 diagnoseDepartmentConfig();
