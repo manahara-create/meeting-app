@@ -9,9 +9,9 @@ const EMAILJS_PUBLIC_KEY = 'MhxrILdrk7ltKmDgh';
 const EMAILJS_PRIVATE_KEY = 'ZOCs3mHeol8-_CMGlR-90';
 const EMAILJS_USER_ID = 'schedifiy@gmail.com';
 
-// Department configuration with responsible persons
+// Department configuration with responsible persons - UPDATED WITH VALID EMAILS
 const departmentConfig = {
-    'After Sales': { person: 'Not Confirmed Yet', email: null },
+    'After Sales': { person: 'Not Confirmed Yet', email: 'mudusara@aipl.lk' }, // Default to admin
     'BDM': { person: 'Prasadi Nuwanthika', email: 'prasadi.nuwanthika@biomedica.lk' },
     'Cluster 1': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
     'Cluster 2': { person: 'Pradheesha Jeromie', email: 'pradheesha.jeromie@biomedica.lk' },
@@ -21,12 +21,12 @@ const departmentConfig = {
     'Cluster 6': { person: 'Gayathri Silva', email: 'gayathri.silva@biomedica.lk' },
     'Customer Care': { person: 'Rashmika Premathilaka', email: 'rashmika.premathilaka@biomedica.lk' },
     'E-Healthcare': { person: 'Dhara Nethmi', email: 'dhara.nethmi@aipl.lk' },
-    'Finance': { person: 'Not Confirmed Yet', email: null },
+    'Finance': { person: 'Not Confirmed Yet', email: 'mudusara@aipl.lk' }, // Default to admin
     'Hi-Tech': { person: 'Sahiru Chathuranga', email: 'sahiru.chathuranga@aipl.lk' },
     'HR': { person: 'Nethmini Koshila', email: 'nethmini.koshila@aipl.lk' },
     'Imports': { person: 'Subhashini Sandamalie', email: 'subhashini.sandamali@aipl.lk' },
-    'IT': { person: 'Not Yet Confirmed', email: null },
-    'Regulatory': { person: 'Hiruni Achinthya', email: 'hiruni.achinthya@aipl.lk' },
+    'IT': { person: 'Not Yet Confirmed', email: 'mudusara@aipl.lk' }, // Default to admin
+    'Regulatory': { person: 'Thimathi Dissanayake', email: 'thimathi.dissanayake@aipl.lk' }, // UPDATED
     'Sales Operations': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
     'Senior Management': { person: 'Madura Liyanaarachchi', email: 'mudusara@aipl.lk' },
     'SOMT': { person: 'Rahul Rupkumar', email: 'rahul.rupkumar@aipl.lk' },
@@ -137,6 +137,54 @@ const tableConfig = {
     'surgi_surgicare_special_task': { department: 'Surge-Surgecare', dateField: 'date', departmentId: '6b7336d6-16de-4d41-8f41-6c00d8d06b0f' },
     'surgi_surgicare_visit_plan': { department: 'Surge-Surgecare', dateField: 'schedule_date', departmentId: '6b7336d6-16de-4d41-8f41-6c00d8d06b0f' }
 };
+
+// Function to diagnose department configuration for null/empty values
+function diagnoseDepartmentConfig() {
+    console.log('🔍 Diagnosing department configuration for null/empty values...');
+    
+    let issuesFound = 0;
+    let validDepartments = 0;
+    
+    for (const [department, config] of Object.entries(departmentConfig)) {
+        console.log(`\n📋 Checking ${department}:`);
+        console.log(`   Person: "${config.person}"`);
+        console.log(`   Email: "${config.email}"`);
+        
+        // Check for null/empty values
+        if (!config.person || config.person.trim() === '') {
+            console.log(`   ❌ ISSUE: Person name is empty or null`);
+            issuesFound++;
+        }
+        
+        if (!config.email || config.email.trim() === '') {
+            console.log(`   ❌ ISSUE: Email is empty or null`);
+            issuesFound++;
+        } else {
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(config.email.trim())) {
+                console.log(`   ❌ ISSUE: Invalid email format: ${config.email}`);
+                issuesFound++;
+            } else {
+                validDepartments++;
+                console.log(`   ✅ Valid email configuration`);
+            }
+        }
+    }
+    
+    console.log(`\n📊 DIAGNOSIS SUMMARY:`);
+    console.log(`   Total Departments: ${Object.keys(departmentConfig).length}`);
+    console.log(`   Valid Departments: ${validDepartments}`);
+    console.log(`   Issues Found: ${issuesFound}`);
+    
+    if (issuesFound === 0) {
+        console.log('🎉 No configuration issues found! All departments have valid email addresses.');
+    } else {
+        console.log('❌ Configuration issues detected! Please fix the above issues.');
+    }
+    
+    return issuesFound === 0;
+}
 
 // Function to check if today is Monday
 function isMonday() {
@@ -263,27 +311,44 @@ async function checkDepartmentHasRecords(department) {
     }
 }
 
-// Function to send email notification using EmailJS
+// Function to send email notification using EmailJS - ENHANCED WITH DEBUGGING
 async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person, weekRange) {
     try {
-        console.log(`📧 Attempting to send EmailJS email to: ${to}, CC: ${cc}`);
+        console.log(`\n🔍 DEBUG: sendEmailJSEmail called with parameters:`);
+        console.log(`   To: "${to}"`);
+        console.log(`   CC: "${cc}"`);
+        console.log(`   Department: "${department}"`);
+        console.log(`   Person: "${person}"`);
 
-        // Validate email parameters
-        if (!to || to.trim() === '') {
-            console.error('❌ Recipient email address is empty');
-            return { success: false, error: 'Recipient email address is empty' };
+        // Enhanced validation with detailed debugging
+        if (!to) {
+            console.error('❌ DEBUG: Recipient email is null/undefined');
+            return { success: false, error: 'Recipient email is null/undefined' };
         }
 
-        // Validate email format
+        if (typeof to !== 'string') {
+            console.error('❌ DEBUG: Recipient email is not a string:', typeof to);
+            return { success: false, error: 'Recipient email is not a string' };
+        }
+
+        if (to.trim() === '') {
+            console.error('❌ DEBUG: Recipient email is empty string');
+            return { success: false, error: 'Recipient email is empty string' };
+        }
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(to)) {
-            console.error(`❌ Invalid recipient email format: ${to}`);
-            return { success: false, error: 'Invalid recipient email format' };
+        const trimmedTo = to.trim();
+        
+        if (!emailRegex.test(trimmedTo)) {
+            console.error(`❌ DEBUG: Invalid recipient email format: "${to}"`);
+            return { success: false, error: `Invalid recipient email format: "${to}"` };
         }
+
+        console.log(`✅ DEBUG: Email validation passed for recipient: ${trimmedTo}`);
 
         // Prepare template parameters for EmailJS
         const templateParams = {
-            to_email: to.trim(),
+            to_email: trimmedTo,
             cc_email: cc && cc.trim() !== '' ? cc.trim() : '',
             subject: subject,
             department: department,
@@ -294,12 +359,8 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
             current_year: new Date().getFullYear().toString()
         };
 
-        console.log('📨 EmailJS template params prepared:', {
-            to_email: templateParams.to_email,
-            cc_email: templateParams.cc_email,
-            subject: subject,
-            department: department
-        });
+        console.log('📨 DEBUG: Final template params for EmailJS:');
+        console.log(JSON.stringify(templateParams, null, 2));
 
         // Send email using EmailJS
         const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
@@ -321,11 +382,21 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`❌ EmailJS API error response:`, errorText);
+            
+            // Try to parse the error response
+            try {
+                const errorJson = JSON.parse(errorText);
+                console.error(`❌ EmailJS API error details:`, errorJson);
+            } catch (e) {
+                console.error(`❌ EmailJS API raw error:`, errorText);
+            }
+            
             throw new Error(`EmailJS API error: ${response.status} ${response.statusText}`);
         }
 
         const result = await response.json();
         console.log('✅ EmailJS email sent successfully');
+        console.log('📧 EmailJS response:', result);
         return { success: true, result: result };
     } catch (error) {
         console.error('❌ EmailJS email sending failed:', error);
@@ -333,148 +404,56 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
     }
 }
 
-// Function to send department notification
+// Function to send department notification - ENHANCED WITH DEBUGGING
 async function sendDepartmentNotification(department, weekRange) {
+    console.log(`\n🔍 DEBUG: Starting notification for ${department}`);
+    
     const deptConfig = departmentConfig[department];
-
-    // Enhanced validation for department configuration
+    
     if (!deptConfig) {
-        console.error(`❌ No configuration found for department: ${department}`);
+        console.error(`❌ DEBUG: No configuration found for department: ${department}`);
         return false;
     }
 
-    if (!deptConfig.email || deptConfig.email.trim() === '') {
-        console.error(`❌ No email configured for department: ${department}`);
+    console.log(`🔍 DEBUG: Department config found:`, deptConfig);
+
+    // Enhanced validation for department configuration
+    if (!deptConfig.email) {
+        console.error(`❌ DEBUG: No email configured for department: ${department}`);
+        return false;
+    }
+
+    if (typeof deptConfig.email !== 'string') {
+        console.error(`❌ DEBUG: Email is not a string for department ${department}:`, typeof deptConfig.email);
+        return false;
+    }
+
+    if (deptConfig.email.trim() === '') {
+        console.error(`❌ DEBUG: Empty email string for department: ${department}`);
         return false;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(deptConfig.email.trim())) {
-        console.error(`❌ Invalid email format for ${department}: ${deptConfig.email}`);
+    const trimmedEmail = deptConfig.email.trim();
+    
+    if (!emailRegex.test(trimmedEmail)) {
+        console.error(`❌ DEBUG: Invalid email format for ${department}: "${deptConfig.email}"`);
         return false;
     }
 
+    console.log(`✅ DEBUG: Email validation passed for ${department}: ${trimmedEmail}`);
+
     const subject = `🚨 Schedify Alert - No Records Found - ${department} - Week ${weekRange}`;
 
-    // Create HTML content for the email
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { 
-            font-family: 'Arial', sans-serif; 
-            line-height: 1.6; 
-            color: #333; 
-            margin: 0; 
-            padding: 0; 
-            background-color: #f9f9f9;
-        }
-        .container { 
-            max-width: 600px; 
-            margin: 0 auto; 
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            color: white; 
-            padding: 30px 20px; 
-            text-align: center; 
-        }
-        .header h1 { 
-            margin: 0; 
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .header p { 
-            margin: 10px 0 0 0; 
-            opacity: 0.9;
-            font-size: 16px;
-        }
-        .content { 
-            padding: 30px; 
-        }
-        .alert { 
-            background: #fff3cd; 
-            border: 1px solid #ffeaa7; 
-            padding: 20px; 
-            border-radius: 8px; 
-            margin: 20px 0; 
-            border-left: 4px solid #ffc107;
-        }
-        .footer { 
-            text-align: center; 
-            margin-top: 30px; 
-            padding: 20px; 
-            color: #666; 
-            font-size: 12px; 
-            background: #f8f9fa;
-            border-top: 1px solid #e9ecef;
-        }
-        .highlight { 
-            background: #fff3cd; 
-            padding: 2px 6px; 
-            border-radius: 3px; 
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🚨 Schedify Alert</h1>
-            <p>No Records Found - ${department}</p>
-        </div>
-        <div class="content">
-            <p>Dear <strong>${deptConfig.person}</strong>,</p>
-            
-            <div class="alert">
-                <p style="margin: 0;">This is an automated notification from <strong>Schedify - The Schedule Application For Analytical Instruments</strong>.</p>
-            </div>
-
-            <p>We have detected that your department (<span class="highlight">${department}</span>) has <span class="highlight">NO records</span> in any of the scheduled tables for the last 5 days.</p>
-
-            <p><strong>Week:</strong> ${weekRange}</p>
-            <p><strong>Check Period:</strong> Last 5 days</p>
-
-            <h3>📋 Action Required:</h3>
-            <p>Please ensure that relevant records are entered into Schedify to maintain:</p>
-            <ul>
-                <li>Data completeness and accuracy</li>
-                <li>Operational visibility</li>
-                <li>Compliance with reporting requirements</li>
-            </ul>
-            
-            <p>If you have already entered records but are still receiving this notification, or if you need assistance, please contact the IT department.</p>
-
-            <p style="margin-top: 30px;">
-                Best regards,<br>
-                <strong>Schedify - Automated Monitoring System</strong><br>
-                <em>Powered by E-Healthcare Solutions</em>
-            </p>
-        </div>
-        <div class="footer">
-            <p>This is an automated message. Please do not reply to this email.</p>
-            <p>© ${new Date().getFullYear()} AIPL - Analytical Instruments (Private) Limited. All rights reserved.</p>
-        </div>
-    </div>
-</body>
-</html>
-    `;
-
     try {
-        console.log(`📧 Preparing to send email for ${department} to ${deptConfig.email}`);
+        console.log(`📧 DEBUG: Preparing to send email for ${department} to ${trimmedEmail}`);
         
         const result = await sendEmailJSEmail(
-            deptConfig.email, 
+            trimmedEmail, 
             DEFAULT_CC_EMAIL, 
             subject, 
-            htmlContent,
+            '', // Empty HTML content since EmailJS uses template
             department,
             deptConfig.person,
             weekRange
@@ -482,7 +461,6 @@ async function sendDepartmentNotification(department, weekRange) {
 
         if (result.success) {
             console.log(`✅ Email sent successfully for ${department}`);
-            // Log the email sent
             await logEmailSent(department, weekRange);
             return true;
         } else {
@@ -499,6 +477,19 @@ async function sendDepartmentNotification(department, weekRange) {
 export async function performWeeklyRecordCheck() {
     console.log('🚀 Schedify - Starting weekly record check...');
     console.log('📅 Date:', new Date().toISOString());
+
+    // Run diagnosis first
+    console.log('\n🔍 Running configuration diagnosis...');
+    const configValid = diagnoseDepartmentConfig();
+    
+    if (!configValid) {
+        console.error('❌ Configuration issues detected. Aborting weekly check.');
+        return {
+            status: 'error',
+            reason: 'Invalid department configuration',
+            timestamp: new Date().toISOString()
+        };
+    }
 
     // Check if today is Monday
     if (!isMonday()) {
@@ -541,9 +532,16 @@ export async function performWeeklyRecordCheck() {
 
     // Check each department
     for (const [department, deptConfig] of Object.entries(departmentConfig)) {
-        // Skip departments without email configuration
-        if (!deptConfig.email) {
-            console.log(`⏭️ Skipping ${department} - No email configured`);
+        // Skip departments without valid email configuration
+        if (!deptConfig.email || deptConfig.email.trim() === '') {
+            console.log(`⏭️ Skipping ${department} - No valid email configured`);
+            continue;
+        }
+
+        // Validate email format before proceeding
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(deptConfig.email.trim())) {
+            console.log(`⏭️ Skipping ${department} - Invalid email format: ${deptConfig.email}`);
             continue;
         }
 
@@ -612,6 +610,10 @@ export function scheduleWeeklyCheck() {
 export async function manualTrigger() {
     console.log('🔧 Schedify - Manual trigger activated (bypassing day/time checks)');
     
+    // Run diagnosis first
+    console.log('\n🔍 Running configuration diagnosis...');
+    diagnoseDepartmentConfig();
+    
     // Bypass the Monday and time checks for manual testing
     console.log('🚀 Bypassing day/time checks for manual testing');
     
@@ -623,8 +625,16 @@ export async function manualTrigger() {
 
     // Check each department
     for (const [department, deptConfig] of Object.entries(departmentConfig)) {
-        if (!deptConfig.email) {
-            console.log(`⏭️ Skipping ${department} - No email configured`);
+        // Skip departments without valid email configuration
+        if (!deptConfig.email || deptConfig.email.trim() === '') {
+            console.log(`⏭️ Skipping ${department} - No valid email configured`);
+            continue;
+        }
+
+        // Validate email format before proceeding
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(deptConfig.email.trim())) {
+            console.log(`⏭️ Skipping ${department} - Invalid email format: ${deptConfig.email}`);
             continue;
         }
 
@@ -667,6 +677,9 @@ console.log('📧 Schedify Weekly Check System Initialized');
 console.log(`   Service: ${EMAILJS_SERVICE_ID}`);
 console.log(`   Departments: ${Object.keys(departmentConfig).length}`);
 console.log(`   Tables: ${Object.keys(tableConfig).length}`);
+
+// Run diagnosis on startup
+diagnoseDepartmentConfig();
 
 // Start the scheduler automatically
 scheduleWeeklyCheck();
