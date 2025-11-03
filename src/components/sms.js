@@ -1,43 +1,16 @@
 // Background Process for Weekly Record Check - Schedify App
 import { supabase } from "../services/supabase.js";
 import dayjs from 'dayjs';
-import nodemailer from 'nodemailer';
 
-// MailerSend Configuration
-const MAILERSEND_SMTP_SERVER = 'smtp.mailersend.net';
-const MAILERSEND_SMTP_PORT = 587;
-const MAILERSEND_SMTP_USERNAME = 'MS_TldgFx@test-68zxl27qop34j905.mlsender.net';
-const MAILERSEND_SMTP_PASSWORD = 'mssp.7BAOjvm.neqvygm3r98l0p7w.z0eMLns';
+// MailerSend API Configuration
+const MAILERSEND_API_TOKEN = 'mlsn.458c6504a7f1ed4fa712c4be4188a7bb47d154dfe69f2b018f62276ab15c2b88';
+const MAILERSEND_API_URL = 'https://api.mailersend.com/v1/email';
 const MAILERSEND_FROM_EMAIL = 'schedifiy@gmail.com';
 const MAILERSEND_FROM_NAME = 'Schedify - Powered by E-Healthcare Solutions';
 
-// Create nodemailer transporter
-const mailerSendTransporter = nodemailer.createTransport({
-    host: MAILERSEND_SMTP_SERVER,
-    port: MAILERSEND_SMTP_PORT,
-    secure: false, // Use TLS
-    auth: {
-        user: MAILERSEND_SMTP_USERNAME,
-        pass: MAILERSEND_SMTP_PASSWORD,
-    },
-});
-
-// Test the transporter connection
-async function testMailerSendConnection() {
-    try {
-        console.log('🔗 Testing MailerSend SMTP connection...');
-        await mailerSendTransporter.verify();
-        console.log('✅ MailerSend SMTP connection established successfully');
-        return true;
-    } catch (error) {
-        console.error('❌ MailerSend SMTP connection failed:', error);
-        return false;
-    }
-}
-
 // Department configuration with responsible persons - UPDATED WITH VALID EMAILS
 const departmentConfig = {
-    'After Sales': { person: 'Not Confirmed Yet', email: 'mudusara@aipl.lk' }, // Default to admin
+    'After Sales': { person: 'Not Confirmed Yet', email: 'mudusara@aipl.lk' },
     'BDM': { person: 'Prasadi Nuwanthika', email: 'prasadi.nuwanthika@biomedica.lk' },
     'Cluster 1': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
     'Cluster 2': { person: 'Pradheesha Jeromie', email: 'pradheesha.jeromie@biomedica.lk' },
@@ -47,12 +20,12 @@ const departmentConfig = {
     'Cluster 6': { person: 'Gayathri Silva', email: 'gayathri.silva@biomedica.lk' },
     'Customer Care': { person: 'Rashmika Premathilaka', email: 'rashmika.premathilaka@biomedica.lk' },
     'E-Healthcare': { person: 'Dhara Nethmi', email: 'dhara.nethmi@aipl.lk' },
-    'Finance': { person: 'Not Confirmed Yet', email: 'mudusara@aipl.lk' }, // Default to admin
+    'Finance': { person: 'Not Confirmed Yet', email: 'mudusara@aipl.lk' },
     'Hi-Tech': { person: 'Sahiru Chathuranga', email: 'sahiru.chathuranga@aipl.lk' },
     'HR': { person: 'Nethmini Koshila', email: 'nethmini.koshila@aipl.lk' },
     'Imports': { person: 'Subhashini Sandamalie', email: 'subhashini.sandamali@aipl.lk' },
-    'IT': { person: 'Not Yet Confirmed', email: 'mudusara@aipl.lk' }, // Default to admin
-    'Regulatory': { person: 'Thimathi Dissanayake', email: 'thimathi.dissanayake@aipl.lk' }, // UPDATED
+    'IT': { person: 'Not Yet Confirmed', email: 'mudusara@aipl.lk' },
+    'Regulatory': { person: 'Thimathi Dissanayake', email: 'thimathi.dissanayake@aipl.lk' },
     'Sales Operations': { person: 'Imesha Nilakshi', email: 'imesha.nilakshi@aipl.lk' },
     'Senior Management': { person: 'Madura Liyanaarachchi', email: 'mudusara@aipl.lk' },
     'SOMT': { person: 'Rahul Rupkumar', email: 'rahul.rupkumar@aipl.lk' },
@@ -402,7 +375,36 @@ function generateEmailHTML(department, person, weekRange) {
     `;
 }
 
-// Function to send email notification using MailerSend - ENHANCED WITH DEBUGGING
+// Function to test MailerSend API connection
+async function testMailerSendConnection() {
+    try {
+        console.log('🔗 Testing MailerSend API connection...');
+        
+        const response = await fetch(MAILERSEND_API_URL, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${MAILERSEND_API_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (response.status === 401) {
+            console.error('❌ MailerSend API: Unauthorized - Invalid token');
+            return false;
+        } else if (response.ok) {
+            console.log('✅ MailerSend API connection established successfully');
+            return true;
+        } else {
+            console.log(`⚠️ MailerSend API: Status ${response.status} - API accessible`);
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ MailerSend API connection failed:', error);
+        return false;
+    }
+}
+
+// Function to send email notification using MailerSend API
 async function sendMailerSendEmail(to, cc, subject, htmlContent, department, person, weekRange) {
     try {
         console.log(`\n🔍 DEBUG: sendMailerSendEmail called with parameters:`);
@@ -437,28 +439,66 @@ async function sendMailerSendEmail(to, cc, subject, htmlContent, department, per
 
         console.log(`✅ DEBUG: Email validation passed for recipient: ${trimmedTo}`);
 
-        // Prepare mail options
-        const mailOptions = {
+        // Prepare MailerSend API payload
+        const payload = {
             from: {
-                name: MAILERSEND_FROM_NAME,
-                address: MAILERSEND_FROM_EMAIL
+                email: MAILERSEND_FROM_EMAIL,
+                name: MAILERSEND_FROM_NAME
             },
-            to: trimmedTo,
-            cc: cc && cc.trim() !== '' ? cc.trim() : undefined,
+            to: [
+                {
+                    email: trimmedTo,
+                    name: person
+                }
+            ],
             subject: subject,
             html: htmlContent,
-            replyTo: 'noreply@schedify.eHealthcare.lk'
+            text: `Schedify Alert - No Records Found\n\nDepartment: ${department}\nPerson: ${person}\nPeriod: ${weekRange}\n\nNo activity records were found for ${department} during ${weekRange}. Please check Schedify system.`,
         };
 
-        console.log('📨 DEBUG: Final mail options for MailerSend:');
-        console.log(JSON.stringify(mailOptions, null, 2));
+        // Add CC if provided
+        if (cc && cc.trim() !== '') {
+            payload.cc = [
+                {
+                    email: cc.trim(),
+                    name: 'Schedify Admin'
+                }
+            ];
+        }
 
-        // Send email using MailerSend SMTP
-        const result = await mailerSendTransporter.sendMail(mailOptions);
-        
+        console.log('📨 DEBUG: Final payload for MailerSend API:');
+        console.log(JSON.stringify(payload, null, 2));
+
+        // Send email using MailerSend API
+        const response = await fetch(MAILERSEND_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${MAILERSEND_API_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        });
+
+        console.log(`📨 MailerSend API Response Status: ${response.status}`);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`❌ MailerSend API error response:`, errorText);
+
+            // Try to parse the error response
+            try {
+                const errorJson = JSON.parse(errorText);
+                console.error(`❌ MailerSend API error details:`, errorJson);
+            } catch (e) {
+                console.error(`❌ MailerSend API raw error:`, errorText);
+            }
+
+            throw new Error(`MailerSend API error: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
         console.log('✅ MailerSend email sent successfully');
         console.log('📧 MailerSend response:', result);
-        
         return { success: true, result: result };
     } catch (error) {
         console.error('❌ MailerSend email sending failed:', error);
@@ -466,7 +506,7 @@ async function sendMailerSendEmail(to, cc, subject, htmlContent, department, per
     }
 }
 
-// Function to send department notification - ENHANCED WITH DEBUGGING
+// Function to send department notification
 async function sendDepartmentNotification(department, weekRange) {
     console.log(`\n🔍 DEBUG: Starting notification for ${department}`);
 
@@ -761,8 +801,8 @@ export async function manualTrigger() {
 
 // Initialize
 console.log('📧 Schedify Weekly Check System Initialized');
-console.log(`   Email Provider: MailerSend`);
-console.log(`   SMTP Server: ${MAILERSEND_SMTP_SERVER}`);
+console.log(`   Email Provider: MailerSend API`);
+console.log(`   API URL: ${MAILERSEND_API_URL}`);
 console.log(`   From Email: ${MAILERSEND_FROM_EMAIL}`);
 console.log(`   Departments: ${Object.keys(departmentConfig).length}`);
 console.log(`   Tables: ${Object.keys(tableConfig).length}`);
