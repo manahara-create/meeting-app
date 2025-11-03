@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 
 // EmailJS Configuration
 const EMAILJS_SERVICE_ID = 'service_mz47751';
-const EMAILJS_TEMPLATE_ID = 'template_schedify_alerts'; 
+const EMAILJS_TEMPLATE_ID = 'template_schedify_alerts';
 const EMAILJS_PUBLIC_KEY = 'vOG0vTMzPXbHlzn1_';
 const EMAILJS_PRIVATE_KEY = '4GHncW2I1aJuHRNcC5lGU';
 const EMAILJS_USER_ID = 'schedifiy@gmail.com';
@@ -141,21 +141,21 @@ const tableConfig = {
 // Function to diagnose department configuration for null/empty values
 function diagnoseDepartmentConfig() {
     console.log('🔍 Diagnosing department configuration for null/empty values...');
-    
+
     let issuesFound = 0;
     let validDepartments = 0;
-    
+
     for (const [department, config] of Object.entries(departmentConfig)) {
         console.log(`\n📋 Checking ${department}:`);
         console.log(`   Person: "${config.person}"`);
         console.log(`   Email: "${config.email}"`);
-        
+
         // Check for null/empty values
         if (!config.person || config.person.trim() === '') {
             console.log(`   ❌ ISSUE: Person name is empty or null`);
             issuesFound++;
         }
-        
+
         if (!config.email || config.email.trim() === '') {
             console.log(`   ❌ ISSUE: Email is empty or null`);
             issuesFound++;
@@ -171,18 +171,18 @@ function diagnoseDepartmentConfig() {
             }
         }
     }
-    
+
     console.log(`\n📊 DIAGNOSIS SUMMARY:`);
     console.log(`   Total Departments: ${Object.keys(departmentConfig).length}`);
     console.log(`   Valid Departments: ${validDepartments}`);
     console.log(`   Issues Found: ${issuesFound}`);
-    
+
     if (issuesFound === 0) {
         console.log('🎉 No configuration issues found! All departments have valid email addresses.');
     } else {
         console.log('❌ Configuration issues detected! Please fix the above issues.');
     }
-    
+
     return issuesFound === 0;
 }
 
@@ -198,17 +198,18 @@ function isBetweenNineToTenAM() {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
     console.log(`⏰ Current time: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
-    
-    // Check if time is between 09:00 and 11:00 AM
-    return (hours === 9) || (hours === 11 && minutes === 0);
+
+    // Check if time is between 09:00 (540 minutes) and 11:00 (660 minutes)
+    return totalMinutes >= 540 && totalMinutes <= 660;
 }
 
 // Function to check if email was already sent this week
 async function checkEmailSentThisWeek() {
     try {
         const startOfWeek = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD'); // Monday of current week
-        
+
         const { data, error } = await supabase
             .from('schedify_email_logs')
             .select('sent_date')
@@ -222,7 +223,7 @@ async function checkEmailSentThisWeek() {
 
         const emailSentThisWeek = data && data.length > 0;
         console.log(`📧 Email sent this week: ${emailSentThisWeek ? 'YES' : 'NO'}`);
-        
+
         return emailSentThisWeek;
     } catch (error) {
         console.error('❌ Exception checking email log:', error);
@@ -338,7 +339,7 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const trimmedTo = to.trim();
-        
+
         if (!emailRegex.test(trimmedTo)) {
             console.error(`❌ DEBUG: Invalid recipient email format: "${to}"`);
             return { success: false, error: `Invalid recipient email format: "${to}"` };
@@ -382,7 +383,7 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`❌ EmailJS API error response:`, errorText);
-            
+
             // Try to parse the error response
             try {
                 const errorJson = JSON.parse(errorText);
@@ -390,7 +391,7 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
             } catch (e) {
                 console.error(`❌ EmailJS API raw error:`, errorText);
             }
-            
+
             throw new Error(`EmailJS API error: ${response.status} ${response.statusText}`);
         }
 
@@ -407,9 +408,9 @@ async function sendEmailJSEmail(to, cc, subject, htmlContent, department, person
 // Function to send department notification - ENHANCED WITH DEBUGGING
 async function sendDepartmentNotification(department, weekRange) {
     console.log(`\n🔍 DEBUG: Starting notification for ${department}`);
-    
+
     const deptConfig = departmentConfig[department];
-    
+
     if (!deptConfig) {
         console.error(`❌ DEBUG: No configuration found for department: ${department}`);
         return false;
@@ -436,7 +437,7 @@ async function sendDepartmentNotification(department, weekRange) {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const trimmedEmail = deptConfig.email.trim();
-    
+
     if (!emailRegex.test(trimmedEmail)) {
         console.error(`❌ DEBUG: Invalid email format for ${department}: "${deptConfig.email}"`);
         return false;
@@ -448,11 +449,11 @@ async function sendDepartmentNotification(department, weekRange) {
 
     try {
         console.log(`📧 DEBUG: Preparing to send email for ${department} to ${trimmedEmail}`);
-        
+
         const result = await sendEmailJSEmail(
-            trimmedEmail, 
-            DEFAULT_CC_EMAIL, 
-            subject, 
+            trimmedEmail,
+            DEFAULT_CC_EMAIL,
+            subject,
             '', // Empty HTML content since EmailJS uses template
             department,
             deptConfig.person,
@@ -481,7 +482,7 @@ export async function performWeeklyRecordCheck() {
     // Run diagnosis first
     console.log('\n🔍 Running configuration diagnosis...');
     const configValid = diagnoseDepartmentConfig();
-    
+
     if (!configValid) {
         console.error('❌ Configuration issues detected. Aborting weekly check.');
         return {
@@ -523,7 +524,7 @@ export async function performWeeklyRecordCheck() {
     }
 
     console.log('✅ Conditions met: Monday, between 09:00-11:00 AM, no email sent this week');
-    
+
     const { dateRange } = getLast5DaysRange();
     console.log(`📆 Checking last 5 days: ${dateRange}`);
 
@@ -554,7 +555,7 @@ export async function performWeeklyRecordCheck() {
         if (!hasRecords) {
             console.log(`🚨 ${department} has NO records in last 5 days - Sending notification`);
             const notificationSent = await sendDepartmentNotification(department, dateRange);
-            
+
             if (notificationSent) {
                 departmentsNotified++;
                 console.log(`✅ Notification sent successfully for ${department}`);
@@ -584,16 +585,16 @@ export async function performWeeklyRecordCheck() {
 // Scheduler that runs every minute to check if it's Monday between 09:00-11:00 AM
 export function scheduleWeeklyCheck() {
     console.log('⏰ Schedify - Starting weekly check scheduler...');
-    
+
     // Check every minute
     setInterval(async () => {
         const now = new Date();
         const isMondayToday = now.getDay() === 1;
-        const isBetweenNineToTenAMNow = (now.getHours() === 9) || (now.getHours() === 11 && now.getMinutes() === 0);
+        const isBetweenNineToElevenAMNow = (now.getHours() === 9) || (now.getHours() === 10) || (now.getHours() === 11 && now.getMinutes() === 0);
 
-        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00-11:00: ${isBetweenNineToTenAMNow}`);
+        console.log(`⏰ Scheduler check - Monday: ${isMondayToday}, 09:00-11:00: ${isBetweenNineToElevenAMNow}`);
 
-        if (isMondayToday && isBetweenNineToTenAMNow) {
+        if (isMondayToday && isBetweenNineToElevenAMNow) {
             console.log('🎯 Scheduler triggered - Monday between 09:00-11:00 AM detected');
             try {
                 await performWeeklyRecordCheck();
@@ -609,14 +610,14 @@ export function scheduleWeeklyCheck() {
 // Manual trigger for testing (bypasses day/time checks)
 export async function manualTrigger() {
     console.log('🔧 Schedify - Manual trigger activated (bypassing day/time checks)');
-    
+
     // Run diagnosis first
     console.log('\n🔍 Running configuration diagnosis...');
     diagnoseDepartmentConfig();
-    
+
     // Bypass the Monday and time checks for manual testing
     console.log('🚀 Bypassing day/time checks for manual testing');
-    
+
     const { dateRange } = getLast5DaysRange();
     console.log(`📆 Checking last 5 days: ${dateRange}`);
 
@@ -646,7 +647,7 @@ export async function manualTrigger() {
         if (!hasRecords) {
             console.log(`🚨 ${department} has NO records in last 5 days - Sending notification`);
             const notificationSent = await sendDepartmentNotification(department, dateRange);
-            
+
             if (notificationSent) {
                 departmentsNotified++;
                 console.log(`✅ Notification sent successfully for ${department}`);
@@ -662,7 +663,7 @@ export async function manualTrigger() {
     console.log(`📅 Check Period: ${dateRange}`);
     console.log(`🏢 Total Departments Checked: ${totalDepartmentsChecked}`);
     console.log(`📧 Departments Notified: ${departmentsNotified}`);
-    
+
     return {
         status: 'manual_completed',
         departmentsChecked: totalDepartmentsChecked,
