@@ -501,16 +501,6 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
             </Form.Item>
 
             <Form.Item
-                label="Status"
-            >
-                <Input
-                    value={record.status || ''}
-                    onChange={(e) => updateRecord(index, 'status', e.target.value)}
-                    placeholder="Enter status"
-                />
-            </Form.Item>
-
-            <Form.Item
                 label="Priority"
                 required
             >
@@ -714,20 +704,19 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 
             switch (selectedCategory?.id) {
                 case 'meetings':
-                    headers = ['Date*', 'Start Time', 'End Time', 'Type', 'Subject*', 'Status', 'Priority*'];
+                    headers = ['Date*', 'Start Time', 'End Time', 'Type', 'Subject*', 'Priority*'];
                     templateData = [{
                         'Date*': '15/01/2024',
                         'Start Time': '09:00',
                         'End Time': '10:00',
                         'Type': 'Regulatory Review',
                         'Subject*': 'Quarterly Regulatory Meeting',
-                        'Status': 'Scheduled',
                         'Priority*': '3'
                     }];
                     break;
 
                 case 'submissions':
-                    headers = ['Date*', 'Company*', 'Product', 'Principal', 'Type', 'Expire Date', 'Status', 'Priority*'];
+                    headers = ['Date*', 'Company*', 'Product', 'Principal', 'Type', 'Expire Date', 'Priority*'];
                     templateData = [{
                         'Date*': '15/01/2024',
                         'Company*': 'ABC Pharma',
@@ -735,7 +724,6 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                         'Principal': 'Dr. Smith',
                         'Type': 'New Submission',
                         'Expire Date': '15/07/2024',
-                        'Status': 'Pending',
                         'Priority*': '2'
                     }];
                     break;
@@ -2120,7 +2108,7 @@ const Regulatory = () => {
                         { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        
                         priorityColumn,
                         actionColumn
                     ];
@@ -2133,7 +2121,7 @@ const Regulatory = () => {
                         { title: 'Principal', dataIndex: 'principal', key: 'principal', width: 150 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Expire Date', dataIndex: 'expire_date', key: 'expire_date', width: 120 },
-                        { title: 'Status', dataIndex: 'status', key: 'status', width: 100 },
+                        
                         priorityColumn,
                         actionColumn
                     ];
@@ -2160,12 +2148,6 @@ const Regulatory = () => {
                         <Input placeholder="Enter type" />
                     </Form.Item>
 
-                    <Form.Item
-                        name="status"
-                        label="Status"
-                    >
-                        <Input placeholder="Enter status" />
-                    </Form.Item>
 
                     <Form.Item
                         name="priority"
