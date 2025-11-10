@@ -833,7 +833,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return false;
     };
 
-    // Validate Excel data - Enhanced with warnings for consistency
+    // Complete validateExcelData function for ExcelImportModal
     const validateExcelData = (data) => {
         const results = [];
         const validRows = [];
@@ -842,7 +842,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             const errors = [];
             const warnings = [];
             const validatedRow = {
-                department_id: '6e087a71-6f40-49c8-b69d-e435e3a06279', // Regulatory department ID
+                department_id: '6e087a71-6f40-49c8-b69d-e435e3a06279',
                 category_id: selectedCategory.categoryId
             };
 
@@ -852,7 +852,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 'Responsible BDM', 'Responsible BDMs', 'BDM Responsible'
             ];
 
-            const foundBDMColumns = responsibleBDMColumns.filter(col => 
+            const foundBDMColumns = responsibleBDMColumns.filter(col =>
                 row.hasOwnProperty(col) && row[col] !== undefined && row[col] !== null && row[col] !== ''
             );
 
@@ -863,6 +863,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             // Check required fields based on category
             switch (selectedCategory?.id) {
                 case 'meetings':
+                    // Date validation
                     if (!row['Date*'] && !row.Date) {
                         errors.push('Date is required');
                     } else {
@@ -873,16 +874,83 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                             validatedRow.date = date.format('YYYY-MM-DD');
                         }
                     }
-                    if (!row['Subject*'] && !row.Subject) errors.push('Subject is required');
-                    else validatedRow.subject = row['Subject*'] || row.Subject;
 
-                    validatedRow.start_time = row['Start Time'] || '';
-                    validatedRow.end_time = row['End Time'] || '';
+                    // Subject validation
+                    if (!row['Subject*'] && !row.Subject) {
+                        errors.push('Subject is required');
+                    } else {
+                        validatedRow.subject = row['Subject*'] || row.Subject;
+                    }
+
+                    // Start Time validation
+                    if (row['Start Time']) {
+                        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                        const timeStr = row['Start Time'].toString().trim();
+                        if (timeRegex.test(timeStr)) {
+                            validatedRow.start_time = timeStr;
+                        } else {
+                            // Try to parse various time formats
+                            const timeFormats = ['HH:mm', 'HH:mm:ss', 'h:mm A', 'h:mm:ss A'];
+                            let parsedTime = null;
+
+                            for (const format of timeFormats) {
+                                const tempTime = dayjs(timeStr, format, true);
+                                if (tempTime.isValid()) {
+                                    parsedTime = tempTime.format('HH:mm');
+                                    break;
+                                }
+                            }
+
+                            if (parsedTime) {
+                                validatedRow.start_time = parsedTime;
+                                warnings.push(`Start Time "${timeStr}" was converted to "${parsedTime}"`);
+                            } else {
+                                errors.push(`Invalid Start Time format: "${timeStr}". Use HH:mm (e.g., 14:30 or 02:30 PM)`);
+                            }
+                        }
+                    } else {
+                        validatedRow.start_time = '';
+                    }
+
+                    // End Time validation
+                    if (row['End Time']) {
+                        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                        const timeStr = row['End Time'].toString().trim();
+                        if (timeRegex.test(timeStr)) {
+                            validatedRow.end_time = timeStr;
+                        } else {
+                            // Try to parse various time formats
+                            const timeFormats = ['HH:mm', 'HH:mm:ss', 'h:mm A', 'h:mm:ss A'];
+                            let parsedTime = null;
+
+                            for (const format of timeFormats) {
+                                const tempTime = dayjs(timeStr, format, true);
+                                if (tempTime.isValid()) {
+                                    parsedTime = tempTime.format('HH:mm');
+                                    break;
+                                }
+                            }
+
+                            if (parsedTime) {
+                                validatedRow.end_time = parsedTime;
+                                warnings.push(`End Time "${timeStr}" was converted to "${parsedTime}"`);
+                            } else {
+                                errors.push(`Invalid End Time format: "${timeStr}". Use HH:mm (e.g., 15:30 or 03:30 PM)`);
+                            }
+                        }
+                    } else {
+                        validatedRow.end_time = '';
+                    }
+
+                    // Optional fields
                     validatedRow.type = row.Type || '';
                     validatedRow.status = row.Status || 'Scheduled';
+                    validatedRow.remarks = row.Remarks || '';
+
                     break;
 
                 case 'submissions':
+                    // Date validation
                     if (!row['Date*'] && !row.Date) {
                         errors.push('Date is required');
                     } else {
@@ -893,14 +961,22 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                             validatedRow.date = date.format('YYYY-MM-DD');
                         }
                     }
-                    if (!row['Company*'] && !row.Company) errors.push('Company is required');
-                    else validatedRow.company = row['Company*'] || row.Company;
 
+                    // Company validation
+                    if (!row['Company*'] && !row.Company) {
+                        errors.push('Company is required');
+                    } else {
+                        validatedRow.company = row['Company*'] || row.Company;
+                    }
+
+                    // Optional fields
                     validatedRow.product = row.Product || '';
                     validatedRow.principal = row.Principal || '';
                     validatedRow.type = row.Type || '';
                     validatedRow.status = row.Status || 'Pending';
-                    
+                    validatedRow.remarks = row.Remarks || '';
+
+                    // Expire Date validation
                     if (row['Expire Date'] || row['Expire Date*']) {
                         const expireDate = parseDate(row['Expire Date'] || row['Expire Date*']);
                         if (expireDate && expireDate.isValid()) {
@@ -909,23 +985,77 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                             warnings.push('Invalid Expire Date format. Use DD/MM/YYYY or YYYY-MM-DD');
                         }
                     }
+
                     break;
+
+                default:
+                    // Generic validation for other categories
+                    if (!row['Date*'] && !row.Date) {
+                        errors.push('Date is required');
+                    } else {
+                        const date = parseDate(row['Date*'] || row.Date);
+                        if (!date || !date.isValid()) {
+                            errors.push('Invalid Date format. Use DD/MM/YYYY (e.g., 15/01/2024) or YYYY-MM-DD');
+                        } else {
+                            validatedRow.date = date.format('YYYY-MM-DD');
+                        }
+                    }
+                    validatedRow.type = row.Type || '';
+                    validatedRow.status = row.Status || 'Active';
+                    validatedRow.remarks = row.Remarks || '';
             }
 
             // Priority validation
             if (!row.Priority && !row['Priority*']) {
                 errors.push('Priority is required');
             } else {
-                const priority = parseInt(row.Priority || row['Priority*']);
+                const priorityValue = row.Priority || row['Priority*'];
+                const priority = parseInt(priorityValue);
+
                 if (isNaN(priority) || priority < 1 || priority > 5) {
-                    errors.push('Priority must be between 1-5');
+                    // Try to parse priority from text
+                    const priorityText = priorityValue.toString().toLowerCase().trim();
+                    const priorityMap = {
+                        'low': 1, '1': 1,
+                        'normal': 2, '2': 2, 'medium': 2,
+                        'high': 3, '3': 3,
+                        'critical': 4, '4': 4,
+                        'urgent': 5, '5': 5
+                    };
+
+                    if (priorityMap[priorityText] !== undefined) {
+                        validatedRow.priority = priorityMap[priorityText];
+                        warnings.push(`Priority "${priorityValue}" was mapped to value ${priorityMap[priorityText]}`);
+                    } else {
+                        errors.push('Priority must be a number between 1-5 (1=Low, 2=Normal, 3=Medium, 4=High, 5=Critical)');
+                    }
                 } else {
                     validatedRow.priority = priority;
                 }
             }
 
+            // Validate time logic for meetings
+            if (selectedCategory?.id === 'meetings' && validatedRow.start_time && validatedRow.end_time) {
+                const start = dayjs(validatedRow.start_time, 'HH:mm');
+                const end = dayjs(validatedRow.end_time, 'HH:mm');
+
+                if (start.isValid() && end.isValid() && end.isBefore(start)) {
+                    warnings.push('End time is before start time. Please verify the meeting times.');
+                }
+            }
+
+            // Validate date logic for submissions
+            if (selectedCategory?.id === 'submissions' && validatedRow.date && validatedRow.expire_date) {
+                const submissionDate = dayjs(validatedRow.date);
+                const expireDate = dayjs(validatedRow.expire_date);
+
+                if (expireDate.isValid() && expireDate.isBefore(submissionDate)) {
+                    warnings.push('Expire date is before submission date. Please verify the dates.');
+                }
+            }
+
             results.push({
-                row: index + 2,
+                row: index + 2, // +2 because Excel rows start at 1 and we have header at row 1
                 data: validatedRow,
                 errors,
                 warnings,
@@ -1073,8 +1203,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                                         </div>
                                     }
                                     type={
-                                        result.errors.length > 0 ? 'error' : 
-                                        result.warnings.length > 0 ? 'warning' : 'success'
+                                        result.errors.length > 0 ? 'error' :
+                                            result.warnings.length > 0 ? 'warning' : 'success'
                                     }
                                     showIcon
                                     style={{ marginBottom: 8 }}
@@ -1110,8 +1240,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
 };
 
 // Export Button Component - Updated to remove PDF and add Word export
-const ExportButton = ({ 
-    activities = [], 
+const ExportButton = ({
+    activities = [],
     selectedCategory = null,
     moduleName = '',
     priorityLabels = {}
@@ -1263,11 +1393,11 @@ const ExportButton = ({
             }
 
             const headerRow = new TableRow({
-                children: headers.map(header => 
-                    new TableCell({ 
-                        children: [new Paragraph({ 
-                            children: [new TextRun({ text: header, bold: true })] 
-                        })] 
+                children: headers.map(header =>
+                    new TableCell({
+                        children: [new Paragraph({
+                            children: [new TextRun({ text: header, bold: true })]
+                        })]
                     })
                 )
             });
@@ -1329,29 +1459,29 @@ const ExportButton = ({
      * Dropdown menu
      * ----------------------------- */
     const exportItems = [
-        { 
-            key: 'excel', 
-            icon: <FileExcelOutlined />, 
-            label: 'Export to Excel', 
-            onClick: exportToExcel 
+        {
+            key: 'excel',
+            icon: <FileExcelOutlined />,
+            label: 'Export to Excel',
+            onClick: exportToExcel
         },
-        { 
-            key: 'word', 
-            icon: <FileWordOutlined />, 
-            label: 'Export to Word', 
-            onClick: exportToWord 
+        {
+            key: 'word',
+            icon: <FileWordOutlined />,
+            label: 'Export to Word',
+            onClick: exportToWord
         }
     ];
 
     return (
-        <Dropdown 
-            menu={{ items: exportItems }} 
+        <Dropdown
+            menu={{ items: exportItems }}
             placement="bottomRight"
             disabled={activities.length === 0}
         >
-            <Button 
-                type="primary" 
-                icon={<DownloadOutlined />} 
+            <Button
+                type="primary"
+                icon={<DownloadOutlined />}
                 size="large"
                 disabled={activities.length === 0}
             >
@@ -1871,9 +2001,9 @@ const Regulatory = () => {
 
             // Prepare data for submission
             const submitData = validRecords.map(record => {
-                const preparedRecord = { 
+                const preparedRecord = {
                     ...record,
-                    department_id: '6e087a71-6f40-49c8-b69d-e435e3a06279', // Regulatory department ID
+                    department_id: '6e087a71-6f40-49c8-b69d-e435e3a06279',
                     category_id: selectedCategory.categoryId
                 };
 
@@ -1882,7 +2012,18 @@ const Regulatory = () => {
                     try {
                         const value = preparedRecord[key];
                         if (dayjs.isDayjs(value)) {
-                            preparedRecord[key] = value.format('YYYY-MM-DD');
+                            // Handle date fields
+                            if (key === 'date' || key === 'expire_date') {
+                                preparedRecord[key] = value.format('YYYY-MM-DD');
+                            }
+                            // Handle time fields
+                            else if (key === 'start_time' || key === 'end_time') {
+                                preparedRecord[key] = value.format('HH:mm');
+                            }
+                            // For other dayjs fields
+                            else {
+                                preparedRecord[key] = value.format('YYYY-MM-DD');
+                            }
                         }
                     } catch (dateError) {
                         console.warn(`Error converting date field ${key}:`, dateError);
@@ -1974,12 +2115,23 @@ const Regulatory = () => {
             Object.keys(submitData).forEach(key => {
                 try {
                     const value = submitData[key];
+
                     if (dayjs.isDayjs(value)) {
-                        // Convert date to YYYY-MM-DD format
-                        submitData[key] = value.format('YYYY-MM-DD');
+                        // Handle date fields - convert to YYYY-MM-DD format
+                        if (key === 'date' || key === 'expire_date') {
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
+                        // Handle time fields - convert to HH:mm format
+                        else if (key === 'start_time' || key === 'end_time') {
+                            submitData[key] = value.format('HH:mm');
+                        }
+                        // For other dayjs fields, use default format
+                        else {
+                            submitData[key] = value.format('YYYY-MM-DD');
+                        }
                     }
                 } catch (dateError) {
-                    console.warn(`Error converting date field ${key}:`, dateError);
+                    console.warn(`Error converting field ${key}:`, dateError);
                 }
             });
 
@@ -2108,7 +2260,7 @@ const Regulatory = () => {
                         { title: 'End Time', dataIndex: 'end_time', key: 'end_time', width: 100 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 200 },
-                        
+
                         priorityColumn,
                         actionColumn
                     ];
@@ -2121,7 +2273,7 @@ const Regulatory = () => {
                         { title: 'Principal', dataIndex: 'principal', key: 'principal', width: 150 },
                         { title: 'Type', dataIndex: 'type', key: 'type', width: 120 },
                         { title: 'Expire Date', dataIndex: 'expire_date', key: 'expire_date', width: 120 },
-                        
+
                         priorityColumn,
                         actionColumn
                     ];
@@ -2346,8 +2498,8 @@ const Regulatory = () => {
             {/* Header with Controls */}
             <Card
                 size="small"
-                style={{ 
-                    marginBottom: 16, 
+                style={{
+                    marginBottom: 16,
                     backgroundColor: '#fafafa',
                     borderRadius: '12px',
                     border: '2px solid #1890ff20'
@@ -2436,8 +2588,8 @@ const Regulatory = () => {
                     style={{ marginBottom: 24 }}
                     extra={
                         <Space>
-                            <Radio.Group 
-                                value={viewMode} 
+                            <Radio.Group
+                                value={viewMode}
                                 onChange={(e) => setViewMode(e.target.value)}
                                 buttonStyle="solid"
                             >
