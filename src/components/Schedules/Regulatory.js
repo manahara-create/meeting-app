@@ -1422,7 +1422,7 @@ const Regulatory = () => {
             dateField: 'date',
             color: '#1890ff',
             hasTimeFields: true,
-            categoryId: 'meetings_category_id' // Replace with actual category ID
+            categoryId: 'c2d912a2-68ce-4f6f-b751-713b209ef6b5' // Replace with actual category ID
         },
         {
             id: 'submissions',
@@ -1433,7 +1433,7 @@ const Regulatory = () => {
             dateField: 'date',
             color: '#52c41a',
             hasTimeFields: false,
-            categoryId: 'submissions_category_id' // Replace with actual category ID
+            categoryId: '78b5560d-b2e4-461a-aeb4-c46357cfb67a' // Replace with actual category ID
         }
     ];
 

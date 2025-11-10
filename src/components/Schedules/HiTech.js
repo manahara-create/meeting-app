@@ -1786,7 +1786,7 @@ const HiTech = () => {
     const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
 
     // Department ID for HiTech
-    const HITECH_DEPARTMENT_ID = 'your-hitech-department-id-here';
+    const HITECH_DEPARTMENT_ID = '7483633e-a502-4eab-8828-a9d7a6649394';
 
     // HiTech Categories configuration
     const hitechCategories = [
