@@ -1433,7 +1433,7 @@ const Regulatory = () => {
             dateField: 'date',
             color: '#52c41a',
             hasTimeFields: false,
-            categoryId: '78b5560d-b2e4-461a-aeb4-c46357cfb67a' // Replace with actual category ID
+            categoryId: '78b5560d-b2e4-461a-aeb4-c46357cfb67a'
         }
     ];
 
