@@ -688,7 +688,7 @@ const BulkFormFields = ({ records, onChange, category, priorityOptions, safeDayj
     );
 };
 
-// Excel Import Modal Component for SOMT - Updated with consistent styling
+// Excel Import Modal Component for SOMT - Fixed with correct category IDs
 const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplete, allProfiles }) => {
     const [importLoading, setImportLoading] = useState(false);
     const [uploadedData, setUploadedData] = useState([]);
@@ -697,10 +697,10 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
     // Check if category has responsible_sales_person field
     const hasResponsibleSalesPersonField = selectedCategory?.id === 'tender';
 
-    // Download template function - Allow download but exclude responsible_sales_person fields
+    // Download template function
     const downloadTemplate = () => {
         try {
-            // Create template data structure based on category (without responsible_sales_person fields)
+            // Create template data structure based on category
             let templateData = [];
             let headers = [];
 
@@ -738,17 +738,8 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     }];
             }
 
-            // Add important note about responsible sales person
-            const instructions = {
-                'Important Note': 'Responsible Sales Person assignments cannot be set via Excel import. Use the Bulk Records feature to assign sales persons manually.'
-            };
-
             const worksheet = XLSX.utils.json_to_sheet(templateData);
             const workbook = XLSX.utils.book_new();
-
-            // Add instructions sheet
-            const instructionSheet = XLSX.utils.json_to_sheet([instructions]);
-            XLSX.utils.book_append_sheet(workbook, instructionSheet, 'Important Note');
 
             // Add data template sheet
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
@@ -792,7 +783,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return null;
     };
 
-    // Handle file upload - Allow upload but ignore responsible_sales_person fields
+    // Handle file upload
     const handleFileUpload = (file) => {
         setImportLoading(true);
         const reader = new FileReader();
@@ -812,7 +803,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     return;
                 }
 
-                // Validate data (responsible_sales_person fields will be ignored)
+                // Validate data
                 const validatedData = validateExcelData(jsonData);
                 setUploadedData(validatedData.validRows);
                 setValidationResults(validatedData.results);
@@ -834,7 +825,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return false;
     };
 
-    // Validate Excel data - Ignore responsible_sales_person fields
+    // Validate Excel data
     const validateExcelData = (data) => {
         const results = [];
         const validRows = [];
@@ -844,7 +835,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             const warnings = [];
             const validatedRow = {
                 department_id: 'ff865706-9b6b-4754-b499-550092556b19', // SOMT department ID
-                category_id: selectedCategory.categoryId
+                category_id: selectedCategory.categoryId // Use the correct category ID
             };
 
             // Check for responsible_sales_person columns and add warning
@@ -930,7 +921,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
         return { results, validRows };
     };
 
-    // Import validated data - Responsible Sales Person fields are automatically excluded
+    // Import validated data
     const importData = async () => {
         if (uploadedData.length === 0) {
             toast.warning('No valid data to import');
@@ -944,7 +935,10 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                 .insert(uploadedData)
                 .select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase insert error:', error);
+                throw error;
+            }
 
             // Send notifications for each imported record
             for (const record of data) {
@@ -970,7 +964,13 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
             onCancel();
         } catch (error) {
             console.error('Error importing data:', error);
-            toast.error('Failed to import data');
+            
+            // More specific error handling for foreign key constraint
+            if (error.message && error.message.includes('foreign key constraint')) {
+                toast.error(`Foreign key constraint error. Please check if the category ID (${selectedCategory.categoryId}) exists in the categories table.`);
+            } else {
+                toast.error('Failed to import data: ' + error.message);
+            }
         } finally {
             setImportLoading(false);
         }
@@ -1040,7 +1040,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
                     />
                 )}
 
-                {/* Upload Section - Always visible now */}
+                {/* Upload Section */}
                 <Card size="small" title="Upload Excel File">
                     <Upload.Dragger {...uploadProps}>
                         <p className="ant-upload-drag-icon">
@@ -1131,7 +1131,7 @@ const ExcelImportModal = ({ visible, onCancel, selectedCategory, onImportComplet
     );
 };
 
-// Export Button Component - Updated to remove PDF and add Word export
+// Export Button Component
 const ExportButton = ({ 
     activities = [], 
     selectedCategory = null,
@@ -1419,29 +1419,29 @@ const SOMT = () => {
     // Excel Import Modal State
     const [excelImportModalVisible, setExcelImportModalVisible] = useState(false);
 
-    // SOMT Categories configuration
+    // SOMT Categories configuration with CORRECT category IDs
     const somtCategories = [
         {
             id: 'meetings',
-            name: 'Meetings',
+            name: 'SOMT - Meetings',
             table: 'somt_meetings',
             type: 'Meeting',
             icon: <CalendarOutlined />,
             dateField: 'date',
             color: '#fa8c16',
             hasTimeFields: false,
-            categoryId: 'c1d8a5e7-9f3b-4e8a-b6c2-1d4e7f9a8b3c' // Example category ID
+            categoryId: '64de5971-86cd-4b06-b0dc-ede82fe4d80e' // CORRECT Meetings category ID
         },
         {
             id: 'tender',
-            name: 'Tender',
+            name: 'SOMT - Tender',
             table: 'somt_tender',
             type: 'Tender',
             icon: <FileTextOutlined />,
             dateField: 'close_date',
             color: '#1890ff',
             hasTimeFields: true,
-            categoryId: 'd2e9b6f8-a4c3-5f9b-c7d1-2e5f8a9b6c4d' // Example category ID
+            categoryId: 'db016922-bfa5-4ed5-90ba-35ec74c81378' // CORRECT Tender category ID
         }
     ];
 
@@ -1607,7 +1607,7 @@ const SOMT = () => {
         try {
             await Promise.allSettled([
                 fetchCurrentUser(),
-                fetchAllProfiles(), // Updated to fetch all profiles
+                fetchAllProfiles(),
             ]);
 
             // Set default date range after initialization
@@ -1647,7 +1647,7 @@ const SOMT = () => {
         }
     };
 
-    // Updated to fetch all profiles from the database
+    // Fetch all profiles from the database
     const fetchAllProfiles = async () => {
         try {
             const { data, error } = await supabase
@@ -1679,10 +1679,10 @@ const SOMT = () => {
                 .from(selectedCategory.table)
                 .select('*')
                 .eq('department_id', 'ff865706-9b6b-4754-b499-550092556b19') // SOMT department ID
-                .eq('category_id', selectedCategory.categoryId)
+                .eq('category_id', selectedCategory.categoryId) // Use the correct category ID
                 .gte(selectedCategory.dateField, startDate)
                 .lte(selectedCategory.dateField, endDate)
-                .order('priority', { ascending: false }) // Sort by priority (high to low)
+                .order('priority', { ascending: false })
                 .order(selectedCategory.dateField, { ascending: true });
 
             // Apply priority filter if selected
@@ -1746,9 +1746,9 @@ const SOMT = () => {
             safeSetState(setTableData, []);
             safeSetState(setEditingRecord, null);
             safeSetState(setPriorityFilter, null);
-            safeSetState(setViewMode, 'web'); // Reset to web view when category changes
-            safeSetState(setBulkMode, false); // Reset bulk mode when category changes
-            safeSetState(setBulkRecords, [{}]); // Reset bulk records
+            safeSetState(setViewMode, 'web');
+            safeSetState(setBulkMode, false);
+            safeSetState(setBulkRecords, [{}]);
             form.resetFields();
 
             // Set default date range when category is selected
@@ -1889,12 +1889,12 @@ const SOMT = () => {
 
             setLoading(true);
 
-            // Prepare data for submission
+            // Prepare data for submission with CORRECT category IDs
             const submitData = validRecords.map(record => {
                 const preparedRecord = { 
                     ...record,
                     department_id: 'ff865706-9b6b-4754-b499-550092556b19', // SOMT department ID
-                    category_id: selectedCategory.categoryId
+                    category_id: selectedCategory.categoryId // CORRECT category ID
                 };
 
                 // Convert dayjs objects to proper formats
@@ -1922,7 +1922,10 @@ const SOMT = () => {
                 .insert(submitData)
                 .select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Bulk create error:', error);
+                throw error;
+            }
 
             // Send notifications for each created record
             for (const record of data) {
@@ -1946,7 +1949,14 @@ const SOMT = () => {
             fetchTableData();
 
         } catch (error) {
-            handleError(error, 'bulk creating records');
+            console.error('Bulk create detailed error:', error);
+            
+            // Specific error handling for foreign key constraint
+            if (error.message && error.message.includes('foreign key constraint')) {
+                toast.error(`Foreign key constraint error. Please verify the category ID (${selectedCategory.categoryId}) exists in the categories table.`);
+            } else {
+                handleError(error, 'bulk creating records');
+            }
         } finally {
             setLoading(false);
         }
@@ -1987,11 +1997,11 @@ const SOMT = () => {
                 throw new Error('No category selected');
             }
 
-            // Prepare data for submission with proper department_id and category_id
+            // Prepare data for submission with proper department_id and CORRECT category_id
             const submitData = {
                 ...values,
                 department_id: 'ff865706-9b6b-4754-b499-550092556b19', // SOMT department ID
-                category_id: selectedCategory.categoryId
+                category_id: selectedCategory.categoryId // CORRECT category ID
             };
 
             // Convert dayjs objects to proper formats with error handling
@@ -2064,7 +2074,14 @@ const SOMT = () => {
             safeSetState(setModalVisible, false);
             fetchTableData();
         } catch (error) {
-            handleError(error, 'saving record');
+            console.error('Form submit error:', error);
+            
+            // Specific error handling for foreign key constraint
+            if (error.message && error.message.includes('foreign key constraint')) {
+                toast.error(`Foreign key constraint error. Please verify the category ID (${selectedCategory.categoryId}) exists in the categories table.`);
+            } else {
+                handleError(error, 'saving record');
+            }
         }
     };
 
